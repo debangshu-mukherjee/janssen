@@ -41,7 +41,7 @@ BUILDING_DOCS = os.environ.get("BUILDING_DOCS", "").lower() in ("1", "true", "ye
 
 if BUILDING_DOCS:
 
-    def jaxtyped(typechecker: Any = None) -> Callable[[F], F]:
+    def jaxtyped(_typechecker: Any = None) -> Callable[[F], F]:
         """No-op decorator for documentation builds.
 
         Parameters
@@ -82,7 +82,7 @@ else:
         from jaxtyping import jaxtyped
     except ImportError:
 
-        def jaxtyped(typechecker: Any = None) -> Callable[[F], F]:
+        def jaxtyped(_typechecker: Any = None) -> Callable[[F], F]:
             """Fallback no-op decorator when jaxtyping is not installed.
 
             Parameters

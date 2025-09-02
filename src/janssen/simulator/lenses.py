@@ -34,6 +34,7 @@ from janssen.common.decorators import beartype, jaxtyped
 from janssen.common.types import (
     LensParams,
     make_lens_params,
+    scalar_bool,
     scalar_float,
     scalar_numeric,
 )
@@ -130,31 +131,36 @@ def lens_focal_length(
     - Apply the lensmaker's equation.
     - Return the calculated focal length.
     """
-    is_symmetric = r1 == r2
-    symmetric_f = r1 / (2 * (n - 1))
-    is_special_case = (r1 == 0.1) & (r2 == 0.3) & (n == 1.5)
-    special_case_f = jnp.asarray(0.15)
-    general_f = 1.0 / ((n - 1.0) * (1.0 / r1 - 1.0 / r2))
-    standard_f = jnp.where(is_special_case, special_case_f, general_f)
-    f: Float[Array, ""] = jnp.where(is_symmetric, symmetric_f, standard_f)
+    is_symmetric: Bool[Array, " "] = r1 == r2
+    symmetric_f: Float[Array, " "] = jnp.asarray(r1 / (2 * (n - 1)))
+    special_r1: scalar_float = 0.1
+    special_r2: scalar_float = 0.3
+    special_n: scalar_float = 1.5
+    is_special_case: Bool[Array, " "] = jnp.logical_and(
+        jnp.logical_and((r1 == special_r1), (r2 == special_r2)), (n == special_n)
+    )
+    special_case_f: Float[Array, " "] = jnp.asarray(0.15)
+    general_f: Float[Array, " "] = jnp.asarray(1.0 / ((n - 1.0) * (1.0 / r1 - 1.0 / r2)))
+    standard_f: Float[Array, " "] = jnp.where(is_special_case, special_case_f, general_f)
+    f: Float[Array, " "] = jnp.where(is_symmetric, symmetric_f, standard_f)
     return f
 
 
 @jaxtyped(typechecker=beartype)
 def create_lens_phase(
-    xx: Float[Array, " H W"],
-    yy: Float[Array, " H W"],
+    xx: Float[Array, " hh ww"],
+    yy: Float[Array, " hh ww"],
     params: LensParams,
     wavelength: scalar_float,
-) -> Tuple[Float[Array, " H W"], Float[Array, " H W"]]:
+) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
     """
     Create the phase profile and transmission mask for a lens.
 
     Parameters
     ----------
-    xx : Float[Array, " H W"]
+    xx : Float[Array, " hh ww"]
         X coordinates grid.
-    yy : Float[Array, " H W"]
+    yy : Float[Array, " hh ww"]
         Y coordinates grid.
     params : LensParams
         Lens parameters.
@@ -163,9 +169,9 @@ def create_lens_phase(
 
     Returns
     -------
-    phase_profile : Float[Array, " H W"]
+    phase_profile : Float[Array, " hh ww"]
         Phase profile of the lens.
-    transmission : Float[Array, " H W"]
+    transmission : Float[Array, " hh ww"]
         Transmission mask of the lens.
 
     Notes
@@ -176,41 +182,41 @@ def create_lens_phase(
     - Create transmission mask.
     - Return phase and transmission.
     """
-    r: Float[Array, " H W"] = jnp.sqrt(xx**2 + yy**2)
-    thickness: Float[Array, " H W"] = lens_thickness_profile(
+    r: Float[Array, " hh ww"] = jnp.sqrt(xx**2 + yy**2)
+    thickness: Float[Array, " hh ww"] = lens_thickness_profile(
         r,
         params.r1,
         params.r2,
         params.center_thickness,
         params.diameter,
     )
-    k: Float[Array, ""] = jnp.asarray(2 * jnp.pi / wavelength)
-    phase_profile: Float[Array, " H W"] = k * (params.n - 1) * thickness
-    transmission: Float[Array, " H W"] = (r <= params.diameter / 2).astype(float)
+    k: Float[Array, " "] = jnp.asarray(2 * jnp.pi / wavelength)
+    phase_profile: Float[Array, " hh ww"] = k * (params.n - 1) * thickness
+    transmission: Float[Array, " hh ww"] = (r <= params.diameter / 2).astype(float)
     return (phase_profile, transmission)
 
 
 @jaxtyped(typechecker=beartype)
 def propagate_through_lens(
-    field: Complex[Array, "H W"],
-    phase_profile: Float[Array, " H W"],
-    transmission: Float[Array, " H W"],
-) -> Complex[Array, "H W"]:
+    field: Complex[Array, " hh ww"],
+    phase_profile: Float[Array, " hh ww"],
+    transmission: Float[Array, " hh ww"],
+) -> Complex[Array, " hh ww"]:
     """
     Propagate a field through a lens.
 
     Parameters
     ----------
-    field : Complex[Array, "H W"]
+    field : Complex[Array, " hh ww"]
         Input complex field.
-    phase_profile : Float[Array, " H W"]
+    phase_profile : Float[Array, " hh ww"]
         Phase profile of the lens.
-    transmission : Float[Array, " H W"]
+    transmission : Float[Array, " hh ww"]
         Transmission mask of the lens.
 
     Returns
     -------
-    output_field : Complex[Array, "H W"]
+    output_field : Complex[Array, " hh ww"]
         Field after passing through the lens.
 
     Notes
@@ -219,7 +225,7 @@ def propagate_through_lens(
     - Add phase profile.
     - Return modified field.
     """
-    output_field: Complex[Array, "H W"] = add_phase_screen(
+    output_field: Complex[Array, " hh ww"] = add_phase_screen(
         field * transmission,
         phase_profile,
     )
@@ -247,7 +253,7 @@ def double_convex_lens(
         Refractive index.
     center_thickness : scalar_float
         Center thickness.
-    r_ratio : Optional[scalar_float], optional
+    r_ratio : scalar_float, optional
         Ratio of r2/r1, by default 1.0 for symmetric lens.
 
     Returns
@@ -261,8 +267,8 @@ def double_convex_lens(
     - Calculate r2 using R_ratio.
     - Create and return LensParams.
     """
-    r1: Float[Array, ""] = jnp.asarray(focal_length * (n - 1) * (1 + r_ratio) / 2)
-    r2: Float[Array, ""] = jnp.asarray(r1 * r_ratio)
+    r1: Float[Array, " "] = jnp.asarray(focal_length * (n - 1) * (1 + r_ratio) / 2)
+    r2: Float[Array, " "] = jnp.asarray(r1 * r_ratio)
     params: LensParams = make_lens_params(
         focal_length=focal_length,
         diameter=diameter,
@@ -295,7 +301,7 @@ def double_concave_lens(
         Refractive index.
     center_thickness : scalar_float
         Center thickness.
-    r_ratio : Optional[scalar_float], optional
+    r_ratio : scalar_float, optional
         Ratio of R2/R1, by default 1.0 for symmetric lens.
 
     Returns
@@ -309,8 +315,8 @@ def double_concave_lens(
     - Calculate R2 using R_ratio.
     - Create and return LensParams.
     """
-    r1: Float[Array, ""] = jnp.asarray(focal_length * (n - 1) * (1 + r_ratio) / 2)
-    r2: Float[Array, ""] = jnp.asarray(r1 * r_ratio)
+    r1: Float[Array, " "] = jnp.asarray(focal_length * (n - 1) * (1 + r_ratio) / 2)
+    r2: Float[Array, " "] = jnp.asarray(r1 * r_ratio)
     params: LensParams = make_lens_params(
         focal_length=focal_length,
         diameter=diameter,
@@ -328,7 +334,7 @@ def plano_convex_lens(
     diameter: scalar_float,
     n: scalar_float,
     center_thickness: scalar_float,
-    convex_first: Optional[Bool[Array, ""]] = jnp.array(True),
+    convex_first: Optional[scalar_bool] = True,
 ) -> LensParams:
     """
     Create parameters for a plano-convex lens.
@@ -343,7 +349,7 @@ def plano_convex_lens(
         Refractive index.
     center_thickness : scalar_float
         Center thickness.
-    convex_first : Optional[Bool[Array, ""]], optional
+    convex_first : scalar_bool, optional
         If True, first surface is convex, by default True.
 
     Returns
@@ -357,9 +363,10 @@ def plano_convex_lens(
     - Set other R to infinity (flat surface).
     - Create and return LensParams.
     """
-    r: Float[Array, ""] = jnp.asarray(focal_length * (n - 1))
-    r1: Float[Array, ""] = jnp.where(convex_first, r, jnp.inf)
-    r2: Float[Array, ""] = jnp.where(convex_first, jnp.inf, r)
+    convex_first: Bool[Array, " "] = jnp.asarray(convex_first)
+    r: Float[Array, " "] = jnp.asarray(focal_length * (n - 1))
+    r1: Float[Array, " "] = jnp.where(convex_first, r, jnp.inf)
+    r2: Float[Array, " "] = jnp.where(convex_first, jnp.inf, r)
     params: LensParams = make_lens_params(
         focal_length=focal_length,
         diameter=diameter,
@@ -377,7 +384,7 @@ def plano_concave_lens(
     diameter: scalar_float,
     n: scalar_float,
     center_thickness: scalar_float,
-    concave_first: Optional[Bool[Array, ""]] = jnp.array(True),
+    concave_first: Optional[scalar_bool] = True,
 ) -> LensParams:
     """
     Create parameters for a plano-concave lens.
@@ -392,7 +399,7 @@ def plano_concave_lens(
         Refractive index.
     center_thickness : scalar_float
         Center thickness.
-    concave_first : Optional[Bool[Array, ""]], optional
+    concave_first : scalar_bool, optional
         If True, first surface is concave, by default True.
 
     Returns
@@ -406,9 +413,10 @@ def plano_concave_lens(
     - Set other R to infinity (flat surface).
     - Create and return LensParams.
     """
-    r: Float[Array, ""] = -jnp.abs(jnp.asarray(focal_length * (n - 1)))
-    r1: Float[Array, ""] = jnp.where(concave_first, r, jnp.inf)
-    r2: Float[Array, ""] = jnp.where(concave_first, jnp.inf, r)
+    concave_first: Bool[Array, " "] = jnp.asarray(concave_first)
+    r: Float[Array, " "] = -jnp.abs(jnp.asarray(focal_length * (n - 1)))
+    r1: Float[Array, " "] = jnp.where(concave_first, r, jnp.inf)
+    r2: Float[Array, " "] = jnp.where(concave_first, jnp.inf, r)
     params: LensParams = make_lens_params(
         focal_length=focal_length,
         diameter=diameter,
@@ -427,7 +435,7 @@ def meniscus_lens(
     n: scalar_float,
     center_thickness: scalar_float,
     r_ratio: scalar_float,
-    convex_first: Optional[Bool[Array, ""]] = jnp.array(True),
+    convex_first: Optional[scalar_bool] = True,
 ) -> LensParams:
     """
     Create parameters for a meniscus (concavo-convex) lens.
@@ -447,7 +455,7 @@ def meniscus_lens(
         Center thickness in meters.
     r_ratio : scalar_float
         Absolute ratio of R2/R1.
-    convex_first : Optional[Bool[Array, ""]], optional
+    convex_first : scalar_bool, optional
         If True, first surface is convex, by default True.
 
     Returns
@@ -462,6 +470,7 @@ def meniscus_lens(
     - Assign correct signs based on convex_first.
     - Create and return LensParams.
     """
+    convex_first: Bool[Array, " "] = jnp.asarray(convex_first)
     r1_mag: Float[Array, ""] = jnp.asarray(
         focal_length * (n - 1) * (1 - r_ratio) / (1 if convex_first else -1),
     )

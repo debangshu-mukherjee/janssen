@@ -5,16 +5,18 @@ Data structures and type definitions for optical microscopy.
 
 Type Aliases
 ------------
+non_jax_number
+    A type alias for int, float or complex
+scalar_bool
+    A type alias for bool or Bool[Array, " "]
+scalar_complex
+    A type alias for complex or Complex[Array, " "]
 scalar_float
     A type alias for float or Float[Array, " "]
 scalar_integer
     A type alias for int or Int[Array, " "]
-scalar_complex
-    A type alias for complex or Complex[Array, " "]
 scalar_numeric
     A type alias for int, float, complex or Num[Array, " "]
-non_jax_number
-    A type alias for int, float or complex
 
 Classes
 -------
@@ -63,11 +65,12 @@ from janssen.common import beartype, jaxtyped
 
 jax.config.update("jax_enable_x64", True)
 
+non_jax_number: TypeAlias = Union[int, float, complex]
+scalar_bool: TypeAlias = Union[bool, Bool[Array, " "]]
+scalar_complex: TypeAlias = Union[complex, Complex[Array, " "]]
 scalar_float: TypeAlias = Union[float, Float[Array, " "]]
 scalar_integer: TypeAlias = Union[int, Int[Array, " "]]
-scalar_complex: TypeAlias = Union[complex, Complex[Array, " "]]
 scalar_numeric: TypeAlias = Union[int, float, complex, Num[Array, " "]]
-non_jax_number: TypeAlias = Union[int, float, complex]
 
 
 @jaxtyped(typechecker=beartype)

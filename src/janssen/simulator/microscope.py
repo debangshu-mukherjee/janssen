@@ -73,19 +73,20 @@ def lens_propagation(incoming: OpticalWavefront, lens: LensParams) -> OpticalWav
     - Apply the phase screen to the incoming wavefront's field.
     - Return the new optical wavefront with the updated field, wavelength, and pixel size.
     """
-    H: int
-    W: int
-    H, W = incoming.field.shape
-    x: Float[Array, " W"] = jnp.linspace(-W // 2, W // 2 - 1, W) * incoming.dx
-    y: Float[Array, " H"] = jnp.linspace(-H // 2, H // 2 - 1, H) * incoming.dx
-    X: Float[Array, "H W"]
-    Y: Float[Array, "H W"]
-    X, Y = jnp.meshgrid(x, y)
-
-    phase_profile: Float[Array, "H W"]
-    transmission: Float[Array, "H W"]
-    phase_profile, transmission = create_lens_phase(X, Y, lens, incoming.wavelength)
-    transmitted_field: Complex[Array, "H W"] = add_phase_screen(
+    hh: int
+    ww: int
+    hh, ww = incoming.field.shape
+    xline: Float[Array, " ww"] = jnp.linspace(-ww // 2, ww // 2 - 1, ww) * incoming.dx
+    yline: Float[Array, " hh"] = jnp.linspace(-hh // 2, hh // 2 - 1, hh) * incoming.dx
+    xarr: Float[Array, " hh ww"]
+    yarr: Float[Array, " hh ww"]
+    xarr, yarr = jnp.meshgrid(xline, yline)
+    phase_profile: Float[Array, " hh ww"]
+    transmission: Float[Array, " hh ww"]
+    phase_profile, transmission = create_lens_phase(
+        xarr, yarr, lens, incoming.wavelength
+    )
+    transmitted_field: Complex[Array, " hh ww"] = add_phase_screen(
         incoming.field * transmission,
         phase_profile,
     )
@@ -258,9 +259,12 @@ def simple_microscope(
 
     def diffractogram_at_position(
         sample: SampleFunction, this_position: Num[Array, " 2"]
-    ):
+    ) -> Diffractogram:
         x: scalar_numeric
         y: scalar_numeric
+        hh: int
+        ww: int
+        hh, ww = interaction_size
         x, y = this_position
         start_cut_x: Int[Array, ""] = jnp.floor(x - (0.5 * interaction_size[1])).astype(
             int
@@ -268,12 +272,12 @@ def simple_microscope(
         start_cut_y: Int[Array, ""] = jnp.floor(y - (0.5 * interaction_size[0])).astype(
             int
         )
-        cutout_sample: Complex[Array, "H W"] = jax.lax.dynamic_slice(
+        cutout_sample: Complex[Array, " hh ww"] = jax.lax.dynamic_slice(
             sample.sample,
             (start_cut_y, start_cut_x),
             (interaction_size[0], interaction_size[1]),
         )
-        this_sample = make_sample_function(
+        this_sample: SampleFunction = make_sample_function(
             sample=cutout_sample,
             dx=sample.dx,
         )
@@ -288,7 +292,7 @@ def simple_microscope(
         )
         return this_diffractogram.image
 
-    diffraction_images: Float[Array, "n H W"] = jax.vmap(
+    diffraction_images: Float[Array, "n hh ww"] = jax.vmap(
         diffractogram_at_position, in_axes=(None, 0)
     )(sample, pixel_positions)
     combined_data: MicroscopeData = make_microscope_data(
