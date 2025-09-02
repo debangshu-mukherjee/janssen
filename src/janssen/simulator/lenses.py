@@ -31,7 +31,12 @@ from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float
 
 from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import LensParams, make_lens_params, scalar_float, scalar_numeric
+from janssen.common.types import (
+    LensParams,
+    make_lens_params,
+    scalar_float,
+    scalar_numeric,
+)
 
 from .helper import add_phase_screen
 

@@ -113,10 +113,10 @@ def _rotate_coords(
     - Uses cosine and sine to compute the rotation matrix.
     - Returns the rotated coordinates.
     """
-    ct = jnp.cos(theta)
-    st = jnp.sin(theta)
-    uu = (ct * xx) + (st * yy)
-    vv = (ct * yy) - (st * xx)
+    ct: Float[Array, " "] = jnp.cos(theta)
+    st: Float[Array, " "] = jnp.sin(theta)
+    uu: Num[Array, " ..."] = (ct * xx) + (st * yy)
+    vv: Num[Array, " ..."] = (ct * yy) - (st * xx)
     return (uu, vv)
 
 
@@ -297,7 +297,7 @@ def phase_grating_sine(
     """
     Sinusoidal phase grating.
 
-    Phase = depth * sin(2π * u / period), where u is the coordinate 
+    Phase = depth * sin(2π * u / period), where u is the coordinate
     along the grating direction.
 
     Parameters
@@ -477,8 +477,8 @@ def apply_phase_mask(
 
 @jaxtyped(typechecker=beartype)
 def apply_phase_mask_fn(
-    incoming: OpticalWavefront, 
-    phase_fn: Callable[[Float[Array, "H W"], Float[Array, "H W"]], Float[Array, "H W"]]
+    incoming: OpticalWavefront,
+    phase_fn: Callable[[Float[Array, "H W"], Float[Array, "H W"]], Float[Array, "H W"]],
 ) -> OpticalWavefront:
     """
     Build and apply a phase mask from a callable `phase_fn(xx, yy)`.
@@ -535,12 +535,8 @@ def polarizer_jones(
     - Apply P to [ex, ey] at each pixel.
     """
     field = incoming.field
-    assert (
-        field.ndim == 3 and field.shape[-1] == 2
-    ), "polarizer_jones expects field[...,2]"
     ct = jnp.cos(theta)
     st = jnp.sin(theta)
-    # Projection onto axis θ: [ct, st]^T [ct, st]
     ex, ey = field[..., 0], field[..., 1]
     e_par = ex * ct + ey * st
     ex_out = e_par * ct
@@ -551,6 +547,7 @@ def polarizer_jones(
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
+        polarization=True,
     )
 
 
@@ -576,7 +573,7 @@ def waveplate_jones(
 
     Returns
     -------
-    OpticalWavefront
+    jones_wavefront : OpticalWavefront
         Retarded field with same shape.
 
     Notes
@@ -584,41 +581,35 @@ def waveplate_jones(
     - Jones matrix: J = R(-θ) @ diag(1, e^{iδ}) @ R(θ).
     - Apply J to [ex, ey] per pixel.
     """
-    field = incoming.field
-    assert (
-        field.ndim == 3 and field.shape[-1] == 2
-    ), "waveplate_jones expects field[...,2]"
-
-    ct = jnp.cos(theta)
-    st = jnp.sin(theta)
-    e = jnp.exp(1j * delta)
-
-    # Expanded multiplication of J with [ex, ey]
-    # J = [[ct^2 + e*st^2, (1 - e)*ct*st],
-    #      [(1 - e)*ct*st, st^2 + e*ct^2]]
+    field: Complex[Array, " hh ww 2"] = incoming.field
+    ct: Float[Array, " "] = jnp.cos(theta)
+    st: Float[Array, " "] = jnp.sin(theta)
+    e: Complex[Array, " "] = jnp.exp(1j * delta)
+    ex: Complex[Array, " hh ww"]
+    ey: Complex[Array, " hh ww"]
     ex, ey = field[..., 0], field[..., 1]
-    a = ct * ct + e * st * st
-    b = (1.0 - e) * ct * st
-    c = b
-    d = st * st + e * ct * ct
-
-    ex_out = a * ex + b * ey
-    ey_out = c * ex + d * ey
-    field_out = jnp.stack([ex_out, ey_out], axis=-1)
-
-    return make_optical_wavefront(
+    a: Complex[Array, " hh ww"] = (ct * ct) + (e * st * st)
+    b: Complex[Array, " hh ww"] = (1.0 - e) * ct * st
+    c: Complex[Array, " hh ww"] = b
+    d: Complex[Array, " hh ww"] = (st * st) + (e * ct * ct)
+    ex_out: Complex[Array, " hh ww"] = (a * ex) + (b * ey)
+    ey_out: Complex[Array, " hh ww"] = (c * ex) + (d * ey)
+    field_out: Complex[Array, " hh ww 2"] = jnp.stack([ex_out, ey_out], axis=-1)
+    jones_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
+        polarization=True,
     )
+    return jones_wavefront
 
 
 @jaxtyped(typechecker=beartype)
 def nd_filter(
     incoming: OpticalWavefront,
-    optical_density: Optional[scalar_float] = None,
-    transmittance: Optional[scalar_float] = None,
+    optical_density: Optional[scalar_float] = 0.0,
+    transmittance: Optional[scalar_float] = -1.0,
 ) -> OpticalWavefront:
     """
     Neutral density (ND) filter as a uniform amplitude attenuator.
@@ -627,14 +618,16 @@ def nd_filter(
     ----------
     incoming : OpticalWavefront
         Input field.
-    optical_density : Optional[scalar_float], optional
-        OD; intensity transmittance T = 10^(-OD). If given, overrides `transmittance`.
-    transmittance : Optional[scalar_float], optional
-        Intensity transmittance T in [0, 1]. Used if `optical_density` is None.
+    optical_density : scalar_float, optional
+        OD; intensity transmittance T = 10^(-OD).
+        If given, overrides `transmittance`. Default is 0.0.
+    transmittance : scalar_float, optional
+        Intensity transmittance T in [0, 1].
+        Used if `optical_density` is 0.
 
     Returns
     -------
-    OpticalWavefront
+    nd_wavefront : OpticalWavefront
         Attenuated wavefront.
 
     Notes
@@ -643,28 +636,26 @@ def nd_filter(
     - Amplitude factor a = sqrt(T).
     - Multiply field by a and return.
     """
-    if optical_density is not None:
-        tt = jnp.power(10.0, -jnp.asarray(optical_density))
-    else:
-        tt = jnp.clip(
-            jnp.asarray(transmittance if transmittance is not None else 1.0), 0.0, 1.0
-        )
-
+    tt = jax.lax.cond(
+        optical_density != 0,
+        lambda: jnp.power(10.0, -jnp.asarray(optical_density)),
+        lambda: jnp.clip(jnp.asarray(transmittance), 0.0, 1.0),
+    )
     a = jnp.sqrt(tt).astype(incoming.field.real.dtype)
     field_out = incoming.field * a
-
-    return make_optical_wavefront(
+    nd_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
+    return nd_wavefront
 
 
 @jaxtyped(typechecker=beartype)
 def quarter_waveplate(
     incoming: OpticalWavefront,
-    theta: scalar_float = 0.0,
+    theta: Optional[scalar_float] = 0.0,
 ) -> OpticalWavefront:
     """
     Convenience wrapper for a quarter-wave plate (δ = π/2) with fast-axis angle `theta`.
@@ -678,20 +669,23 @@ def quarter_waveplate(
 
     Returns
     -------
-    OpticalWavefront
+    qw_wavefront : OpticalWavefront
         Retarded field after quarter-wave plate.
 
     Notes
     -----
     Call `waveplate_jones` with delta = π/2.
     """
-    return waveplate_jones(incoming, delta=jnp.pi / 2.0, theta=theta)
+    qw_wavefront: OpticalWavefront = waveplate_jones(
+        incoming, delta=jnp.pi / 2.0, theta=theta
+    )
+    return qw_wavefront
 
 
 @jaxtyped(typechecker=beartype)
 def half_waveplate(
     incoming: OpticalWavefront,
-    theta: scalar_float = 0.0,
+    theta: Optional[scalar_float] = 0.0,
 ) -> OpticalWavefront:
     """
     Convenience wrapper for a half-wave plate (δ = π) with fast-axis angle `theta`.
@@ -705,14 +699,17 @@ def half_waveplate(
 
     Returns
     -------
-    OpticalWavefront
+    hw_wavefront : OpticalWavefront
         Retarded field after half-wave plate.
 
     Notes
     -----
     Call `waveplate_jones` with delta = π.
     """
-    return waveplate_jones(incoming, delta=jnp.pi, theta=theta)
+    hw_wavefront: OpticalWavefront = waveplate_jones(
+        incoming, delta=jnp.pi, theta=theta
+    )
+    return hw_wavefront
 
 
 @jaxtyped(typechecker=beartype)
@@ -720,9 +717,9 @@ def phase_grating_blazed_elliptical(
     incoming: OpticalWavefront,
     period_x: scalar_float,
     period_y: scalar_float,
-    theta: scalar_float = 0.0,
-    depth: scalar_float = 2.0 * jnp.pi,
-    two_dim: bool = False,
+    theta: Optional[scalar_float] = 0.0,
+    depth: Optional[scalar_float] = 2.0 * jnp.pi,
+    two_dim: Optional[bool] = False,
 ) -> OpticalWavefront:
     """
     Orientation-aware elliptical blazed grating.
@@ -747,7 +744,7 @@ def phase_grating_blazed_elliptical(
 
     Returns
     -------
-    OpticalWavefront
+    phase_grating_wavefront : OpticalWavefront
         Field after applying the elliptical blazed phase.
 
     Notes
@@ -761,21 +758,17 @@ def phase_grating_blazed_elliptical(
     ny, nx = incoming.field.shape[:2]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
     uu, vv = _rotate_coords(xx, yy, theta)
-
-    # Avoid division by zero periods
     eps = 1e-30
     px = jnp.where(jnp.abs(period_x) < eps, eps, period_x)
     py = jnp.where(jnp.abs(period_y) < eps, eps, period_y)
-
     fu = (uu / px) - jnp.floor(uu / px)  # in [0,1)
     fv = (vv / py) - jnp.floor(vv / py)  # in [0,1)
-
     phase = depth * ((fu + fv) - jnp.floor(fu + fv)) if two_dim else depth * fu
-
     field_out = add_phase_screen(incoming.field, phase)
-    return make_optical_wavefront(
+    phase_grating_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
+    return phase_grating_wavefront

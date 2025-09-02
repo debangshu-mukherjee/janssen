@@ -54,10 +54,10 @@ NamedTuple classes to ensure proper runtime type checking of the contents.
 
 import jax
 import jax.numpy as jnp
-from beartype.typing import NamedTuple, Tuple, TypeAlias, Union
+from beartype.typing import NamedTuple, Optional, Tuple, TypeAlias, Union
 from jax import lax
 from jax.tree_util import register_pytree_node_class
-from jaxtyping import Array, Complex, Float, Int, Num
+from jaxtyping import Array, Bool, Complex, Float, Int, Num
 
 from janssen.common import beartype, jaxtyped
 
@@ -104,7 +104,19 @@ class LensParams(NamedTuple):
     r1: scalar_float
     r2: scalar_float
 
-    def tree_flatten(self):
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            scalar_float,
+        ],
+        None,
+    ]:
         return (
             (
                 self.focal_length,
@@ -118,7 +130,18 @@ class LensParams(NamedTuple):
         )
 
     @classmethod
-    def tree_unflatten(cls, aux_data, children):
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            scalar_float,
+        ],
+    ) -> "LensParams":
         return cls(*children)
 
 
@@ -129,13 +152,13 @@ class GridParams(NamedTuple):
 
     Attributes
     ----------
-    xx : Float[Array, "H W"]
+    xx : Float[Array, " hh ww"]
         Spatial grid in the x-direction
-    yy : Float[Array, "H W"]
+    yy : Float[Array, " hh ww"]
         Spatial grid in the y-direction
-    phase_profile : Float[Array, "H W"]
+    phase_profile : Float[Array, " hh ww"]
         Phase profile of the optical field
-    transmission : Float[Array, "H W"]
+    transmission : Float[Array, " hh ww"]
         Transmission profile of the optical field
 
     Notes
@@ -146,12 +169,22 @@ class GridParams(NamedTuple):
     data is stored in JAX arrays.
     """
 
-    xx: Float[Array, "H W"]
-    yy: Float[Array, "H W"]
-    phase_profile: Float[Array, "H W"]
-    transmission: Float[Array, "H W"]
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
+    phase_profile: Float[Array, " hh ww"]
+    transmission: Float[Array, " hh ww"]
 
-    def tree_flatten(self):
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+        ],
+        None,
+    ]:
         return (
             (
                 self.xx,
@@ -163,7 +196,16 @@ class GridParams(NamedTuple):
         )
 
     @classmethod
-    def tree_unflatten(cls, aux_data, children):
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+        ],
+    ) -> "GridParams":
         return cls(*children)
 
 
@@ -174,34 +216,60 @@ class OpticalWavefront(NamedTuple):
 
     Attributes
     ----------
-    field : Complex[Array, "H W"]
-        Complex amplitude of the optical field.
+    field : Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
+        Complex amplitude of the optical field. Can be scalar (H, W) or
+        polarized with two components (H, W, 2).
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters.
     dx : scalar_float
         Spatial sampling interval (grid spacing) in meters.
     z_position : scalar_float
         Axial position of the wavefront along the propagation direction in meters.
+    polarization : bool
+        Whether the field is polarized (True for 3D field, False for 2D field).
     """
 
-    field: Complex[Array, "H W"]
+    field: Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
     wavelength: scalar_float
     dx: scalar_float
     z_position: scalar_float
+    polarization: bool
 
-    def tree_flatten(self):
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            bool,
+        ],
+        None,
+    ]:
         return (
             (
                 self.field,
                 self.wavelength,
                 self.dx,
                 self.z_position,
+                self.polarization,
             ),
             None,
         )
 
     @classmethod
-    def tree_unflatten(cls, aux_data, children):
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
+            scalar_float,
+            scalar_float,
+            scalar_float,
+            bool,
+        ],
+    ) -> "OpticalWavefront":
         return cls(*children)
 
 
@@ -212,9 +280,9 @@ class MicroscopeData(NamedTuple):
 
     Attributes
     ----------
-    image_data : Float[Array, "P H W"] | Float[Array, "X Y H W"]
+    image_data : Float[Array, " pp hh ww"] | Float[Array, " xx yy hh ww"]
         3D or 4D image data representing the optical field.
-    positions : Num[Array, " P 2"]
+    positions : Num[Array, " pp 2"]
         Positions of the images during collection.
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters.
@@ -222,12 +290,22 @@ class MicroscopeData(NamedTuple):
         Spatial sampling interval (grid spacing) in meters.
     """
 
-    image_data: Union[Float[Array, "P H W"], Float[Array, "X Y H W"]]
-    positions: Num[Array, " P 2"]
+    image_data: Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]]
+    positions: Num[Array, " pp 2"]
     wavelength: scalar_float
     dx: scalar_float
 
-    def tree_flatten(self):
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]],
+            Num[Array, " pp 2"],
+            scalar_float,
+            scalar_float,
+        ],
+        None,
+    ]:
         return (
             (
                 self.image_data,
@@ -239,7 +317,16 @@ class MicroscopeData(NamedTuple):
         )
 
     @classmethod
-    def tree_unflatten(cls, aux_data, children):
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]],
+            Num[Array, " pp 2"],
+            scalar_float,
+            scalar_float,
+        ],
+    ) -> "MicroscopeData":
         return cls(*children)
 
 
@@ -250,16 +337,18 @@ class SampleFunction(NamedTuple):
 
     Attributes
     ----------
-    sample : Complex[Array, "H W"]
+    sample : Complex[Array, " hh ww"]
         The sample function.
     dx : scalar_float
         Spatial sampling interval (grid spacing) in meters.
     """
 
-    sample: Complex[Array, "H W"]
+    sample: Complex[Array, " hh ww"]
     dx: scalar_float
 
-    def tree_flatten(self):
+    def tree_flatten(
+        self,
+    ) -> Tuple[Tuple[Complex[Array, " hh ww"], scalar_float], None]:
         return (
             (
                 self.sample,
@@ -269,7 +358,9 @@ class SampleFunction(NamedTuple):
         )
 
     @classmethod
-    def tree_unflatten(cls, aux_data, children):
+    def tree_unflatten(
+        cls, _aux_data: None, children: Tuple[Complex[Array, " hh ww"], scalar_float]
+    ) -> "SampleFunction":
         return cls(*children)
 
 
@@ -280,7 +371,7 @@ class Diffractogram(NamedTuple):
 
     Attributes
     ----------
-    image : Float[Array, "H W"]
+    image : Float[Array, " hh ww"]
         Image data.
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters.
@@ -288,11 +379,13 @@ class Diffractogram(NamedTuple):
         Spatial sampling interval (grid spacing) in meters.
     """
 
-    image: Float[Array, "H W"]
+    image: Float[Array, " hh ww"]
     wavelength: scalar_float
     dx: scalar_float
 
-    def tree_flatten(self):
+    def tree_flatten(
+        self,
+    ) -> Tuple[Tuple[Float[Array, " hh ww"], scalar_float, scalar_float], None]:
         return (
             (
                 self.image,
@@ -303,7 +396,11 @@ class Diffractogram(NamedTuple):
         )
 
     @classmethod
-    def tree_unflatten(cls, aux_data, children):
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[Float[Array, " hh ww"], scalar_float, scalar_float],
+    ) -> "Diffractogram":
         return cls(*children)
 
 
@@ -335,7 +432,7 @@ def make_lens_params(
 
     Returns
     -------
-    LensParams
+    validated_lens_params : LensParams
         Validated lens parameters instance
 
     Raises
@@ -363,8 +460,8 @@ def make_lens_params(
     r1 = jnp.asarray(r1, dtype=jnp.float64)
     r2 = jnp.asarray(r2, dtype=jnp.float64)
 
-    def validate_and_create():
-        def check_focal_length():
+    def validate_and_create() -> LensParams:
+        def check_focal_length() -> Float[Array, " "]:
             return lax.cond(
                 focal_length > 0,
                 lambda: focal_length,
@@ -373,7 +470,7 @@ def make_lens_params(
                 ),
             )
 
-        def check_diameter():
+        def check_diameter() -> Float[Array, " "]:
             return lax.cond(
                 diameter > 0,
                 lambda: diameter,
@@ -382,14 +479,14 @@ def make_lens_params(
                 ),
             )
 
-        def check_refractive_index():
+        def check_refractive_index() -> Float[Array, " "]:
             return lax.cond(
                 n > 0,
                 lambda: n,
                 lambda: lax.stop_gradient(lax.cond(False, lambda: n, lambda: n)),
             )
 
-        def check_center_thickness():
+        def check_center_thickness() -> Float[Array, " "]:
             return lax.cond(
                 center_thickness > 0,
                 lambda: center_thickness,
@@ -398,7 +495,7 @@ def make_lens_params(
                 ),
             )
 
-        def check_radii_finite():
+        def check_radii_finite() -> Tuple[Float[Array, " "], Float[Array, " "]]:
             return lax.cond(
                 jnp.logical_and(jnp.isfinite(r1), jnp.isfinite(r2)),
                 lambda: (r1, r2),
@@ -422,32 +519,33 @@ def make_lens_params(
             r2=r2,
         )
 
-    return validate_and_create()
+    validated_lens_params: LensParams = validate_and_create()
+    return validated_lens_params
 
 
 @jaxtyped(typechecker=beartype)
 def make_grid_params(
-    xx: Float[Array, "H W"],
-    yy: Float[Array, "H W"],
-    phase_profile: Float[Array, "H W"],
-    transmission: Float[Array, "H W"],
+    xx: Float[Array, " hh ww"],
+    yy: Float[Array, " hh ww"],
+    phase_profile: Float[Array, " hh ww"],
+    transmission: Float[Array, " hh ww"],
 ) -> GridParams:
     """JAX-safe factory function for GridParams with data validation.
 
     Parameters
     ----------
-    xx : Float[Array, "H W"]
+    xx : Float[Array, " hh ww"]
         Spatial grid in the x-direction
-    yy : Float[Array, "H W"]
+    yy : Float[Array, " hh ww"]
         Spatial grid in the y-direction
-    phase_profile : Float[Array, "H W"]
+    phase_profile : Float[Array, " hh ww"]
         Phase profile of the optical field
-    transmission : Float[Array, "H W"]
+    transmission : Float[Array, " hh ww"]
         Transmission profile of the optical field
 
     Returns
     -------
-    GridParams
+    validated_grid_params : GridParams
         Validated grid parameters instance
 
     Raises
@@ -474,31 +572,24 @@ def make_grid_params(
     phase_profile = jnp.asarray(phase_profile, dtype=jnp.float64)
     transmission = jnp.asarray(transmission, dtype=jnp.float64)
 
-    def validate_and_create():
-        H, W = xx.shape
+    def validate_and_create() -> GridParams:
+        array_dims: int = 2
+        hh: int
+        ww: int
+        hh, ww = xx.shape
 
-        def check_2d_arrays():
+        def check_2d_arrays() -> Tuple[
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+        ]:
             return lax.cond(
                 jnp.logical_and(
-                    jnp.logical_and(xx.ndim == 2, yy.ndim == 2),
-                    jnp.logical_and(phase_profile.ndim == 2, transmission.ndim == 2),
-                ),
-                lambda: (xx, yy, phase_profile, transmission),
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: (xx, yy, phase_profile, transmission),
-                        lambda: (xx, yy, phase_profile, transmission),
-                    )
-                ),
-            )
-
-        def check_same_shape():
-            return lax.cond(
-                jnp.logical_and(
-                    jnp.logical_and(xx.shape == (H, W), yy.shape == (H, W)),
+                    jnp.logical_and(xx.ndim == array_dims, yy.ndim == array_dims),
                     jnp.logical_and(
-                        phase_profile.shape == (H, W), transmission.shape == (H, W)
+                        phase_profile.ndim == array_dims,
+                        transmission.ndim == array_dims,
                     ),
                 ),
                 lambda: (xx, yy, phase_profile, transmission),
@@ -511,7 +602,30 @@ def make_grid_params(
                 ),
             )
 
-        def check_transmission_range():
+        def check_same_shape() -> Tuple[
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+        ]:
+            return lax.cond(
+                jnp.logical_and(
+                    jnp.logical_and(xx.shape == (hh, ww), yy.shape == (hh, ww)),
+                    jnp.logical_and(
+                        phase_profile.shape == (hh, ww), transmission.shape == (hh, ww)
+                    ),
+                ),
+                lambda: (xx, yy, phase_profile, transmission),
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False,
+                        lambda: (xx, yy, phase_profile, transmission),
+                        lambda: (xx, yy, phase_profile, transmission),
+                    )
+                ),
+            )
+
+        def check_transmission_range() -> Float[Array, " hh ww"]:
             return lax.cond(
                 jnp.logical_and(jnp.all(transmission >= 0), jnp.all(transmission <= 1)),
                 lambda: transmission,
@@ -520,7 +634,7 @@ def make_grid_params(
                 ),
             )
 
-        def check_phase_finite():
+        def check_phase_finite() -> Float[Array, " hh ww"]:
             return lax.cond(
                 jnp.all(jnp.isfinite(phase_profile)),
                 lambda: phase_profile,
@@ -529,7 +643,9 @@ def make_grid_params(
                 ),
             )
 
-        def check_grid_finite():
+        def check_grid_finite() -> (
+            Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]
+        ):
             return lax.cond(
                 jnp.logical_and(jnp.all(jnp.isfinite(xx)), jnp.all(jnp.isfinite(yy))),
                 lambda: (xx, yy),
@@ -551,32 +667,38 @@ def make_grid_params(
             transmission=transmission,
         )
 
-    return validate_and_create()
+    validated_grid_params: GridParams = validate_and_create()
+    return validated_grid_params
 
 
 @jaxtyped(typechecker=beartype)
 def make_optical_wavefront(
-    field: Complex[Array, " hh ww"],
+    field: Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
     wavelength: scalar_float,
     dx: scalar_float,
     z_position: scalar_float,
+    polarization: Optional[bool] = False,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data validation.
 
     Parameters
     ----------
-    field : Complex[Array, " hh ww"]
-        Complex amplitude of the optical field
+    field : Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
+       Complex amplitude of the optical field. Should be 2D for scalar fields
+       or 3D with last dimension 2 for polarized fields.
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters
     dx : scalar_float
         Spatial sampling interval (grid spacing) in meters
     z_position : scalar_float
         Axial position of the wavefront along the propagation direction in meters
+    polarization : bool, optional
+        Whether the field is polarized (True for 3D field, False for 2D field).
+        Default is False.
 
     Returns
     -------
-    OpticalWavefront
+    validated_optical_wavefront : OpticalWavefront
         Validated optical wavefront instance
 
     Raises
@@ -602,18 +724,45 @@ def make_optical_wavefront(
     wavelength: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     z_position: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
+    polarization: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
 
-    def validate_and_create():
-        def check_2d_field():
+    def validate_and_create() -> OpticalWavefront:
+        def check_field_dimensions() -> (
+            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
+        ):
+            non_polar_dimensions: int = 2
+            polar_dimensions: int = 3
+
+            def check_polarized() -> Complex[Array, " hh ww 2"]:
+                return lax.cond(
+                    jnp.logical_and(
+                        field.ndim == polar_dimensions,
+                        field.shape[-1] == non_polar_dimensions,
+                    ),
+                    lambda: field,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: field, lambda: field)
+                    ),
+                )
+
+            def check_scalar() -> Complex[Array, " hh ww"]:
+                return lax.cond(
+                    field.ndim == non_polar_dimensions,
+                    lambda: field,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: field, lambda: field)
+                    ),
+                )
+
             return lax.cond(
-                field.ndim == 2,
-                lambda: field,
-                lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: field, lambda: field)
-                ),
+                polarization,
+                check_polarized,
+                check_scalar,
             )
 
-        def check_field_finite():
+        def check_field_finite() -> (
+            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
+        ):
             return lax.cond(
                 jnp.all(jnp.isfinite(field)),
                 lambda: field,
@@ -622,7 +771,7 @@ def make_optical_wavefront(
                 ),
             )
 
-        def check_wavelength():
+        def check_wavelength() -> Float[Array, " "]:
             return lax.cond(
                 wavelength > 0,
                 lambda: wavelength,
@@ -631,14 +780,14 @@ def make_optical_wavefront(
                 ),
             )
 
-        def check_dx():
+        def check_dx() -> Float[Array, " "]:
             return lax.cond(
                 dx > 0,
                 lambda: dx,
                 lambda: lax.stop_gradient(lax.cond(False, lambda: dx, lambda: dx)),
             )
 
-        def check_z_position():
+        def check_z_position() -> Float[Array, " "]:
             return lax.cond(
                 jnp.isfinite(z_position),
                 lambda: z_position,
@@ -647,7 +796,7 @@ def make_optical_wavefront(
                 ),
             )
 
-        check_2d_field()
+        check_field_dimensions()
         check_field_finite()
         check_wavelength()
         check_dx()
@@ -658,9 +807,11 @@ def make_optical_wavefront(
             wavelength=wavelength,
             dx=dx,
             z_position=z_position,
+            polarization=polarization,
         )
 
-    return validate_and_create()
+    validated_optical_wavefront: OpticalWavefront = validate_and_create()
+    return validated_optical_wavefront
 
 
 @jaxtyped(typechecker=beartype)
@@ -685,7 +836,7 @@ def make_microscope_data(
 
     Returns
     -------
-    MicroscopeData
+    validated_microscope_data : MicroscopeData
         Validated microscope data instance
 
     Raises
@@ -852,12 +1003,13 @@ def make_microscope_data(
             dx=dx,
         )
 
-    return validate_and_create()
+    validated_microscope_data: MicroscopeData = validate_and_create()
+    return validated_microscope_data
 
 
 @jaxtyped(typechecker=beartype)
 def make_diffractogram(
-    image: Float[Array, "H W"],
+    image: Float[Array, " hh ww"],
     wavelength: scalar_float,
     dx: scalar_float,
 ) -> Diffractogram:
@@ -865,7 +1017,7 @@ def make_diffractogram(
 
     Parameters
     ----------
-    image : Float[Array, "H W"]
+    image : Float[Array, " hh ww"]
         Image data
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters
@@ -874,7 +1026,7 @@ def make_diffractogram(
 
     Returns
     -------
-    Diffractogram
+    validated_diffractogram : Diffractogram
         Validated diffractogram instance
 
     Raises
@@ -956,26 +1108,27 @@ def make_diffractogram(
             dx=dx,
         )
 
-    return validate_and_create()
+    validated_diffractogram: Diffractogram = validate_and_create()
+    return validated_diffractogram
 
 
 @jaxtyped(typechecker=beartype)
 def make_sample_function(
-    sample: Complex[Array, "H W"],
+    sample: Complex[Array, " hh ww"],
     dx: scalar_float,
 ) -> SampleFunction:
     """JAX-safe factory function for SampleFunction with data validation.
 
     Parameters
     ----------
-    sample : Complex[Array, "H W"]
+    sample : Complex[Array, " hh ww"]
         The sample function
     dx : scalar_float
         Spatial sampling interval (grid spacing) in meters
 
     Returns
     -------
-    SampleFunction
+    validated_sample_function : SampleFunction
         Validated sample function instance
 
     Raises
@@ -995,12 +1148,12 @@ def make_sample_function(
         - Check dx is positive
     - Create and return SampleFunction instance
     """
-    sample: Complex[Array, "H W"] = jnp.asarray(sample, dtype=jnp.complex128)
+    sample: Complex[Array, " hh ww"] = jnp.asarray(sample, dtype=jnp.complex128)
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     expected_sample_dim: int = 2
 
     def validate_and_create() -> SampleFunction:
-        def check_2d_sample() -> Complex[Array, "H W"]:
+        def check_2d_sample() -> Complex[Array, " hh ww"]:
             return lax.cond(
                 sample.ndim == expected_sample_dim,
                 lambda: sample,
@@ -1009,7 +1162,7 @@ def make_sample_function(
                 ),
             )
 
-        def check_sample_finite() -> Complex[Array, "H W"]:
+        def check_sample_finite() -> Complex[Array, " hh ww"]:
             return lax.cond(
                 jnp.all(jnp.isfinite(sample)),
                 lambda: sample,
@@ -1034,4 +1187,5 @@ def make_sample_function(
             dx=dx,
         )
 
-    return validate_and_create()
+    validated_sample_function: SampleFunction = validate_and_create()
+    return validated_sample_function
