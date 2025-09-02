@@ -80,17 +80,17 @@ class LensParams(NamedTuple):
 
     Attributes
     ----------
-    focal_length : scalar_float
+    focal_length : Float[Array, " "]
         Focal length of the lens in meters
-    diameter : scalar_float
+    diameter : Float[Array, " "]
         Diameter of the lens in meters
-    n : scalar_float
+    n : Float[Array, " "]
         Refractive index of the lens material
-    center_thickness : scalar_float
+    center_thickness : Float[Array, " "]
         Thickness at the center of the lens in meters
-    r1 : scalar_float
+    r1 : Float[Array, " "]
         Radius of curvature of the first surface in meters (positive for convex)
-    r2 : scalar_float
+    r2 : Float[Array, " "]
         Radius of curvature of the second surface in meters (positive for convex)
 
     Notes
@@ -100,23 +100,23 @@ class LensParams(NamedTuple):
     data is stored in JAX arrays.
     """
 
-    focal_length: scalar_float
-    diameter: scalar_float
-    n: scalar_float
-    center_thickness: scalar_float
-    r1: scalar_float
-    r2: scalar_float
+    focal_length: Float[Array, " "]
+    diameter: Float[Array, " "]
+    n: Float[Array, " "]
+    center_thickness: Float[Array, " "]
+    r1: Float[Array, " "]
+    r2: Float[Array, " "]
 
     def tree_flatten(
         self,
     ) -> Tuple[
         Tuple[
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            scalar_float,
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
         ],
         None,
     ]:
@@ -137,12 +137,12 @@ class LensParams(NamedTuple):
         cls,
         _aux_data: None,
         children: Tuple[
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            scalar_float,
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
         ],
     ) -> "LensParams":
         return cls(*children)
@@ -222,31 +222,31 @@ class OpticalWavefront(NamedTuple):
     field : Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
         Complex amplitude of the optical field. Can be scalar (H, W) or
         polarized with two components (H, W, 2).
-    wavelength : scalar_float
+    wavelength : Float[Array, " "]
         Wavelength of the optical wavefront in meters.
-    dx : scalar_float
+    dx : Float[Array, " "]
         Spatial sampling interval (grid spacing) in meters.
-    z_position : scalar_float
+    z_position : Float[Array, " "]
         Axial position of the wavefront along the propagation direction in meters.
-    polarization : bool
+    polarization : Bool[Array, " "]
         Whether the field is polarized (True for 3D field, False for 2D field).
     """
 
     field: Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
-    wavelength: scalar_float
-    dx: scalar_float
-    z_position: scalar_float
-    polarization: bool
+    wavelength: Float[Array, " "]
+    dx: Float[Array, " "]
+    z_position: Float[Array, " "]
+    polarization: Bool[Array, " "]
 
     def tree_flatten(
         self,
     ) -> Tuple[
         Tuple[
             Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            bool,
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Bool[Array, " "],
         ],
         None,
     ]:
@@ -267,10 +267,10 @@ class OpticalWavefront(NamedTuple):
         _aux_data: None,
         children: Tuple[
             Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
-            scalar_float,
-            scalar_float,
-            scalar_float,
-            bool,
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Bool[Array, " "],
         ],
     ) -> "OpticalWavefront":
         return cls(*children)
@@ -287,16 +287,16 @@ class MicroscopeData(NamedTuple):
         3D or 4D image data representing the optical field.
     positions : Num[Array, " pp 2"]
         Positions of the images during collection.
-    wavelength : scalar_float
+    wavelength : Float[Array, " "]
         Wavelength of the optical wavefront in meters.
-    dx : scalar_float
+    dx : Float[Array, " "]
         Spatial sampling interval (grid spacing) in meters.
     """
 
     image_data: Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]]
     positions: Num[Array, " pp 2"]
-    wavelength: scalar_float
-    dx: scalar_float
+    wavelength: Float[Array, " "]
+    dx: Float[Array, " "]
 
     def tree_flatten(
         self,
@@ -304,8 +304,8 @@ class MicroscopeData(NamedTuple):
         Tuple[
             Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]],
             Num[Array, " pp 2"],
-            scalar_float,
-            scalar_float,
+            Float[Array, " "],
+            Float[Array, " "],
         ],
         None,
     ]:
@@ -326,8 +326,8 @@ class MicroscopeData(NamedTuple):
         children: Tuple[
             Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]],
             Num[Array, " pp 2"],
-            scalar_float,
-            scalar_float,
+            Float[Array, " "],
+            Float[Array, " "],
         ],
     ) -> "MicroscopeData":
         return cls(*children)
@@ -342,16 +342,16 @@ class SampleFunction(NamedTuple):
     ----------
     sample : Complex[Array, " hh ww"]
         The sample function.
-    dx : scalar_float
+    dx : Float[Array, " "]
         Spatial sampling interval (grid spacing) in meters.
     """
 
     sample: Complex[Array, " hh ww"]
-    dx: scalar_float
+    dx: Float[Array, " "]
 
     def tree_flatten(
         self,
-    ) -> Tuple[Tuple[Complex[Array, " hh ww"], scalar_float], None]:
+    ) -> Tuple[Tuple[Complex[Array, " hh ww"], Float[Array, " "]], None]:
         return (
             (
                 self.sample,
@@ -362,7 +362,7 @@ class SampleFunction(NamedTuple):
 
     @classmethod
     def tree_unflatten(
-        cls, _aux_data: None, children: Tuple[Complex[Array, " hh ww"], scalar_float]
+        cls, _aux_data: None, children: Tuple[Complex[Array, " hh ww"], Float[Array, " "]]
     ) -> "SampleFunction":
         return cls(*children)
 
@@ -376,19 +376,19 @@ class Diffractogram(NamedTuple):
     ----------
     image : Float[Array, " hh ww"]
         Image data.
-    wavelength : scalar_float
+    wavelength : Float[Array, " "]
         Wavelength of the optical wavefront in meters.
-    dx : scalar_float
+    dx : Float[Array, " "]
         Spatial sampling interval (grid spacing) in meters.
     """
 
     image: Float[Array, " hh ww"]
-    wavelength: scalar_float
-    dx: scalar_float
+    wavelength: Float[Array, " "]
+    dx: Float[Array, " "]
 
     def tree_flatten(
         self,
-    ) -> Tuple[Tuple[Float[Array, " hh ww"], scalar_float, scalar_float], None]:
+    ) -> Tuple[Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]], None]:
         return (
             (
                 self.image,
@@ -402,7 +402,7 @@ class Diffractogram(NamedTuple):
     def tree_unflatten(
         cls,
         _aux_data: None,
-        children: Tuple[Float[Array, " hh ww"], scalar_float, scalar_float],
+        children: Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]],
     ) -> "Diffractogram":
         return cls(*children)
 
@@ -680,7 +680,7 @@ def make_optical_wavefront(
     wavelength: scalar_float,
     dx: scalar_float,
     z_position: scalar_float,
-    polarization: Optional[bool] = False,
+    polarization: Optional[scalar_bool] = False,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data validation.
 
@@ -695,7 +695,7 @@ def make_optical_wavefront(
         Spatial sampling interval (grid spacing) in meters
     z_position : scalar_float
         Axial position of the wavefront along the propagation direction in meters
-    polarization : bool, optional
+    polarization : scalar_bool, optional
         Whether the field is polarized (True for 3D field, False for 2D field).
         Default is False.
 
