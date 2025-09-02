@@ -9,13 +9,13 @@ automatic differentiation for optimization.
 
 Functions
 ---------
-- `create_loss_function`:
+create_loss_function
     Creates a JIT-compatible loss function for comparing model output with experimental data
-- `mae_loss`:
+mae_loss
     Mean Absolute Error loss function (internal)
-- `mse_loss`:
+mse_loss
     Mean Squared Error loss function (internal)
-- `rmse_loss`:
+rmse_loss
     Root Mean Squared Error loss function (internal)
 
 Notes
@@ -37,8 +37,6 @@ def create_loss_function(
     loss_type: str = "mae",
 ) -> Callable[..., Float[Array, ""]]:
     """
-    Description
-    -----------
     Create a JIT-compatible loss function for comparing model output with experimental data.
 
     This function returns a new function that computes the loss between the output
@@ -47,30 +45,30 @@ def create_loss_function(
 
     Parameters
     ----------
-    - `forward_function` (Callable[..., Array]):
+    forward_function : Callable[..., Array]
         The forward model function (e.g., stem_4d).
-    - `experimental_data` (Array):
+    experimental_data : Array
         The experimental data to compare against.
-    - `loss_type` (str):
+    loss_type : str, optional
         The type of loss to use. Options are "mae" (Mean Absolute Error),
-        "mse" (Mean Squared Error), or "rmse" (Root Mean Squared Error).
-        Default is "mae".
+        "mse" (Mean Squared Error), or "rmse" (Root Mean Squared Error),
+        by default "mae".
 
     Returns
     -------
-    - `loss_fn` (Callable[[PyTree, ...], Float[Array, ""]]):
+    loss_fn : Callable[[PyTree, ...], Float[Array, ""]]
         A JIT-compatible function that computes the loss given the model parameters
         and any additional arguments required by the forward function.
 
-    Flow
-    ----
-    - Define internal loss functions (mae_loss, mse_loss, rmse_loss)
-    - Select the appropriate loss function based on loss_type
+    Notes
+    -----
+    - Define internal loss functions (mae_loss, mse_loss, rmse_loss).
+    - Select the appropriate loss function based on loss_type.
     - Create a JIT-compiled function that:
-        - Computes the forward model output
-        - Calculates the difference between model and experimental data
-        - Applies the selected loss function
-    - Return the compiled loss function
+        - Computes the forward model output.
+        - Calculates the difference between model and experimental data.
+        - Applies the selected loss function.
+    - Return the compiled loss function.
     """
 
     def mae_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:

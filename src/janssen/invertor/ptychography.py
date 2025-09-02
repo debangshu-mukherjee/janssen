@@ -5,9 +5,9 @@ Codes for optical propagation through lenses and optical elements.
 
 Functions
 ---------
-- `get_optimizer`:
+get_optimizer
     Returns an optimizer object based on the specified name
-- `simple_microscope_ptychography`:
+simple_microscope_ptychography
     Performs ptychography reconstruction using a simple microscope model
 """
 

@@ -5,45 +5,45 @@ Data structures and type definitions for optical microscopy.
 
 Type Aliases
 ------------
-- `scalar_float`:
+scalar_float
     A type alias for float or Float[Array, " "]
-- `scalar_integer`:
+scalar_integer
     A type alias for int or Int[Array, " "]
-- `scalar_complex`:
+scalar_complex
     A type alias for complex or Complex[Array, " "]
-- `scalar_numeric`:
+scalar_numeric
     A type alias for int, float, complex or Num[Array, " "]
-- `non_jax_number`:
+non_jax_number
     A type alias for int, float or complex
 
 Classes
 -------
-- `LensParams`:
+LensParams
     A named tuple for lens parameters
-- `GridParams`:
+GridParams
     A named tuple for computational grid parameters
-- `OpticalWavefront`:
+OpticalWavefront
     A named tuple for representing an optical wavefront
-- `MicroscopeData`:
+MicroscopeData
     A named tuple for storing 3D or 4D microscope image data
-- `SampleFunction`:
+SampleFunction
     A named tuple for representing a sample function
-- `Diffractogram`:
+Diffractogram
     A named tuple for storing a single diffraction pattern
 
 Factory Functions
 -----------------
-- `make_lens_params`:
+make_lens_params
     Creates a LensParams instance with runtime type checking
-- `make_grid_params`:
+make_grid_params
     Creates a GridParams instance with runtime type checking
-- `make_optical_wavefront`:
+make_optical_wavefront
     Creates an OpticalWavefront instance with runtime type checking
-- `make_microscope_data`:
+make_microscope_data
     Creates a MicroscopeData instance with runtime type checking
-- `make_diffractogram`:
+make_diffractogram
     Creates a Diffractogram instance with runtime type checking
-- `make_sample_function`:
+make_sample_function
     Creates a SampleFunction instance with runtime type checking
 
 Notes

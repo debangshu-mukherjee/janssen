@@ -6,6 +6,22 @@ Decorators for type checking and JAX transformations.
 This module provides conditional decorators that can be disabled during
 documentation builds to allow Sphinx autodoc to properly introspect functions.
 
+Decorators
+----------
+jaxtyped
+    Decorator for type checking with jaxtyping
+    Mocks when building documentation
+beartype
+    Decorator for type checking with beartype
+    Mocks when building documentation
+
+
+Environment Variables
+---------------------
+BUILDING_DOCS
+    Set to 1 to enable type checking during documentation builds
+
+
 Notes
 -----
 The decorators in this module check the BUILDING_DOCS environment variable

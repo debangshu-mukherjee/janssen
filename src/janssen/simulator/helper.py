@@ -5,15 +5,15 @@ Utility functions for optical propagation.
 
 Functions
 ---------
-- `create_spatial_grid`:
+create_spatial_grid
     Creates a 2D spatial grid for optical propagation
-- `normalize_field`:
+normalize_field
     Normalizes a complex field to unit power
-- `add_phase_screen`:
+add_phase_screen
     Adds a phase screen to a complex field
-- `field_intensity`:
+field_intensity
     Calculates intensity from a complex field
-- `scale_pixel`:
+scale_pixel
     Rescales OpticalWavefront pixel size while keeping array shape fixed
 """
 
@@ -33,7 +33,8 @@ def create_spatial_grid(
     diameter: Num[Array, " "],
     num_points: Int[Array, " "],
 ) -> Tuple[Float[Array, "N N"], Float[Array, "N N"]]:
-    """Create a 2D spatial grid for optical propagation.
+    """
+    Create a 2D spatial grid for optical propagation.
 
     Parameters
     ----------
@@ -50,10 +51,10 @@ def create_spatial_grid(
     Notes
     -----
     Algorithm:
-    - Create a linear space of points along the x-axis
-    - Create a linear space of points along the y-axis
-    - Create a meshgrid of spatial coordinates
-    - Return the meshgrid
+    - Create a linear space of points along the x-axis.
+    - Create a linear space of points along the y-axis.
+    - Create a meshgrid of spatial coordinates.
+    - Return the meshgrid.
     """
     x: Float[Array, " N"] = jnp.linspace(-diameter / 2, diameter / 2, num_points)
     y: Float[Array, " N"] = jnp.linspace(-diameter / 2, diameter / 2, num_points)
@@ -65,7 +66,8 @@ def create_spatial_grid(
 
 @jaxtyped(typechecker=beartype)
 def normalize_field(field: Complex[Array, "H W"]) -> Complex[Array, "H W"]:
-    """Normalize complex field to unit power.
+    """
+    Normalize complex field to unit power.
 
     Parameters
     ----------
@@ -80,9 +82,9 @@ def normalize_field(field: Complex[Array, "H W"]) -> Complex[Array, "H W"]:
     Notes
     -----
     Algorithm:
-    - Calculate the power of the field as the sum of the square of the absolute value of the field
-    - Normalize the field by dividing by the square root of the power
-    - Return the normalized field
+    - Calculate the power of the field as the sum of the square of the absolute value of the field.
+    - Normalize the field by dividing by the square root of the power.
+    - Return the normalized field.
     """
     power: Float[Array, " "] = jnp.sum(jnp.abs(field) ** 2)
     normalized_field: Complex[Array, "H W"] = field / jnp.sqrt(power)
@@ -94,7 +96,8 @@ def add_phase_screen(
     field: Num[Array, "H W"],
     phase: Float[Array, "H W"],
 ) -> Complex[Array, "H W"]:
-    """Add a phase screen to a complex field.
+    """
+    Add a phase screen to a complex field.
 
     Parameters
     ----------
@@ -111,8 +114,8 @@ def add_phase_screen(
     Notes
     -----
     Algorithm:
-    - Multiply the input field by the exponential of the phase screen
-    - Return the screened field
+    - Multiply the input field by the exponential of the phase screen.
+    - Return the screened field.
     """
     screened_field: Complex[Array, "H W"] = field * jnp.exp(1j * phase)
     return screened_field
@@ -120,7 +123,8 @@ def add_phase_screen(
 
 @jaxtyped(typechecker=beartype)
 def field_intensity(field: Complex[Array, "H W"]) -> Float[Array, "H W"]:
-    """Calculate intensity from complex field.
+    """
+    Calculate intensity from complex field.
 
     Parameters
     ----------
@@ -135,8 +139,8 @@ def field_intensity(field: Complex[Array, "H W"]) -> Float[Array, "H W"]:
     Notes
     -----
     Algorithm:
-    - Calculate the intensity as the square of the absolute value of the field
-    - Return the intensity
+    - Calculate the intensity as the square of the absolute value of the field.
+    - Return the intensity.
     """
     intensity: Float[Array, "H W"] = jnp.abs(field) ** 2
     return intensity
@@ -147,7 +151,8 @@ def scale_pixel(
     wavefront: OpticalWavefront,
     new_dx: scalar_float,
 ) -> OpticalWavefront:
-    """Rescale OpticalWavefront pixel size while keeping array shape fixed.
+    """
+    Rescale OpticalWavefront pixel size while keeping array shape fixed.
 
     JAX-compatible (jit/vmap-safe). Crops or pads to preserve shape.
 

@@ -5,28 +5,28 @@ Engine for optical ptychography.
 
 Functions
 ---------
-- `epie_optical`:
+epie_optical
     Main ePIE reconstruction algorithm for optical ptychography
-- `single_pie_iteration`:
+single_pie_iteration
     Single iteration of the ePIE algorithm
-- `single_pie_vmap`:
+single_pie_vmap
     Parallel processing over positions using vmap for faster but approximate PIE.
-- `single_pie_sequential`:
+single_pie_sequential
     Sequential processing over positions for refinement.
 
 Internal Functions
 ------------------
-- `_update_object_wavefront`:
+_update_object_wavefront
     Updates object wavefront using rPIE algorithm
-- `_update_surface_pattern`:
+_update_surface_pattern
     Updates surface pattern using modified PIE
-- `_apply_coherent_transfer_function`:
+_apply_coherent_transfer_function
     Applies coherent transfer function in Fourier domain
-- `_apply_position_shift`:
+_apply_position_shift
     Applies position shift using phase multiplication
-- `_compute_sensor_intensity`:
+_compute_sensor_intensity
     Computes sensor plane intensity with pixel response
-- `_create_frequency_grids`:
+_create_frequency_grids
     Creates frequency grids for Fourier transforms
 """
 

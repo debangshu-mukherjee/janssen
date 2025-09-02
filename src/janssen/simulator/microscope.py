@@ -5,13 +5,13 @@ Codes for optical propagation through lenses and optical elements.
 
 Functions
 ---------
-- `lens_propagation`:
+lens_propagation
     Propagates an optical wavefront through a lens
-- `linear_interaction`:
+linear_interaction
     Propagates an optical wavefront through a sample using linear interaction
-- `simple_diffractogram`:
+simple_diffractogram
     Calculates the diffractogram of a sample using a simple model
-- `simple_microscope`:
+simple_microscope
     Calculates the 3D diffractograms of the entire imaging done at
     every pixel positions. This cuts the sample, and then generates
     a diffractogram with the desired camera pixel size - all done

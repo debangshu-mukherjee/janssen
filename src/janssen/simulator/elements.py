@@ -5,40 +5,40 @@ Common optical elements beyond lenses and basic apertures.
 
 Functions
 ---------
-- `prism_phase_ramp`:
+prism_phase_ramp
     Applies a linear phase ramp to simulate beam deviation/dispersion.
-- `beam_splitter`:
+beam_splitter
     Splits a field into transmitted and reflected arms with given (t, r).
-- `mirror_reflection`:
+mirror_reflection
     Applies mirror reflection(s): coordinate flip(s), optional conjugation, π phase.
-- `phase_grating_sine`:
+phase_grating_sine
     Sinusoidal phase grating.
-- `amplitude_grating_binary`:
+amplitude_grating_binary
     Binary amplitude grating with duty cycle.
-- `phase_grating_sawtooth`:
+phase_grating_sawtooth
     Blazed (sawtooth) phase grating.
-- `apply_phase_mask`:
+apply_phase_mask
     Applies an arbitrary phase mask (SLM / phase screen).
-- `apply_phase_mask_fn`:
+apply_phase_mask_fn
     Builds a phase mask from a callable f(xx, yy) and applies it.
-- `polarizer_jones`:
+polarizer_jones
     Linear polarizer at angle theta (Jones matrix) for 2-component fields.
-- `waveplate_jones`:
+waveplate_jones
     Waveplate (retarder) with retardance delta and fast axis angle theta.
-- `nd_filter`:
+nd_filter
     Neutral density filter with optical density (OD) or direct transmittance.
-- `quarter_waveplate`:
+quarter_waveplate
     Quarter-waveplate with fast axis angle theta.
-- `half_waveplate`:
+half_waveplate
     Half-waveplate with fast axis angle theta.
-- `phase_grating_blazed_elliptical`:
+phase_grating_blazed_elliptical
     Elliptical blazed phase grating with period_x, period_y, theta, depth, and two_dim.
 
 Internal utilities
 ------------------
-- `_xy_grids`:
+_xy_grids
     Builds centered (x, y) grids.
-- `_rotate_coords`:
+_rotate_coords
     Rotates coordinates by an angle theta.
 """
 
@@ -59,23 +59,23 @@ def _xy_grids(
     nx: int, ny: int, dx: float
 ) -> Tuple[Float[Array, " ny nx"], Float[Array, " ny nx"]]:
     """
-    Builds centered (x, y) grids.
+    Build centered (x, y) grids.
 
     Parameters
     ----------
     nx : int
-        Number of pixels along x
+        Number of pixels along x.
     ny : int
-        Number of pixels along y
+        Number of pixels along y.
     dx : float
-        Pixel size in meters
+        Pixel size in meters.
 
     Returns
     -------
     xx : Float[Array, " ny nx"]
-        Grid of x coordinates
+        Grid of x coordinates.
     yy : Float[Array, " ny nx"]
-        Grid of y coordinates
+        Grid of y coordinates.
     """
     x: Float[Array, " nx"] = jnp.arange(-nx // 2, nx // 2) * dx
     y: Float[Array, " ny"] = jnp.arange(-ny // 2, ny // 2) * dx
@@ -89,29 +89,29 @@ def _rotate_coords(
     xx: Num[Array, " ..."], yy: Num[Array, " ..."], theta: scalar_float
 ) -> Tuple[Num[Array, " ..."], Num[Array, " ..."]]:
     """
-    Rotates coordinates by an angle theta.
+    Rotate coordinates by an angle theta.
 
     Parameters
     ----------
     xx : Num[Array, " ..."]
-        Grid of x coordinates
+        Grid of x coordinates.
     yy : Num[Array, " ..."]
-        Grid of y coordinates
+        Grid of y coordinates.
     theta : scalar_float
-        Angle of rotation in radians
+        Angle of rotation in radians.
 
     Returns
     -------
     uu : Num[Array, " ..."]
-        Rotated x coordinates
+        Rotated x coordinates.
     vv : Num[Array, " ..."]
-        Rotated y coordinates
+        Rotated y coordinates.
 
     Notes
     -----
-    - Rotates coordinates by an angle theta
-    - Uses cosine and sine to compute the rotation matrix
-    - Returns the rotated coordinates
+    - Rotates coordinates by an angle theta.
+    - Uses cosine and sine to compute the rotation matrix.
+    - Returns the rotated coordinates.
     """
     ct = jnp.cos(theta)
     st = jnp.sin(theta)
@@ -133,25 +133,25 @@ def prism_phase_ramp(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input scalar wavefront
+        Input scalar wavefront.
     deflect_x : scalar_float, optional
         Deflection along +x. If `use_small_angle` is True, interpreted as angle (rad).
-        Otherwise interpreted as spatial frequency kx [rad/m], by default 0.0
+        Otherwise interpreted as spatial frequency kx [rad/m], by default 0.0.
     deflect_y : scalar_float, optional
-        Deflection along +y (angle or ky), by default 0.0
+        Deflection along +y (angle or ky), by default 0.0.
     use_small_angle : bool, optional
-        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle, by default True
+        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle, by default True.
 
     Returns
     -------
     OpticalWavefront
-        Wavefront with added linear phase
+        Wavefront with added linear phase.
 
     Notes
     -----
-    - Build xx, yy grids (m)
-    - Compute kx, ky from deflections
-    - Phase = kx*xx + ky*yy; multiply by exp(i*phase)
+    - Build xx, yy grids (m).
+    - Compute kx, ky from deflections.
+    - Phase = kx*xx + ky*yy; multiply by exp(i*phase).
     """
     ny: int
     nx: int
@@ -190,26 +190,26 @@ def beam_splitter(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input wavefront (scalar field)
+        Input wavefront (scalar field).
     t2 : scalar_float, optional
-        Complex transmission amplitude, by default jnp.sqrt(0.5)
+        Complex transmission amplitude, by default jnp.sqrt(0.5).
     r2 : scalar_float, optional
-        Complex reflection amplitude, by default 1j * jnp.sqrt(0.5) for 50/50 convention
+        Complex reflection amplitude, by default 1j * jnp.sqrt(0.5) for 50/50 convention.
     normalize : bool, optional
-        If True, scale (t, r) so that |t|^2 + |r|^2 = 1, by default True
+        If True, scale (t, r) so that |t|^2 + |r|^2 = 1, by default True.
 
     Returns
     -------
     wf_T : OpticalWavefront
-        Transmitted arm (t * field)
+        Transmitted arm (t * field).
     wf_R : OpticalWavefront
-        Reflected arm (r * field)
+        Reflected arm (r * field).
 
     Notes
     -----
-    - Optionally renormalize (t, r)
-    - Multiply field by t and r
-    - Return two wavefronts sharing same metadata
+    - Optionally renormalize (t, r).
+    - Multiply field by t and r.
+    - Return two wavefronts sharing same metadata.
     """
     t_val: Complex[Array, " "] = jnp.sqrt(jnp.asarray(t2, dtype=jnp.complex128))
     r_val: Complex[Array, " "] = 1j * jnp.sqrt(jnp.asarray(r2, dtype=jnp.complex128))
@@ -252,26 +252,26 @@ def mirror_reflection(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input wavefront
+        Input wavefront.
     flip_x : bool, optional
-        Flip along x-axis (columns), by default True
+        Flip along x-axis (columns), by default True.
     flip_y : bool, optional
-        Flip along y-axis (rows), by default False
+        Flip along y-axis (rows), by default False.
     add_pi_phase : bool, optional
-        Multiply by exp(i*pi) = -1 to simulate phase inversion on reflection, by default True
+        Multiply by exp(i*pi) = -1 to simulate phase inversion on reflection, by default True.
     conjugate : bool, optional
-        Conjugate the complex field (useful when reversing propagation direction), by default True
+        Conjugate the complex field (useful when reversing propagation direction), by default True.
 
     Returns
     -------
     OpticalWavefront
-        Reflected wavefront
+        Reflected wavefront.
 
     Notes
     -----
-    - Flip axes as requested (jnp.flip)
-    - Optional complex conjugation
-    - Optional -1 factor for π phase
+    - Flip axes as requested (jnp.flip).
+    - Optional complex conjugation.
+    - Optional -1 factor for π phase.
     """
     field = incoming.field
     field = jax.lax.cond(flip_x, lambda f: jnp.flip(f, axis=-1), lambda f: f, field)
@@ -295,24 +295,26 @@ def phase_grating_sine(
     theta: Optional[scalar_float] = 0.0,
 ) -> OpticalWavefront:
     """
-    Sinusoidal phase grating: phase = depth * sin(2π * u / period),
-    where u is the coordinate along the grating direction.
+    Sinusoidal phase grating.
+
+    Phase = depth * sin(2π * u / period), where u is the coordinate 
+    along the grating direction.
 
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input field
+        Input field.
     period : scalar_float
-        Grating period in meters
+        Grating period in meters.
     depth : scalar_float
-        Phase modulation depth in radians
+        Phase modulation depth in radians.
     theta : scalar_float, optional
-        Grating orientation (radians, CCW from x), by default 0.0
+        Grating orientation (radians, CCW from x), by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Field after phase modulation
+        Field after phase modulation.
     """
     ny: int
     nx: int
@@ -348,28 +350,28 @@ def amplitude_grating_binary(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input field
+        Input field.
     period : scalar_float
-        Period in meters
+        Period in meters.
     duty_cycle : scalar_float, optional
-        Fraction of period in 'high' state (0..1), by default 0.5
+        Fraction of period in 'high' state (0..1), by default 0.5.
     theta : scalar_float, optional
-        Orientation (radians), by default 0.0
+        Orientation (radians), by default 0.0.
     trans_high : scalar_float, optional
-        Amplitude transmittance for 'high' bars, by default 1.0
+        Amplitude transmittance for 'high' bars, by default 1.0.
     trans_low : scalar_float, optional
-        Amplitude transmittance for 'low' bars, by default 0.0
+        Amplitude transmittance for 'low' bars, by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Field after amplitude modulation
+        Field after amplitude modulation.
 
     Notes
     -----
-    - Compute u along grating direction
-    - Map u modulo period → binary mask via duty cycle
-    - Apply amplitude levels to field
+    - Compute u along grating direction.
+    - Map u modulo period → binary mask via duty cycle.
+    - Apply amplitude levels to field.
     """
     ny: int
     nx: int
@@ -402,29 +404,29 @@ def phase_grating_sawtooth(
     theta: scalar_float = 0.0,
 ) -> OpticalWavefront:
     """
-    Ssawtooth phase grating with peak-to-peak depth (radians).
+    Sawtooth phase grating with peak-to-peak depth (radians).
 
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input field
+        Input field.
     period : scalar_float
-        Grating period in meters
+        Grating period in meters.
     depth : scalar_float
-        Phase depth over one period in radians
+        Phase depth over one period in radians.
     theta : scalar_float, optional
-        Orientation (radians), by default 0.0
+        Orientation (radians), by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Field after blazed phase modulation
+        Field after blazed phase modulation.
 
     Notes
     -----
-    - Compute fractional coordinate within each period
-    - Sawtooth phase in [0, depth) → shift to mean-zero if desired (kept at [0, depth))
-    - Apply phase with exp(i*phase)
+    - Compute fractional coordinate within each period.
+    - Sawtooth phase in [0, depth) → shift to mean-zero if desired (kept at [0, depth)).
+    - Apply phase with exp(i*phase).
     """
     ny, nx = incoming.field.shape[:2]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
@@ -448,20 +450,21 @@ def apply_phase_mask(
     phase_map: Float[Array, " H W"],
 ) -> OpticalWavefront:
     """
-    Apply an arbitrary phase mask (e.g., SLM, turbulence screen):
-    field_out = field_in * exp(i * phase_map).
+    Apply an arbitrary phase mask (e.g., SLM, turbulence screen).
+
+    Field_out = field_in * exp(i * phase_map).
 
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input field
+        Input field.
     phase_map : Float[Array, " H W"]
-        Phase in radians, same spatial shape as field
+        Phase in radians, same spatial shape as field.
 
     Returns
     -------
     OpticalWavefront
-        Field with added phase
+        Field with added phase.
     """
     field_out = add_phase_screen(incoming.field, phase_map)
     return make_optical_wavefront(
@@ -483,14 +486,14 @@ def apply_phase_mask_fn(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input field
+        Input field.
     phase_fn : callable
-        Function producing a phase map (radians) given centered grids xx, yy (meters)
+        Function producing a phase map (radians) given centered grids xx, yy (meters).
 
     Returns
     -------
     OpticalWavefront
-        Field with added phase
+        Field with added phase.
     """
     ny, nx = incoming.field.shape[:2]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
@@ -510,25 +513,26 @@ def polarizer_jones(
     theta: scalar_float = 0.0,
 ) -> OpticalWavefront:
     """
-    Linear polarizer at angle `theta` (radians, CCW from x-axis) applied to a
-    2-component Jones field (ex, ey) stored in the last dimension.
+    Linear polarizer at angle `theta` (radians, CCW from x-axis).
+
+    Applied to a 2-component Jones field (ex, ey) stored in the last dimension.
 
     Parameters
     ----------
     incoming : OpticalWavefront
-        Field shape must be Complex[H, W, 2]
+        Field shape must be Complex[H, W, 2].
     theta : scalar_float, optional
-        Transmission axis angle (radians), by default 0.0
+        Transmission axis angle (radians), by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Polarized field with same shape
+        Polarized field with same shape.
 
     Notes
     -----
-    - Jones matrix: P = R(-θ) @ [[1, 0],[0, 0]] @ R(θ)
-    - Apply P to [ex, ey] at each pixel
+    - Jones matrix: P = R(-θ) @ [[1, 0],[0, 0]] @ R(θ).
+    - Apply P to [ex, ey] at each pixel.
     """
     field = incoming.field
     assert (
@@ -564,21 +568,21 @@ def waveplate_jones(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Field shape must be Complex[H, W, 2]
+        Field shape must be Complex[H, W, 2].
     delta : scalar_float
-        Phase delay between fast and slow axes in radians
+        Phase delay between fast and slow axes in radians.
     theta : scalar_float, optional
-        Fast-axis angle (radians, CCW from x), by default 0.0
+        Fast-axis angle (radians, CCW from x), by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Retarded field with same shape
+        Retarded field with same shape.
 
     Notes
     -----
-    - Jones matrix: J = R(-θ) @ diag(1, e^{iδ}) @ R(θ)
-    - Apply J to [ex, ey] per pixel
+    - Jones matrix: J = R(-θ) @ diag(1, e^{iδ}) @ R(θ).
+    - Apply J to [ex, ey] per pixel.
     """
     field = incoming.field
     assert (
@@ -622,22 +626,22 @@ def nd_filter(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input field
+        Input field.
     optical_density : Optional[scalar_float], optional
-        OD; intensity transmittance T = 10^(-OD). If given, overrides `transmittance`
+        OD; intensity transmittance T = 10^(-OD). If given, overrides `transmittance`.
     transmittance : Optional[scalar_float], optional
-        Intensity transmittance T in [0, 1]. Used if `optical_density` is None
+        Intensity transmittance T in [0, 1]. Used if `optical_density` is None.
 
     Returns
     -------
     OpticalWavefront
-        Attenuated wavefront
+        Attenuated wavefront.
 
     Notes
     -----
-    - Determine intensity T from OD or provided T
-    - Amplitude factor a = sqrt(T)
-    - Multiply field by a and return
+    - Determine intensity T from OD or provided T.
+    - Amplitude factor a = sqrt(T).
+    - Multiply field by a and return.
     """
     if optical_density is not None:
         tt = jnp.power(10.0, -jnp.asarray(optical_density))
@@ -668,14 +672,14 @@ def quarter_waveplate(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Vector field Complex[H, W, 2] (Jones: ex, ey)
+        Vector field Complex[H, W, 2] (Jones: ex, ey).
     theta : scalar_float, optional
-        Fast-axis angle in radians (CCW from x), by default 0.0
+        Fast-axis angle in radians (CCW from x), by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Retarded field after quarter-wave plate
+        Retarded field after quarter-wave plate.
 
     Notes
     -----
@@ -695,14 +699,14 @@ def half_waveplate(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Vector field Complex[H, W, 2] (Jones: ex, ey)
+        Vector field Complex[H, W, 2] (Jones: ex, ey).
     theta : scalar_float, optional
-        Fast-axis angle in radians (CCW from x), by default 0.0
+        Fast-axis angle in radians (CCW from x), by default 0.0.
 
     Returns
     -------
     OpticalWavefront
-        Retarded field after half-wave plate
+        Retarded field after half-wave plate.
 
     Notes
     -----
@@ -728,31 +732,31 @@ def phase_grating_blazed_elliptical(
     Parameters
     ----------
     incoming : OpticalWavefront
-        Input scalar wavefront
+        Input scalar wavefront.
     period_x : scalar_float
-        Blaze period along x' in meters (after rotation by `theta`)
+        Blaze period along x' in meters (after rotation by `theta`).
     period_y : scalar_float
-        Blaze period along y' in meters (after rotation by `theta`)
+        Blaze period along y' in meters (after rotation by `theta`).
     theta : scalar_float, optional
-        Grating orientation angle in radians (CCW from x), by default 0.0
+        Grating orientation angle in radians (CCW from x), by default 0.0.
     depth : scalar_float, optional
-        Peak-to-peak phase depth in radians, by default 2π
+        Peak-to-peak phase depth in radians, by default 2π.
     two_dim : bool, optional
         If False (default), apply a 1D blaze along x' only.
-        If True, create a 2D blazed lattice using both x' and y'
+        If True, create a 2D blazed lattice using both x' and y'.
 
     Returns
     -------
     OpticalWavefront
-        Field after applying the elliptical blazed phase
+        Field after applying the elliptical blazed phase.
 
     Notes
     -----
-    - Build centered grids xx, yy (meters) and rotate → (x', y')
-    - Compute fractional coordinates fu = frac(x'/period_x), fv = frac(y'/period_y)
+    - Build centered grids xx, yy (meters) and rotate → (x', y').
+    - Compute fractional coordinates fu = frac(x'/period_x), fv = frac(y'/period_y).
     - If `two_dim`:
-      phase = depth * frac(fu + fv); else phase = depth * fu
-    - Multiply by exp(i * phase) and return
+      phase = depth * frac(fu + fv); else phase = depth * fu.
+    - Multiply by exp(i * phase) and return.
     """
     ny, nx = incoming.field.shape[:2]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
