@@ -10,15 +10,12 @@ and JIT-compilable functions.
 
 Submodules
 ----------
-- `electrons`:
-    Electron microscopy simulation and ptychography reconstruction
-    including CBED patterns, 4D-STEM data generation, and inverse algorithms
-- `photons`:
-    Optical microscopy simulation and ptychography reconstruction
-    including wavefront propagation, lens optics, and optical ptychography
-- `tools`:
-    Utility tools for optimization, loss functions, and parallel processing
-    including complex-valued optimizers with Wirtinger derivatives
+- `common`:
+    Common utility functions used throughout the code.
+- `invertor`:
+    Inversion algorithms for phase retrieval and ptychography.
+- `simulator`:
+    Differentiable optical simulation toolkit.
 
 Key Features
 ------------

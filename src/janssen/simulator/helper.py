@@ -1,6 +1,6 @@
 """
-Module: ptyrodactyl.photons.helper
-----------------------------------
+Module: janssen.simulator.helper
+--------------------------------
 Utility functions for optical propagation.
 
 Functions
@@ -21,10 +21,9 @@ import jax
 import jax.numpy as jnp
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, Int, Num
-from ptyrodactyl._decorators import beartype, jaxtyped
 
-from .photon_types import (OpticalWavefront, make_optical_wavefront,
-                           scalar_float)
+from janssen.common.decorators import beartype, jaxtyped
+from janssen.common.types import OpticalWavefront, make_optical_wavefront, scalar_float
 
 jax.config.update("jax_enable_x64", True)
 

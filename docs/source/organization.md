@@ -2,105 +2,52 @@
 
 ## Overview
 
-Ptyrodactyl is organized into three main modules, each serving a specific purpose in ptychographic reconstruction and simulation. The package follows a clean, hierarchical structure that separates concerns while maintaining ease of use through a well-designed public API.
+Janssen is a focused library for optical microscopy and ptychography, split from the original Ptyrodactyl project. The package is organized into three main modules: common utilities, simulator for forward models, and invertor for reconstruction algorithms. It follows a clean, hierarchical structure optimized for optical microscopy applications.
 
 ## Module Structure
 
-### **ptyrodactyl.electrons**
-The electron microscopy module provides comprehensive tools for electron ptychography, 4D-STEM simulations, and phase reconstruction.
+### **janssen.common**
+Common utilities and shared data structures used throughout the package.
 
 #### Key Components:
 - **Data Types & Structures**
-  - `CalibratedArray`: Calibrated array data with spatial calibration
-  - `ProbeModes`: Multi-modal electron probe states
-  - `PotentialSlices`: Potential slices for multi-slice simulations
-  - `CrystalStructure`: Crystal structure with fractional and Cartesian coordinates
-  - `XYZData`: Parsed XYZ file data with atomic positions
-  - `STEM4D`: 4D-STEM data with diffraction patterns and calibrations
+  - Type definitions and common data structures
+  - Decorators for JAX transformations
+  - Shared utility functions
 
-- **Simulation Functions**
-  - `stem_4d`: Generate 4D-STEM data from potential and probe
-  - `stem_4d_parallel`: Parallel version for multiple probe positions
-  - `cbed`: Convergent beam electron diffraction patterns
-  - `make_probe`: Create electron probes with aberrations
-  - `transmission_func`: Transmission function for potential slices
-  - `propagation_func`: Fresnel propagation in Fourier space
-  - `wavelength_ang`: Calculate electron wavelength from voltage
 
-- **Phase Reconstruction**
-  - `single_slice_ptychography`: Single-slice reconstruction
-  - `single_slice_poscorrected`: Position-corrected reconstruction
-  - `single_slice_multi_modal`: Multi-modal probe reconstruction
-  - `multi_slice_multi_modal`: Multi-slice with multi-modal probes
-
-- **Preprocessing & Utilities**
-  - `parse_xyz`: Parse XYZ structure files
-  - `kirkland_potentials`: Generate Kirkland atomic potentials
-  - `atomic_symbol`: Convert atomic numbers to symbols
-  - `rotmatrix_vectors`: Create rotation matrices
-  - `reciprocal_lattice`: Calculate reciprocal lattice vectors
-
-- **Workflows**
-  - `xyz_to_4d_stem`: Complete pipeline from XYZ to 4D-STEM data
-
-### **ptyrodactyl.photons**
-The optical microscopy module handles optical ptychography, wavefront propagation, and lens simulations.
+### **janssen.simulator**
+The forward simulation module for optical microscopy, providing differentiable implementations of optical elements and propagation.
 
 #### Key Components:
-- **Data Types & Structures**
-  - `OpticalWavefront`: Complex optical field with wavelength and position
-  - `LensParams`: Physical lens parameters (focal length, diameter, etc.)
-  - `GridParams`: Computational grid for optical elements
-  - `MicroscopeData`: Microscopy data with positions and wavelength
-  - `SampleFunction`: Sample transmission/phase functions
-  - `Diffractogram`: Diffraction pattern data
-
 - **Optical Elements**
-  - `apply_lens`: Apply lens phase transformation
-  - `apply_aperture`: Apply aperture transmission
-  - `apply_beam_splitter`: Beam splitter operations
-  - `apply_waveplate`: Wave plate transformations
-  - `circular_aperture`: Generate circular apertures
-  - `rectangular_aperture`: Generate rectangular apertures
+  - `apertures.py`: Circular, rectangular, and custom aperture functions
+  - `elements.py`: Optical element transformations (beam splitters, waveplates)
+  - `lenses.py`: Lens implementations and phase transformations
+  - `lens_optics.py`: Physical lens calculations (thickness, phase profiles)
 
 - **Propagation & Simulation**
-  - `fresnel_propagate`: Fresnel propagation
-  - `angular_spectrum_propagate`: Angular spectrum method
-  - `simple_microscope`: Simulate optical microscopy
-  - `scanning_microscope`: Scanning microscopy simulation
+  - `microscope.py`: Microscopy simulation pipelines
+  - `helper.py`: Helper functions for optical propagation
+  - Fresnel and angular spectrum propagation methods
+  - Wavefront manipulation utilities
 
-- **Phase Reconstruction**
-  - `simple_microscope_ptychography`: Basic optical ptychography
-  - `scanning_microscope_ptychography`: Scanning ptychography
-
-- **Lens Optics**
-  - `lens_thickness`: Calculate lens thickness profiles
-  - `lens_phase`: Phase transformation for lenses
-  - `lens_transmission`: Complex transmission functions
-
-### **ptyrodactyl.tools**
-Utility module providing optimization tools and helper functions for both electron and photon modules.
+### **janssen.invertor**
+The reconstruction module containing phase retrieval algorithms and optimization routines.
 
 #### Key Components:
-- **Optimizers**
-  - `Optimizer`: Base optimizer class with Wirtinger derivatives
-  - `adam_update`: ADAM optimizer for complex variables
-  - `adagrad_update`: AdaGrad optimizer
-  - `rmsprop_update`: RMSProp optimizer
-  - `sgd_update`: Stochastic gradient descent
-  - Learning rate schedulers (exponential, cosine, step)
+- **Phase Retrieval Algorithms**
+  - `ptychography.py`: Ptychographic reconstruction algorithms
+  - `engine.py`: Core reconstruction engine
+  - Single-slice and multi-slice ptychography
+  - Position-corrected algorithms
+  - Multi-modal probe reconstruction
 
-- **Loss Functions**
-  - `mse_loss`: Mean squared error
-  - `mae_loss`: Mean absolute error
-  - `poisson_loss`: Poisson likelihood
-  - `amplitude_loss`: Amplitude-only loss
-  - `create_loss_function`: Factory for loss functions
-
-- **Parallel Processing**
-  - `create_device_mesh`: Setup for distributed computing
-  - `shard_data`: Data sharding across devices
-  - `gather_results`: Collect distributed results
+- **Optimization**
+  - `optimizers.py`: Complex-valued optimizers with Wirtinger derivatives
+  - `loss_functions.py`: Loss functions for phase retrieval
+  - ADAM, AdaGrad, RMSProp, and SGD implementations
+  - Learning rate scheduling
 
 ## Design Principles
 
@@ -118,56 +65,40 @@ All functions are designed to be:
 
 ### 3. **Functional Programming**
 - Pure functions without side effects
-- Immutable data structures (NamedTuples)
+- Immutable data structures
 - Composable operations
 
-### 4. **Factory Pattern**
-All data structures have corresponding factory functions:
-- `make_calibrated_array`
-- `make_probe_modes`
-- `make_potential_slices`
-- `make_crystal_structure`
-- `make_xyz_data`
-- `make_stem4d`
-
-These factories provide:
-- Runtime validation
-- Type checking
-- Default value handling
-- JAX array conversion
+### 4. **Optical Focus**
+Optimized specifically for optical microscopy:
+- Wavelength-dependent calculations
+- Complex wavefront representations
+- Physical optics simulations
 
 ## File Organization
 
-While the public API presents three clean modules, the internal structure is organized for maintainability:
+The package structure is organized for clarity and maintainability:
 
 ```
-src/ptyrodactyl/
+src/janssen/
 ├── __init__.py           # Top-level exports
-├── electrons/
-│   ├── __init__.py       # Electron module exports
-│   ├── electron_types.py # Data structures
-│   ├── simulations.py    # Forward simulations
-│   ├── phase_recon.py    # Inverse algorithms
-│   ├── preprocessing.py  # Data preparation
-│   ├── atom_potentials.py # Atomic potentials
-│   ├── geometry.py       # Geometric operations
-│   └── workflows.py      # Complete pipelines
-├── photons/
-│   ├── __init__.py       # Photon module exports
-│   ├── photon_types.py   # Data structures
+├── common/
+│   ├── __init__.py       # Common module exports
+│   ├── types.py          # Shared type definitions
+│   └── decorators.py     # JAX decorators and utilities
+├── simulator/
+│   ├── __init__.py       # Simulator module exports
 │   ├── apertures.py      # Aperture functions
 │   ├── elements.py       # Optical elements
-│   ├── engine.py         # Propagation engine
 │   ├── helper.py         # Utility functions
-│   ├── invertor.py       # Reconstruction algorithms
 │   ├── lens_optics.py    # Lens calculations
 │   ├── lenses.py         # Lens implementations
 │   └── microscope.py     # Microscopy simulations
-└── tools/
-    ├── __init__.py       # Tools module exports
-    ├── optimizers.py     # Optimization algorithms
-    ├── loss_functions.py # Loss function definitions
-    └── parallel.py       # Parallel processing utilities
+└── invertor/
+    ├── __init__.py       # Invertor module exports
+    ├── engine.py         # Reconstruction engine
+    ├── ptychography.py   # Ptychographic algorithms
+    ├── optimizers.py     # Optimization routines
+    └── loss_functions.py # Loss function definitions
 ```
 
 ## Import Patterns
@@ -177,55 +108,52 @@ Users should import from the three main modules:
 
 ```python
 # Import from main modules
-from ptyrodactyl.electrons import stem_4d, single_slice_ptychography
-from ptyrodactyl.photons import simple_microscope, OpticalWavefront
-from ptyrodactyl.tools import adam_update, mse_loss
+from janssen.simulator import microscope, apertures, lenses
+from janssen.invertor import ptychography, optimizers
+from janssen.common import types, decorators
 
 # Import entire modules
-import ptyrodactyl.electrons as electrons
-import ptyrodactyl.photons as photons
-import ptyrodactyl.tools as tools
+import janssen.simulator as sim
+import janssen.invertor as inv
+import janssen.common as common
 ```
 
 ### Internal Implementation
 The `__init__.py` files handle internal imports and expose a clean API:
 
 ```python
-# electrons/__init__.py example
-from .electron_types import (
-    CalibratedArray, ProbeModes, STEM4D,
-    make_calibrated_array, make_probe_modes, make_stem4d
+# simulator/__init__.py example
+from .apertures import (
+    circular_aperture, rectangular_aperture
 )
-from .simulations import (
-    stem_4d, cbed, make_probe, transmission_func
+from .elements import (
+    apply_lens, apply_aperture, apply_beam_splitter
 )
-from .phase_recon import (
-    single_slice_ptychography, single_slice_poscorrected
+from .microscope import (
+    simple_microscope, scanning_microscope
 )
 # ... etc
 ```
 
 ## Best Practices
 
-### 1. **Use Factory Functions**
-Always create data structures through factory functions:
-```python
-# Good
-stem_data = make_stem4d(data, real_calib, fourier_calib, positions, voltage)
-
-# Avoid
-stem_data = STEM4D(data, real_calib, fourier_calib, positions, voltage)
-```
-
-### 2. **Leverage JAX Transformations**
+### 1. **Use JAX Transformations**
+Leverage JAX's powerful transformations:
 ```python
 # JIT compilation for performance
 @jax.jit
-def reconstruct(data, probe, positions):
-    return single_slice_ptychography(data, probe, positions)
+def simulate(wavefront, sample):
+    return microscope.forward_model(wavefront, sample)
+```
 
-# Automatic differentiation
+### 2. **Automatic Differentiation**
+```python
+# Automatic differentiation for optimization
 grad_fn = jax.grad(loss_function)
+
+# Vectorization
+batched_simulate = jax.vmap(simulate, in_axes=(0, None))
+```ad_fn = jax.grad(loss_function)
 
 # Vectorization
 batched_stem = jax.vmap(stem_4d, in_axes=(None, None, 0))
@@ -234,11 +162,14 @@ batched_stem = jax.vmap(stem_4d, in_axes=(None, None, 0))
 ### 3. **Type Annotations**
 Use type hints for clarity:
 ```python
-def process_data(
-    data: Float[Array, "H W"],
-    calib: scalar_float
-) -> CalibratedArray:
-    return make_calibrated_array(data, calib, calib, True)
+from jaxtyping import Float, Complex
+
+def propagate_wavefront(
+    field: Complex[Array, "H W"],
+    distance: float,
+    wavelength: float
+) -> Complex[Array, "H W"]:
+    return fresnel_propagate(field, distance, wavelength)
 ```
 
 ### 4. **Composable Operations**
@@ -246,14 +177,11 @@ Build complex operations from simple functions:
 ```python
 # Compose multiple operations
 def full_reconstruction(raw_data, initial_guess):
-    # Preprocess
-    data = preprocess(raw_data)
+    # Apply forward model
+    simulated = simulator.microscope(initial_guess, probe)
     
-    # Simulate forward model
-    simulated = stem_4d(initial_guess, probe, positions)
-    
-    # Reconstruct
-    result = single_slice_ptychography(data, initial_guess)
+    # Reconstruct using ptychography
+    result = invertor.ptychography(raw_data, initial_guess)
     
     return result
 ```
@@ -279,10 +207,11 @@ def full_reconstruction(raw_data, initial_guess):
 
 The package is designed to be extensible:
 
-1. **Custom Loss Functions**: Implement new loss functions following the pattern in `tools.loss_functions`
+1. **Custom Loss Functions**: Implement new loss functions following the pattern in `invertor.loss_functions`
 2. **New Optimizers**: Add optimizers with Wirtinger derivative support
-3. **Additional Reconstructions**: Build on base reconstruction algorithms
-4. **Custom Workflows**: Combine existing functions for specific use cases
+3. **Additional Reconstructions**: Build on base reconstruction algorithms in `invertor.ptychography`
+4. **Custom Optical Elements**: Add new elements in `simulator.elements`
+5. **Custom Workflows**: Combine existing functions for specific use cases
 
 ## Dependencies
 
@@ -300,8 +229,10 @@ The package is designed to be extensible:
 ## Future Directions
 
 The package architecture supports future extensions:
-- Additional reconstruction algorithms
-- GPU-optimized kernels
-- Real-time processing pipelines
-- Integration with experimental data formats
-- Machine learning-enhanced reconstructions
+- Advanced ptychographic reconstruction algorithms
+- GPU-optimized optical propagation kernels
+- Real-time microscopy processing pipelines
+- Integration with experimental microscopy data formats
+- Machine learning-enhanced phase retrieval
+- Adaptive optics simulations
+- Coherent diffractive imaging techniques

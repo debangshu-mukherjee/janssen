@@ -1,8 +1,8 @@
 Installation
 ===========
 
-To install ptyrodactyl:
+To install janssen:
 
 .. code-block:: bash
 
-   pip install ptyrodactyl
+   pip install janssen

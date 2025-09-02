@@ -1,6 +1,6 @@
 """
-Module: ptyrodactyl.photons.lens_optics
----------------------------------------
+Module: janssen.simulator.lens_optics
+-------------------------------------
 Codes for optical propgation steps.
 
 Functions
@@ -21,11 +21,17 @@ import jax
 import jax.numpy as jnp
 from beartype.typing import Optional
 from jaxtyping import Array, Bool, Complex, Float
-from ptyrodactyl._decorators import beartype, jaxtyped
+
+from janssen.common.decorators import beartype, jaxtyped
+from janssen.common.types import (
+    OpticalWavefront,
+    make_optical_wavefront,
+    scalar_float,
+    scalar_integer,
+    scalar_numeric,
+)
 
 from .helper import add_phase_screen
-from .photon_types import (OpticalWavefront, make_optical_wavefront,
-                           scalar_float, scalar_integer, scalar_numeric)
 
 jax.config.update("jax_enable_x64", True)
 

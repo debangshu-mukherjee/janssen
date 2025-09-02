@@ -1,6 +1,6 @@
 """
-Module: ptyrodactyl.photons.elements
-------------------------------------
+Module: janssen.simulator.elements
+----------------------------------
 Common optical elements beyond lenses and basic apertures.
 
 Functions
@@ -46,11 +46,11 @@ import jax
 import jax.numpy as jnp
 from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float, Num
-from ptyrodactyl._decorators import beartype, jaxtyped
+
+from janssen.common.decorators import beartype, jaxtyped
+from janssen.common.types import OpticalWavefront, make_optical_wavefront, scalar_float
 
 from .helper import add_phase_screen
-from .photon_types import (OpticalWavefront, make_optical_wavefront,
-                           scalar_float)
 
 jax.config.update("jax_enable_x64", True)
 
@@ -474,7 +474,8 @@ def apply_phase_mask(
 
 @jaxtyped(typechecker=beartype)
 def apply_phase_mask_fn(
-    incoming: OpticalWavefront, phase_fn: Callable[[xx, yy], Array["H W"]]
+    incoming: OpticalWavefront, 
+    phase_fn: Callable[[Float[Array, "H W"], Float[Array, "H W"]], Float[Array, "H W"]]
 ) -> OpticalWavefront:
     """
     Build and apply a phase mask from a callable `phase_fn(xx, yy)`.

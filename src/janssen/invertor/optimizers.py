@@ -1,4 +1,7 @@
-"""Complex-valued optimizers with Wirtinger derivatives for ptychography.
+"""
+Module: janssen.invertor.optimizers
+-----------------------------------
+Complex-valued optimizers with Wirtinger derivatives for ptychography.
 
 This module implements complex-valued optimization algorithms including Adam,
 Adagrad, and RMSprop using Wirtinger calculus. It also provides learning rate
@@ -64,8 +67,7 @@ grad, and vmap.
 
 import jax
 import jax.numpy as jnp
-from beartype.typing import (Any, Callable, NamedTuple, Optional, Sequence,
-                             Tuple, Union)
+from beartype.typing import Any, Callable, NamedTuple, Optional, Sequence, Tuple, Union
 from jaxtyping import Array, Complex, Float
 
 

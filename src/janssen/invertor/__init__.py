@@ -15,8 +15,7 @@ Submodules
     Engine for running the ptychography algorithms
 """
 
-from .engine import (epie_optical, single_pie_iteration, single_pie_sequential,
-                     single_pie_vmap)
+from .engine import epie_optical, single_pie_iteration, single_pie_sequential, single_pie_vmap
 from .loss_functions import create_loss_function
 from .optimizers import init_adagrad, init_adam, init_rmsprop
 from .ptychography import simple_microscope_ptychography

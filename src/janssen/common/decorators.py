@@ -1,4 +1,7 @@
-"""Utility module for handling type checking and JAX decorators.
+"""
+Module: janssen.common.decorators
+---------------------------------
+Decorators for type checking and JAX transformations.
 
 This module provides conditional decorators that can be disabled during
 documentation builds to allow Sphinx autodoc to properly introspect functions.

@@ -1,6 +1,6 @@
 """
-Module: ptyrodactyl.photons.apertures
--------------------------------------
+Module: janssen.simulator.apertures
+-----------------------------------
 Aperture and apodizer elements for shaping optical wavefronts.
 
 Functions
@@ -28,10 +28,14 @@ import jax
 import jax.numpy as jnp
 from beartype.typing import Optional, Tuple, Union
 from jaxtyping import Array, Bool, Float
-from ptyrodactyl._decorators import beartype, jaxtyped
 
-from .photon_types import (OpticalWavefront, make_optical_wavefront,
-                           scalar_float, scalar_numeric)
+from janssen.common.decorators import beartype, jaxtyped
+from janssen.common.types import (
+    OpticalWavefront,
+    make_optical_wavefront,
+    scalar_float,
+    scalar_numeric,
+)
 
 jax.config.update("jax_enable_x64", True)
 

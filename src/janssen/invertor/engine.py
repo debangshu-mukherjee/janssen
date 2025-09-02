@@ -1,6 +1,6 @@
 """
-Module: ptyrodactyl.photons.engine
-----------------------------------
+Module: janssen.invertor.engine
+-------------------------------
 Engine for optical ptychography.
 
 Functions
@@ -34,12 +34,19 @@ import jax
 import jax.numpy as jnp
 from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Complex, Float
-from ptyrodactyl._decorators import beartype, jaxtyped
 
-from .lens_optics import angular_spectrum_prop
-from .photon_types import (MicroscopeData, OpticalWavefront, SampleFunction,
-                           make_optical_wavefront, make_sample_function,
-                           scalar_float, scalar_integer)
+from janssen.common.decorators import beartype, jaxtyped
+
+from ..common.types import (
+    MicroscopeData,
+    OpticalWavefront,
+    SampleFunction,
+    make_optical_wavefront,
+    make_sample_function,
+    scalar_float,
+    scalar_integer,
+)
+from ..simulator.lens_optics import angular_spectrum_prop
 
 jax.config.update("jax_enable_x64", True)
 

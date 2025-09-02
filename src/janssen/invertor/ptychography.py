@@ -1,6 +1,6 @@
 """
-Module: ptyrodactyl.photons.invertor
-------------------------------------
+Module: janssen.invertor.ptychography
+-------------------------------------
 Codes for optical propagation through lenses and optical elements.
 
 Functions
@@ -13,26 +13,40 @@ Functions
 
 import jax
 import jax.numpy as jnp
-import ptyrodactyl.tools as ptt
 from beartype.typing import Dict, Optional, Tuple
 from jaxtyping import Array, Complex, Float
-from ptyrodactyl._decorators import beartype, jaxtyped
-from simulator.types import (MicroscopeData, OpticalWavefront, SampleFunction,
-                             make_optical_wavefront, make_sample_function,
-                             scalar_float, scalar_integer)
 
-from .microscope import simple_microscope
+from janssen.common.decorators import beartype, jaxtyped
+from janssen.common.types import (
+    MicroscopeData,
+    OpticalWavefront,
+    SampleFunction,
+    make_optical_wavefront,
+    make_sample_function,
+    scalar_float,
+    scalar_integer,
+)
+from janssen.invertor.optimizers import (
+    Optimizer,
+    adagrad_update,
+    adam_update,
+    init_adagrad,
+    init_adam,
+    init_rmsprop,
+    rmsprop_update,
+)
+from janssen.simulator.microscope import simple_microscope
 
 jax.config.update("jax_enable_x64", True)
 
-OPTIMIZERS: Dict[str, ptt.Optimizer] = {
-    "adam": ptt.Optimizer(ptt.init_adam, ptt.adam_update),
-    "adagrad": ptt.Optimizer(ptt.init_adagrad, ptt.adagrad_update),
-    "rmsprop": ptt.Optimizer(ptt.init_rmsprop, ptt.rmsprop_update),
+OPTIMIZERS: Dict[str, Optimizer] = {
+    "adam": Optimizer(init_adam, adam_update),
+    "adagrad": Optimizer(init_adagrad, adagrad_update),
+    "rmsprop": Optimizer(init_rmsprop, rmsprop_update),
 }
 
 
-def get_optimizer(optimizer_name: str) -> ptt.Optimizer:
+def get_optimizer(optimizer_name: str) -> Optimizer:
     if optimizer_name not in OPTIMIZERS:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
     return OPTIMIZERS[optimizer_name]

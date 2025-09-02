@@ -1,6 +1,6 @@
 """
-Module: tools.loss_functions
----------------------------
+Module: janssen.invertor.loss_functions
+---------------------------------------
 Loss function implementations for ptychography optimization.
 
 This module provides loss functions for comparing model outputs with experimental
@@ -73,13 +73,13 @@ def create_loss_function(
     - Return the compiled loss function
     """
 
-    def mae_loss(diff):
+    def mae_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:
         return jnp.mean(jnp.abs(diff))
 
-    def mse_loss(diff):
+    def mse_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:
         return jnp.mean(jnp.square(diff))
 
-    def rmse_loss(diff):
+    def rmse_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:
         return jnp.sqrt(jnp.mean(jnp.square(diff)))
 
     loss_functions = {"mae": mae_loss, "mse": mse_loss, "rmse": rmse_loss}
