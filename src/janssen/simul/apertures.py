@@ -1,6 +1,6 @@
 """
-Module: janssen.simulator.apertures
------------------------------------
+Module: janssen.simul.apertures
+-------------------------------
 Aperture and apodizer elements for shaping optical wavefronts.
 
 Functions
@@ -29,9 +29,10 @@ import jax.numpy as jnp
 from beartype.typing import Optional, Tuple, Union
 from jaxtyping import Array, Bool, Float
 
-from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import (
+from janssen.utils import (
     OpticalWavefront,
+    beartype,
+    jaxtyped,
     make_optical_wavefront,
     scalar_float,
     scalar_numeric,

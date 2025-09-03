@@ -1,6 +1,6 @@
 """
-Module: janssen.simulator.microscope
-------------------------------------
+Module: janssen.simul.microscope
+--------------------------------
 Codes for optical propagation through lenses and optical elements.
 
 Functions
@@ -23,13 +23,14 @@ import jax.numpy as jnp
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, Int, Num
 
-from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import (
+from janssen.lenses import fraunhofer_prop, optical_zoom
+from janssen.utils import (
     Diffractogram,
-    LensParams,
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
+    beartype,
+    jaxtyped,
     make_diffractogram,
     make_microscope_data,
     make_optical_wavefront,
@@ -39,64 +40,9 @@ from janssen.common.types import (
 )
 
 from .apertures import circular_aperture
-from .helper import add_phase_screen, field_intensity, scale_pixel
-from .lens_optics import fraunhofer_prop, optical_zoom
-from .lenses import create_lens_phase
+from .helper import field_intensity, scale_pixel
 
 jax.config.update("jax_enable_x64", True)
-
-
-@jaxtyped(typechecker=beartype)
-def lens_propagation(incoming: OpticalWavefront, lens: LensParams) -> OpticalWavefront:
-    """Propagate an optical wavefront through a lens.
-
-    The lens is modeled as a thin lens with a given focal length and diameter.
-
-    Parameters
-    ----------
-    incoming : OpticalWavefront
-        The incoming optical wavefront
-    lens : LensParams
-        The lens parameters including focal length and diameter
-
-    Returns
-    -------
-    OpticalWavefront
-        The propagated optical wavefront after passing through the lens
-
-    Notes
-    -----
-    Algorithm:
-
-    - Create a meshgrid of coordinates based on the incoming wavefront's shape and pixel size.
-    - Calculate the phase profile and transmission function of the lens.
-    - Apply the phase screen to the incoming wavefront's field.
-    - Return the new optical wavefront with the updated field, wavelength, and pixel size.
-    """
-    hh: int
-    ww: int
-    hh, ww = incoming.field.shape
-    xline: Float[Array, " ww"] = jnp.linspace(-ww // 2, ww // 2 - 1, ww) * incoming.dx
-    yline: Float[Array, " hh"] = jnp.linspace(-hh // 2, hh // 2 - 1, hh) * incoming.dx
-    xarr: Float[Array, " hh ww"]
-    yarr: Float[Array, " hh ww"]
-    xarr, yarr = jnp.meshgrid(xline, yline)
-    phase_profile: Float[Array, " hh ww"]
-    transmission: Float[Array, " hh ww"]
-    phase_profile, transmission = create_lens_phase(
-        xarr, yarr, lens, incoming.wavelength
-    )
-    transmitted_field: Complex[Array, " hh ww"] = add_phase_screen(
-        incoming.field * transmission,
-        phase_profile,
-    )
-    outgoing: OpticalWavefront = make_optical_wavefront(
-        field=transmitted_field,
-        wavelength=incoming.wavelength,
-        dx=incoming.dx,
-        z_position=incoming.z_position,
-    )
-    return outgoing
 
 
 @jaxtyped(typechecker=beartype)

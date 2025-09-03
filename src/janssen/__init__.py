@@ -10,11 +10,11 @@ and JIT-compilable functions.
 
 Submodules
 ----------
-- `common`:
+common
     Common utility functions used throughout the code.
-- `invertor`:
+invert
     Inversion algorithms for phase retrieval and ptychography.
-- `simulator`:
+simulator
     Differentiable optical simulation toolkit.
 
 Key Features
@@ -34,10 +34,11 @@ CPU and GPU execution. For best performance, use JIT compilation
 and consider using the provided factory functions for data validation.
 """
 
-from . import common, invertor, simulator
+from . import invert, lenses, simul, utils
 
 __all__: list[str] = [
-    "common",
-    "invertor",
-    "simulator",
+    "invert",
+    "lenses",
+    "simul",
+    "utils",
 ]

@@ -16,17 +16,20 @@ import jax.numpy as jnp
 from beartype.typing import Dict, Optional, Tuple
 from jaxtyping import Array, Complex, Float
 
-from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import (
+from janssen.simul import simple_microscope
+from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
+    beartype,
+    jaxtyped,
     make_optical_wavefront,
     make_sample_function,
     scalar_float,
     scalar_integer,
 )
-from janssen.invertor.optimizers import (
+
+from .optimizers import (
     Optimizer,
     adagrad_update,
     adam_update,
@@ -35,7 +38,6 @@ from janssen.invertor.optimizers import (
     init_rmsprop,
     rmsprop_update,
 )
-from janssen.simulator.microscope import simple_microscope
 
 jax.config.update("jax_enable_x64", True)
 

@@ -1,6 +1,6 @@
 """
-Module: janssen.simulator.helper
---------------------------------
+Module: janssen.simul.helper
+----------------------------
 Utility functions for optical propagation.
 
 Functions
@@ -22,8 +22,13 @@ import jax.numpy as jnp
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, Int, Num
 
-from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import OpticalWavefront, make_optical_wavefront, scalar_float
+from janssen.utils import (
+    OpticalWavefront,
+    beartype,
+    jaxtyped,
+    make_optical_wavefront,
+    scalar_float,
+)
 
 jax.config.update("jax_enable_x64", True)
 

@@ -1,6 +1,6 @@
 """
-Module: janssen.simulator.elements
-----------------------------------
+Module: janssen.simul.elements
+------------------------------
 Common optical elements beyond lenses and basic apertures.
 
 Functions
@@ -47,8 +47,13 @@ import jax.numpy as jnp
 from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float, Num
 
-from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import OpticalWavefront, make_optical_wavefront, scalar_float
+from janssen.utils import (
+    OpticalWavefront,
+    beartype,
+    jaxtyped,
+    make_optical_wavefront,
+    scalar_float,
+)
 
 from .helper import add_phase_screen
 

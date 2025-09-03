@@ -1,6 +1,6 @@
 """
-Module: janssen.simulator
--------------------------
+Module: janssen.simul
+---------------------
 Differentiable optical simulation toolkit.
 
 This package implements various optical components and propagation models
@@ -9,17 +9,17 @@ are fully differentiable and JIT-compilable.
 
 Submodules
 ----------
-- `apertures`:
+apertures
     Aperture functions for creating and manipulating optical wavefronts.
-- `elements`:
+elements
     Common optical elements beyond lenses and basic apertures.
-- `helper`:
+helper
     Utility functions for creating grids, phase manipulation, and field calculations
-- `lens_optics`:
+lens_optics
     Optical propagation functions including angular spectrum, Fresnel, and Fraunhofer methods
-- `lenses`:
+lenses`:
     Models for various lens types and their optical properties
-- `microscope`:
+microscope
     Forward propagation of light through optical elements.
 """
 
@@ -56,26 +56,7 @@ from .helper import (
     normalize_field,
     scale_pixel,
 )
-from .lens_optics import (
-    angular_spectrum_prop,
-    digital_zoom,
-    fraunhofer_prop,
-    fresnel_prop,
-    optical_zoom,
-)
-from .lenses import (
-    create_lens_phase,
-    double_concave_lens,
-    double_convex_lens,
-    lens_focal_length,
-    lens_thickness_profile,
-    meniscus_lens,
-    plano_concave_lens,
-    plano_convex_lens,
-    propagate_through_lens,
-)
 from .microscope import (
-    lens_propagation,
     linear_interaction,
     simple_diffractogram,
     simple_microscope,
@@ -109,22 +90,10 @@ __all__: list[str] = [
     "field_intensity",
     "normalize_field",
     "scale_pixel",
-    "angular_spectrum_prop",
-    "digital_zoom",
-    "fraunhofer_prop",
-    "fresnel_prop",
-    "optical_zoom",
-    "create_lens_phase",
-    "double_concave_lens",
-    "double_convex_lens",
-    "lens_focal_length",
-    "lens_thickness_profile",
-    "meniscus_lens",
-    "plano_concave_lens",
-    "plano_convex_lens",
-    "propagate_through_lens",
-    "lens_propagation",
     "linear_interaction",
+    "simple_diffractogram",
+    "simple_microscope",
+    "lens_propagation",
     "simple_diffractogram",
     "simple_microscope",
 ]

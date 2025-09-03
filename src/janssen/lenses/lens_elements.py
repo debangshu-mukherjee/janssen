@@ -1,6 +1,6 @@
 """
-Module: janssen.simulator.lenses
---------------------------------
+Module: janssen.lenses.lens_elements
+------------------------------------
 Optics model for simulation of optical lenses.
 
 Functions
@@ -30,9 +30,10 @@ import jax.numpy as jnp
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float
 
-from janssen.common.decorators import beartype, jaxtyped
-from janssen.common.types import (
+from janssen.utils import (
     LensParams,
+    beartype,
+    jaxtyped,
     make_lens_params,
     scalar_bool,
     scalar_float,

@@ -1,17 +1,17 @@
 """
-Module: janssen.invertor
-------------------------
+Module: janssen.invert
+----------------------
 Inversion algorithms for phase retrieval and ptychography.
 
 Submodules
 ----------
-- `loss_functions`:
+loss_functions
     Loss functions for comparing model output with experimental data
-- `ptychography`:
+ptychography
     Ptychography algorithms for reconstructing sample, lightwave, and optical system parameters
-- `optimizers`:
+optimizers
     Optimizers for optimizing the sample, lightwave, and optical system parameters
-- `engine`:
+engine
     Engine for running the ptychography algorithms
 """
 

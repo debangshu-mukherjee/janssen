@@ -35,18 +35,18 @@ import jax.numpy as jnp
 from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Complex, Float
 
-from janssen.common.decorators import beartype, jaxtyped
-
-from ..common.types import (
+from janssen.lenses import angular_spectrum_prop
+from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
+    beartype,
+    jaxtyped,
     make_optical_wavefront,
     make_sample_function,
     scalar_float,
     scalar_integer,
 )
-from ..simulator.lens_optics import angular_spectrum_prop
 
 jax.config.update("jax_enable_x64", True)
 

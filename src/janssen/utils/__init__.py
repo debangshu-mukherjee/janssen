@@ -1,13 +1,13 @@
 """
-Module: janssen.common
-------------------------
+Module: janssen.utils
+---------------------
 Common utility functions used throughout the code.
 
 Submodules
 ----------
-- `decorators`:
+decorators
     Decorators for type checking and JAX transformations
-- `types`:
+types
     Data structures and type definitions for common use
 """
 
