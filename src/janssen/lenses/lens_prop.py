@@ -22,7 +22,7 @@ lens_propagation
 import jax
 import jax.numpy as jnp
 from beartype.typing import Optional
-from jaxtyping import Array, Bool, Complex, Float
+from jaxtyping import Array, Bool, Complex, Float, Integer
 
 from janssen.utils import (
     LensParams,
@@ -100,7 +100,10 @@ def angular_spectrum_prop(
     fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
     fsq_mesh: Float[Array, "hh ww"] = (fx_mesh**2) + (fy_mesh**2)
     asp_transfer: Complex[Array, ""] = jnp.exp(
-        1j * wavenumber * path_length * jnp.sqrt(1 - (incoming.wavelength**2) * fsq_mesh),
+        1j
+        * wavenumber
+        * path_length
+        * jnp.sqrt(1 - (incoming.wavelength**2) * fsq_mesh),
     )
     evanescent_mask: Bool[Array, " hh ww"] = (1 / incoming.wavelength) ** 2 >= fsq_mesh
     h_mask: Complex[Array, "hh ww"] = asp_transfer * evanescent_mask
@@ -174,7 +177,9 @@ def fresnel_prop(
     y_mesh: Float[Array, "hh ww"]
     x_mesh, y_mesh = jnp.meshgrid(x, y)
     path_length = refractive_index * z_move
-    quadratic_phase: Float[Array, "hh ww"] = k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
+    quadratic_phase: Float[Array, "hh ww"] = (
+        k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
+    )
     field_with_phase: Complex[Array, "hh ww"] = add_phase_screen(
         incoming.field,
         quadratic_phase,
@@ -194,7 +199,9 @@ def fresnel_prop(
     propagated_field: Complex[Array, "hh ww"] = jnp.fft.fftshift(
         jnp.fft.ifft2(jnp.fft.ifftshift(propagated_ft)),
     )
-    final_quadratic_phase: Float[Array, "hh ww"] = k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
+    final_quadratic_phase: Float[Array, "hh ww"] = (
+        k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
+    )
     final_propagated_field: Complex[Array, "hh ww"] = jnp.fft.ifftshift(
         add_phase_screen(propagated_field, final_quadratic_phase),
     )
@@ -256,11 +263,11 @@ def fraunhofer_prop(
     nx: scalar_integer = incoming.field.shape[1]
     fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
     fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
-    fx_mesh: Float[Array, "hh ww"]
-    fy_mesh: Float[Array, "hh ww"]
+    fx_mesh: Float[Array, " hh ww"]
+    fy_mesh: Float[Array, " hh ww"]
     fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
     path_length = refractive_index * z_move
-    hh: Complex[Array, "hh ww"] = jnp.exp(
+    hh: Complex[Array, " hh ww"] = jnp.exp(
         -1j * jnp.pi * incoming.wavelength * path_length * (fx_mesh**2 + fy_mesh**2),
     ) / (1j * incoming.wavelength * path_length)
     field_ft: Complex[Array, "hh ww"] = jnp.fft.fft2(incoming.field)
@@ -293,36 +300,117 @@ def digital_zoom(
 
     Returns
     -------
-    OpticalWavefront
+    zoomed_wavefront : OpticalWavefront
         Zoomed optical wavefront of the same spatial dimensions.
 
     Notes
     -----
     Algorithm:
 
-    - Calculate the new dimensions of the zoomed wavefront.
-    - Resize the wavefront field using cubic interpolation.
-    - Crop the resized field to match the original dimensions.
-    - Return the new optical wavefront with the updated field, wavelength,
-      and pixel size.
+    For zoom in (zoom_factor >= 1.0):
+    - Calculate the crop fraction (1 / zoom_factor) to determine the central region to extract
+    - Create interpolation coordinates for the zoomed region centered on the image
+    - Use scipy.ndimage.map_coordinates with bilinear interpolation to sample the field
+    - Return the zoomed field with adjusted pixel size (dx / zoom_factor)
+
+    For zoom out (zoom_factor < 1.0):
+    - Calculate the shrink fraction (zoom_factor) to determine the final image size
+    - Create a coordinate mapping from the full image to the shrunken region
+    - Use scipy.ndimage.map_coordinates to interpolate the original field
+    - Apply a mask to zero out regions outside the shrunken area (padding effect)
+    - Return the zoomed field with adjusted pixel size (dx / zoom_factor)
     """
+    epsilon: Float[Array, " "] = 1e-10
+    zoom_factor: Float[Array, " "] = jnp.maximum(zoom_factor, epsilon)
     hh: int
     ww: int
     hh, ww = wavefront.field.shape
-    hh_cut: int = int(hh / zoom_factor)
-    ww_cut: int = int(ww / zoom_factor)
-    start_hh: int = (hh - hh_cut) // 2
-    start_ww: int = (ww - ww_cut) // 2
-    cut_field: Complex[Array, "hh_cut ww_cut"] = jax.lax.dynamic_slice(
-        wavefront.field,
-        (start_hh, start_ww),
-        (hh_cut, ww_cut),
+
+    def zoom_in_fn() -> Complex[Array, " hh ww"]:
+        crop_fraction: Float[Array, " "] = 1.0 / zoom_factor
+        center_y: Float[Array, " "] = (hh - 1) / 2
+        center_x: Float[Array, " "] = (ww - 1) / 2
+        half_crop_y: Float[Array, " "] = (hh * crop_fraction) / 2
+        half_crop_x: Float[Array, " "] = (ww * crop_fraction) / 2
+        y_interp: Float[Array, " hh"] = jnp.linspace(
+            center_y - half_crop_y, center_y + half_crop_y, hh
+        )
+        x_interp: Float[Array, " ww"] = jnp.linspace(
+            center_x - half_crop_x, center_x + half_crop_x, ww
+        )
+        y_grid: Float[Array, " hh ww"]
+        x_grid: Float[Array, " hh ww"]
+        y_grid, x_grid = jnp.meshgrid(y_interp, x_interp, indexing="ij")
+        zoomed: Complex[Array, " hh ww"] = jax.scipy.ndimage.map_coordinates(
+            wavefront.field.real, [y_grid, x_grid], order=1, mode="constant", cval=0.0
+        ) + 1j * jax.scipy.ndimage.map_coordinates(
+            wavefront.field.imag, [y_grid, x_grid], order=1, mode="constant", cval=0.0
+        )
+        return zoomed
+
+    def zoom_out_fn() -> Complex[Array, " hh ww"]:
+        shrink_fraction: Float[Array, " "] = zoom_factor
+        shrunk_h: Integer[Array, " "] = jnp.round(hh * shrink_fraction).astype(
+            jnp.int32
+        )
+        shrunk_w: Integer[Array, " "] = jnp.round(ww * shrink_fraction).astype(
+            jnp.int32
+        )
+        shrunk_h: Integer[Array, " "] = jnp.minimum(shrunk_h, hh)
+        shrunk_w: Integer[Array, " "] = jnp.minimum(shrunk_w, ww)
+        center_y: Float[Array, " "] = (hh - 1) / 2
+        center_x: Float[Array, " "] = (ww - 1) / 2
+        half_shrunk_y: Float[Array, " "] = shrunk_h / 2
+        half_shrunk_x: Float[Array, " "] = shrunk_w / 2
+        y_coords: Float[Array, " hh"] = jnp.linspace(0, hh - 1, hh)
+        x_coords: Float[Array, " ww"] = jnp.linspace(0, ww - 1, ww)
+
+        def get_interp_coord(
+            coord: Float[Array, " "],
+            center: Float[Array, " "],
+            half_size: Float[Array, " "],
+            full_size: Integer[Array, " "],
+        ) -> Float[Array, " "]:
+            norm_coord: Float[Array, " "] = (coord - (center - half_size)) / (
+                2 * half_size
+            )
+            return norm_coord * (full_size - 1)
+
+        y_grid: Float[Array, " hh ww"]
+        x_grid: Float[Array, " hh ww"]
+        y_grid, x_grid = jnp.meshgrid(y_coords, x_coords, indexing="ij")
+        mask: Bool[Array, " hh ww"] = (jnp.abs(y_grid - center_y) <= half_shrunk_y) & (
+            jnp.abs(x_grid - center_x) <= half_shrunk_x
+        )
+        y_interp: Float[Array, " hh ww"] = get_interp_coord(
+            y_grid, center_y, half_shrunk_y, hh
+        )
+        x_interp: Float[Array, " hh ww"] = get_interp_coord(
+            x_grid, center_x, half_shrunk_x, ww
+        )
+        zoomed_real: Float[Array, " hh ww"] = jax.scipy.ndimage.map_coordinates(
+            wavefront.field.real,
+            [y_interp, x_interp],
+            order=1,
+            mode="constant",
+            cval=0.0,
+        )
+        zoomed_imag: Float[Array, " hh ww"] = jax.scipy.ndimage.map_coordinates(
+            wavefront.field.imag,
+            [y_interp, x_interp],
+            order=1,
+            mode="constant",
+            cval=0.0,
+        )
+        zoomed: Complex[Array, " hh ww"] = (zoomed_real + 1j * zoomed_imag) * mask
+        return zoomed
+
+    zoomed_field: Complex[Array, " hh ww"] = jax.lax.cond(
+        zoom_factor >= 1.0,
+        zoom_in_fn,
+        zoom_out_fn,
     )
-    zoomed_field: Complex[Array, "hh ww"] = jax.image.resize(
-        image=cut_field,
-        shape=(hh, ww),
-        method="trilinear",
-    )
+
     zoomed_wavefront: OpticalWavefront = make_optical_wavefront(
         field=zoomed_field,
         wavelength=wavefront.wavelength,
@@ -337,7 +425,7 @@ def optical_zoom(
     wavefront: OpticalWavefront,
     zoom_factor: scalar_numeric,
 ) -> OpticalWavefront:
-    """This is the optical zoom function that only modifies the calibration 
+    """This is the optical zoom function that only modifies the calibration
     and leaves everything else the same.
 
     Parameters

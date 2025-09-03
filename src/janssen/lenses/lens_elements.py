@@ -145,7 +145,9 @@ def lens_focal_length(
     r_diff = 1.0 / r1 - 1.0 / r2
     r_diff_safe = jnp.where(jnp.abs(r_diff) < epsilon, epsilon, r_diff)
     general_f: Float[Array, " "] = jnp.asarray(1.0 / ((n - 1.0) * r_diff_safe))
-    standard_f: Float[Array, " "] = jnp.where(is_special_case, special_case_f, general_f)
+    standard_f: Float[Array, " "] = jnp.where(
+        is_special_case, special_case_f, general_f
+    )
     f: Float[Array, " "] = jnp.where(is_symmetric, symmetric_f, standard_f)
     return f
 

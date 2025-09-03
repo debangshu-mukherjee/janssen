@@ -362,7 +362,9 @@ class SampleFunction(NamedTuple):
 
     @classmethod
     def tree_unflatten(
-        cls, _aux_data: None, children: Tuple[Complex[Array, " hh ww"], Float[Array, " "]]
+        cls,
+        _aux_data: None,
+        children: Tuple[Complex[Array, " hh ww"], Float[Array, " "]],
     ) -> "SampleFunction":
         return cls(*children)
 
@@ -388,7 +390,9 @@ class Diffractogram(NamedTuple):
 
     def tree_flatten(
         self,
-    ) -> Tuple[Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]], None]:
+    ) -> Tuple[
+        Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]], None
+    ]:
         return (
             (
                 self.image,

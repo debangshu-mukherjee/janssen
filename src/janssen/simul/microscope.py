@@ -128,7 +128,7 @@ def simple_diffractogram(
     - Create a diffractogram from the camera image
     """
     from janssen.lenses import fraunhofer_prop, optical_zoom
-    
+
     at_sample_plane: OpticalWavefront = linear_interaction(
         sample=sample_cut,
         light=lightwave,
