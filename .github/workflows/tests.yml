@@ -2,7 +2,8 @@ name: Run tests and upload coverage
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: 
+      - '**'  # Run on all branches
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
