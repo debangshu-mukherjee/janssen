@@ -1,4 +1,4 @@
-[![PyPI Downloads](https://static.pepy.tech/badge/janssen)](https://pepy.tech/projects/janssen)
+w[![PyPI Downloads](https://static.pepy.tech/badge/janssen)](https://pepy.tech/projects/janssen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/janssen.svg)](https://badge.fury.io/py/janssen)
 [![Documentation Status](https://readthedocs.org/projects/janssen/badge/?version=latest)](https://janssen.readthedocs.io/en/latest/?badge=latest)

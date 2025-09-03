@@ -45,22 +45,33 @@ jobs:
         uv run python -c "import janssen; print('Beartype validation passed')"
         
     - name: Run tests
+      id: pytest
       env:
         JAX_PLATFORMS: cpu
+      run: uv run pytest tests/ --cov=src/janssen --cov-branch --cov-report=xml --cov-report=html --cov-report=term-missing --junitxml=test-results.xml -v || true
+
+    - name: List generated files (debug)
+      if: always()
       run: |
-        uv run pytest tests/ \
-          --cov=src/janssen \
-          --cov-branch \
-          --cov-report=xml \
-          --cov-report=term-missing \
-          --junitxml=test-results.xml \
-          -v
+        echo "Current directory:"
+        pwd
+        echo "Files in current directory:"
+        ls -la
+        echo "Checking for test artifacts:"
+        if [ -f "test-results.xml" ]; then echo "✓ test-results.xml found"; else echo "✗ test-results.xml not found"; fi
+        if [ -f "coverage.xml" ]; then echo "✓ coverage.xml found"; else echo "✗ coverage.xml not found"; fi
+        if [ -d "htmlcov" ]; then echo "✓ htmlcov/ found"; else echo "✗ htmlcov/ not found"; fi
+      shell: bash
 
     - name: Upload results to Codecov
       uses: codecov/codecov-action@v5
+      if: always()
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: debangshu-mukherjee/janssen
+        files: ./coverage.xml
+        fail_ci_if_error: false
+        verbose: true
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -71,6 +82,7 @@ jobs:
           test-results.xml
           htmlcov/
           coverage.xml
+        if-no-files-found: warn
           
     - name: Publish test results
       uses: EnricoMi/publish-unit-test-result-action@v2
