@@ -2,11 +2,11 @@
 
 ## Overview
 
-Janssen is a focused library for optical microscopy and ptychography, split from the original Ptyrodactyl project. The package is organized into three main modules: common utilities, simulator for forward models, and invertor for reconstruction algorithms. It follows a clean, hierarchical structure optimized for optical microscopy applications.
+Janssen is a focused library for optical microscopy and ptychography, split from the original Ptyrodactyl project. The package is organized into four main modules: utils for common utilities, simul for forward models, lenses for lens implementations, and invert for reconstruction algorithms. It follows a clean, hierarchical structure optimized for optical microscopy applications.
 
 ## Module Structure
 
-### **janssen.common**
+### **janssen.utils**
 Common utilities and shared data structures used throughout the package.
 
 #### Key Components:
@@ -16,7 +16,7 @@ Common utilities and shared data structures used throughout the package.
   - Shared utility functions
 
 
-### **janssen.simulator**
+### **janssen.simul**
 The forward simulation module for optical microscopy, providing differentiable implementations of optical elements and propagation.
 
 #### Key Components:
@@ -32,7 +32,16 @@ The forward simulation module for optical microscopy, providing differentiable i
   - Fresnel and angular spectrum propagation methods
   - Wavefront manipulation utilities
 
-### **janssen.invertor**
+### **janssen.lenses**
+Dedicated module for lens implementations and optical calculations.
+
+#### Key Components:
+- Lens phase transformations
+- Physical lens calculations
+- Aberration modeling
+- Optical element interfaces
+
+### **janssen.invert**
 The reconstruction module containing phase retrieval algorithms and optimization routines.
 
 #### Key Components:
@@ -81,20 +90,22 @@ The package structure is organized for clarity and maintainability:
 ```
 src/janssen/
 ├── __init__.py           # Top-level exports
-├── common/
-│   ├── __init__.py       # Common module exports
+├── utils/
+│   ├── __init__.py       # Utils module exports
 │   ├── types.py          # Shared type definitions
 │   └── decorators.py     # JAX decorators and utilities
-├── simulator/
-│   ├── __init__.py       # Simulator module exports
+├── simul/
+│   ├── __init__.py       # Simulation module exports
 │   ├── apertures.py      # Aperture functions
 │   ├── elements.py       # Optical elements
 │   ├── helper.py         # Utility functions
-│   ├── lens_optics.py    # Lens calculations
-│   ├── lenses.py         # Lens implementations
 │   └── microscope.py     # Microscopy simulations
-└── invertor/
-    ├── __init__.py       # Invertor module exports
+├── lenses/
+│   ├── __init__.py       # Lenses module exports
+│   ├── lens_optics.py    # Lens calculations
+│   └── lenses.py         # Lens implementations
+└── invert/
+    ├── __init__.py       # Invert module exports
     ├── engine.py         # Reconstruction engine
     ├── ptychography.py   # Ptychographic algorithms
     ├── optimizers.py     # Optimization routines
@@ -108,26 +119,28 @@ Users should import from the three main modules:
 
 ```python
 # Import from main modules
-from janssen.simulator import microscope, apertures, lenses
-from janssen.invertor import ptychography, optimizers
-from janssen.common import types, decorators
+from janssen.simul import microscope, apertures, elements
+from janssen.lenses import lenses, lens_optics
+from janssen.invert import ptychography, optimizers
+from janssen.utils import types, decorators
 
 # Import entire modules
-import janssen.simulator as sim
-import janssen.invertor as inv
-import janssen.common as common
+import janssen.simul as sim
+import janssen.lenses as lens
+import janssen.invert as inv
+import janssen.utils as utils
 ```
 
 ### Internal Implementation
 The `__init__.py` files handle internal imports and expose a clean API:
 
 ```python
-# simulator/__init__.py example
+# simul/__init__.py example
 from .apertures import (
     circular_aperture, rectangular_aperture
 )
 from .elements import (
-    apply_lens, apply_aperture, apply_beam_splitter
+    apply_aperture, apply_beam_splitter
 )
 from .microscope import (
     simple_microscope, scanning_microscope
@@ -153,9 +166,6 @@ grad_fn = jax.grad(loss_function)
 
 # Vectorization
 batched_simulate = jax.vmap(simulate, in_axes=(0, None))
-```ad_fn = jax.grad(loss_function)
-
-# Vectorization
 batched_stem = jax.vmap(stem_4d, in_axes=(None, None, 0))
 ```
 
@@ -178,10 +188,10 @@ Build complex operations from simple functions:
 # Compose multiple operations
 def full_reconstruction(raw_data, initial_guess):
     # Apply forward model
-    simulated = simulator.microscope(initial_guess, probe)
+    simulated = simul.microscope(initial_guess, probe)
     
     # Reconstruct using ptychography
-    result = invertor.ptychography(raw_data, initial_guess)
+    result = invert.ptychography(raw_data, initial_guess)
     
     return result
 ```
@@ -207,10 +217,10 @@ def full_reconstruction(raw_data, initial_guess):
 
 The package is designed to be extensible:
 
-1. **Custom Loss Functions**: Implement new loss functions following the pattern in `invertor.loss_functions`
+1. **Custom Loss Functions**: Implement new loss functions following the pattern in `invert.loss_functions`
 2. **New Optimizers**: Add optimizers with Wirtinger derivative support
-3. **Additional Reconstructions**: Build on base reconstruction algorithms in `invertor.ptychography`
-4. **Custom Optical Elements**: Add new elements in `simulator.elements`
+3. **Additional Reconstructions**: Build on base reconstruction algorithms in `invert.ptychography`
+4. **Custom Optical Elements**: Add new elements in `simul.elements`
 5. **Custom Workflows**: Combine existing functions for specific use cases
 
 ## Dependencies

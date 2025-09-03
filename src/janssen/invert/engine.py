@@ -1,5 +1,5 @@
 """
-Module: janssen.invertor.engine
+Module: janssen.invert.engine
 -------------------------------
 Engine for optical ptychography.
 

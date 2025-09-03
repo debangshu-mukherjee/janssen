@@ -1,5 +1,5 @@
 """
-Module: janssen.invertor.optimizers
+Module: janssen.invert.optimizers
 -----------------------------------
 Complex-valued optimizers with Wirtinger derivatives for ptychography.
 

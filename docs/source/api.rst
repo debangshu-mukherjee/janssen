@@ -1,27 +1,36 @@
 API Reference
 =============
 
-janssen.common
+janssen.utils
+-------------
+.. automodule:: janssen.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :imported-members:
+   :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
+
+janssen.simul
+-------------
+.. automodule:: janssen.simul
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :imported-members:
+   :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
+
+janssen.lenses
 --------------
-.. automodule:: janssen.common
+.. automodule:: janssen.lenses
    :members:
    :undoc-members:
    :show-inheritance:
    :imported-members:
    :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
 
-janssen.simulator
------------------
-.. automodule:: janssen.simulator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :imported-members:
-   :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
-
-janssen.invertor
-----------------
-.. automodule:: janssen.invertor
+janssen.invert
+--------------
+.. automodule:: janssen.invert
    :members:
    :undoc-members:
    :show-inheritance:

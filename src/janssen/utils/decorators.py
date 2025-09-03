@@ -1,5 +1,5 @@
 """
-Module: janssen.common.decorators
+Module: janssen.utils.decorators
 ---------------------------------
 Decorators for type checking and JAX transformations.
 
@@ -41,7 +41,7 @@ BUILDING_DOCS = os.environ.get("BUILDING_DOCS", "").lower() in ("1", "true", "ye
 
 if BUILDING_DOCS:
 
-    def jaxtyped(_typechecker: Any = None) -> Callable[[F], F]:
+    def jaxtyped(typechecker: Any = None) -> Callable[[F], F]:
         """No-op decorator for documentation builds.
 
         Parameters

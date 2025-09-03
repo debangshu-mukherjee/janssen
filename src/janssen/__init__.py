@@ -10,12 +10,14 @@ and JIT-compilable functions.
 
 Submodules
 ----------
-common
+utils
     Common utility functions used throughout the code.
 invert
     Inversion algorithms for phase retrieval and ptychography.
-simulator
+simul
     Differentiable optical simulation toolkit.
+lenses
+    Lens implementations and optical calculations.
 
 Key Features
 ------------

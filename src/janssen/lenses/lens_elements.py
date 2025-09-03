@@ -40,7 +40,7 @@ from janssen.utils import (
     scalar_numeric,
 )
 
-from .helper import add_phase_screen
+from ..simul.helper import add_phase_screen
 
 jax.config.update("jax_enable_x64", True)
 

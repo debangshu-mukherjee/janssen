@@ -1,6 +1,6 @@
 """
-Module: janssen.common.types
-----------------------------
+Module: janssen.utils.types
+---------------------------
 Data structures and type definitions for optical microscopy.
 
 Type Aliases
@@ -61,7 +61,7 @@ from jax import lax
 from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array, Bool, Complex, Float, Int, Num
 
-from janssen.common import beartype, jaxtyped
+from janssen.utils import beartype, jaxtyped
 
 jax.config.update("jax_enable_x64", True)
 

@@ -23,7 +23,6 @@ import jax.numpy as jnp
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, Int, Num
 
-from janssen.lenses import fraunhofer_prop, optical_zoom
 from janssen.utils import (
     Diffractogram,
     MicroscopeData,
@@ -128,6 +127,8 @@ def simple_diffractogram(
     - Calculate the field intensity of the camera image
     - Create a diffractogram from the camera image
     """
+    from janssen.lenses import fraunhofer_prop, optical_zoom
+    
     at_sample_plane: OpticalWavefront = linear_interaction(
         sample=sample_cut,
         light=lightwave,
