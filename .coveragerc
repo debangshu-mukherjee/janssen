@@ -1,5 +1,5 @@
 [run]
-source = ptyrodactyl
+source = janssen
 omit = 
     */tests/*
     */site-packages/*
