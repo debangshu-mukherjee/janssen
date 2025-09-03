@@ -36,6 +36,7 @@ from janssen.utils import (
 )
 
 from ..simul.helper import add_phase_screen
+from .lens_elements import create_lens_phase
 
 jax.config.update("jax_enable_x64", True)
 
@@ -53,7 +54,7 @@ def angular_spectrum_prop(
     incoming : OpticalWavefront
         PyTree with the following parameters:
 
-        field : Complex[Array, "H W"]
+        field : Complex[Array, "hh ww"]
             Input complex field
         wavelength : Float[Array, ""]
             Wavelength of light in meters
@@ -92,20 +93,20 @@ def angular_spectrum_prop(
     nx: scalar_integer = incoming.field.shape[1]
     wavenumber: Float[Array, ""] = 2 * jnp.pi / incoming.wavelength
     path_length = refractive_index * z_move
-    fx: Float[Array, " H"] = jnp.fft.fftfreq(nx, d=incoming.dx)
-    fy: Float[Array, " W"] = jnp.fft.fftfreq(ny, d=incoming.dx)
-    FX: Float[Array, "H W"]
-    FY: Float[Array, "H W"]
-    FX, FY = jnp.meshgrid(fx, fy)
-    FSQ: Float[Array, "H W"] = (FX**2) + (FY**2)
+    fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
+    fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
+    fx_mesh: Float[Array, "hh ww"]
+    fy_mesh: Float[Array, "hh ww"]
+    fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
+    fsq_mesh: Float[Array, "hh ww"] = (fx_mesh**2) + (fy_mesh**2)
     asp_transfer: Complex[Array, ""] = jnp.exp(
-        1j * wavenumber * path_length * jnp.sqrt(1 - (incoming.wavelength**2) * FSQ),
+        1j * wavenumber * path_length * jnp.sqrt(1 - (incoming.wavelength**2) * fsq_mesh),
     )
-    evanescent_mask: Bool[Array, " H W"] = (1 / incoming.wavelength) ** 2 >= FSQ
-    H_mask: Complex[Array, "H W"] = asp_transfer * evanescent_mask
-    field_ft: Complex[Array, "H W"] = jnp.fft.fft2(incoming.field)
-    propagated_ft: Complex[Array, "H W"] = field_ft * H_mask
-    propagated_field: Complex[Array, "H W"] = jnp.fft.ifft2(propagated_ft)
+    evanescent_mask: Bool[Array, " hh ww"] = (1 / incoming.wavelength) ** 2 >= fsq_mesh
+    h_mask: Complex[Array, "hh ww"] = asp_transfer * evanescent_mask
+    field_ft: Complex[Array, "hh ww"] = jnp.fft.fft2(incoming.field)
+    propagated_ft: Complex[Array, "hh ww"] = field_ft * h_mask
+    propagated_field: Complex[Array, "hh ww"] = jnp.fft.ifft2(propagated_ft)
     propagated: OpticalWavefront = make_optical_wavefront(
         field=propagated_field,
         wavelength=incoming.wavelength,
@@ -128,7 +129,7 @@ def fresnel_prop(
     incoming : OpticalWavefront
         PyTree with the following parameters:
 
-        field : Complex[Array, "H W"]
+        field : Complex[Array, "hh ww"]
             Input complex field
         wavelength : Float[Array, ""]
             Wavelength of light in meters
@@ -167,34 +168,34 @@ def fresnel_prop(
     ny: scalar_integer = incoming.field.shape[0]
     nx: scalar_integer = incoming.field.shape[1]
     k: Float[Array, ""] = (2 * jnp.pi) / incoming.wavelength
-    x: Float[Array, " H"] = jnp.arange(-nx // 2, nx // 2) * incoming.dx
-    y: Float[Array, " W"] = jnp.arange(-ny // 2, ny // 2) * incoming.dx
-    X: Float[Array, "H W"]
-    Y: Float[Array, "H W"]
-    X, Y = jnp.meshgrid(x, y)
+    x: Float[Array, " hh"] = jnp.arange(-nx // 2, nx // 2) * incoming.dx
+    y: Float[Array, " ww"] = jnp.arange(-ny // 2, ny // 2) * incoming.dx
+    x_mesh: Float[Array, "hh ww"]
+    y_mesh: Float[Array, "hh ww"]
+    x_mesh, y_mesh = jnp.meshgrid(x, y)
     path_length = refractive_index * z_move
-    quadratic_phase: Float[Array, "H W"] = k / (2 * path_length) * (X**2 + Y**2)
-    field_with_phase: Complex[Array, "H W"] = add_phase_screen(
+    quadratic_phase: Float[Array, "hh ww"] = k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
+    field_with_phase: Complex[Array, "hh ww"] = add_phase_screen(
         incoming.field,
         quadratic_phase,
     )
-    field_ft: Complex[Array, "H W"] = jnp.fft.fftshift(
+    field_ft: Complex[Array, "hh ww"] = jnp.fft.fftshift(
         jnp.fft.fft2(jnp.fft.ifftshift(field_with_phase)),
     )
-    fx: Float[Array, " H"] = jnp.fft.fftfreq(nx, d=incoming.dx)
-    fy: Float[Array, " W"] = jnp.fft.fftfreq(ny, d=incoming.dx)
-    FX: Float[Array, "H W"]
-    FY: Float[Array, "H W"]
-    FX, FY = jnp.meshgrid(fx, fy)
-    transfer_phase: Float[Array, "H W"] = (
-        (-1) * jnp.pi * incoming.wavelength * path_length * (FX**2 + FY**2)
+    fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
+    fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
+    fx_mesh: Float[Array, "hh ww"]
+    fy_mesh: Float[Array, "hh ww"]
+    fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
+    transfer_phase: Float[Array, "hh ww"] = (
+        (-1) * jnp.pi * incoming.wavelength * path_length * (fx_mesh**2 + fy_mesh**2)
     )
-    propagated_ft: Complex[Array, "H W"] = add_phase_screen(field_ft, transfer_phase)
-    propagated_field: Complex[Array, "H W"] = jnp.fft.fftshift(
+    propagated_ft: Complex[Array, "hh ww"] = add_phase_screen(field_ft, transfer_phase)
+    propagated_field: Complex[Array, "hh ww"] = jnp.fft.fftshift(
         jnp.fft.ifft2(jnp.fft.ifftshift(propagated_ft)),
     )
-    final_quadratic_phase: Float[Array, "H W"] = k / (2 * path_length) * (X**2 + Y**2)
-    final_propagated_field: Complex[Array, "H W"] = jnp.fft.ifftshift(
+    final_quadratic_phase: Float[Array, "hh ww"] = k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
+    final_propagated_field: Complex[Array, "hh ww"] = jnp.fft.ifftshift(
         add_phase_screen(propagated_field, final_quadratic_phase),
     )
     propagated: OpticalWavefront = make_optical_wavefront(
@@ -219,7 +220,7 @@ def fraunhofer_prop(
     incoming : OpticalWavefront
         PyTree with the following parameters:
 
-        field : Complex[Array, "H W"]
+        field : Complex[Array, "hh ww"]
             Input complex field
         wavelength : Float[Array, ""]
             Wavelength of light in meters
@@ -253,18 +254,18 @@ def fraunhofer_prop(
     """
     ny: scalar_integer = incoming.field.shape[0]
     nx: scalar_integer = incoming.field.shape[1]
-    fx: Float[Array, " H"] = jnp.fft.fftfreq(nx, d=incoming.dx)
-    fy: Float[Array, " W"] = jnp.fft.fftfreq(ny, d=incoming.dx)
-    FX: Float[Array, "H W"]
-    FY: Float[Array, "H W"]
-    FX, FY = jnp.meshgrid(fx, fy)
+    fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
+    fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
+    fx_mesh: Float[Array, "hh ww"]
+    fy_mesh: Float[Array, "hh ww"]
+    fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
     path_length = refractive_index * z_move
-    H: Complex[Array, "H W"] = jnp.exp(
-        -1j * jnp.pi * incoming.wavelength * path_length * (FX**2 + FY**2),
+    hh: Complex[Array, "hh ww"] = jnp.exp(
+        -1j * jnp.pi * incoming.wavelength * path_length * (fx_mesh**2 + fy_mesh**2),
     ) / (1j * incoming.wavelength * path_length)
-    field_ft: Complex[Array, "H W"] = jnp.fft.fft2(incoming.field)
-    propagated_ft: Complex[Array, "H W"] = field_ft * H
-    propagated_field: Complex[Array, "H W"] = jnp.fft.ifft2(propagated_ft)
+    field_ft: Complex[Array, "hh ww"] = jnp.fft.fft2(incoming.field)
+    propagated_ft: Complex[Array, "hh ww"] = field_ft * hh
+    propagated_field: Complex[Array, "hh ww"] = jnp.fft.ifft2(propagated_ft)
     propagated: OpticalWavefront = make_optical_wavefront(
         field=propagated_field,
         wavelength=incoming.wavelength,
@@ -305,21 +306,21 @@ def digital_zoom(
     - Return the new optical wavefront with the updated field, wavelength,
       and pixel size.
     """
-    H: int
-    W: int
-    H, W = wavefront.field.shape
-    H_cut: int = int(H / zoom_factor)
-    W_cut: int = int(W / zoom_factor)
-    start_H: int = (H - H_cut) // 2
-    start_W: int = (W - W_cut) // 2
-    cut_field: Complex[Array, "H_cut W_cut"] = jax.lax.dynamic_slice(
+    hh: int
+    ww: int
+    hh, ww = wavefront.field.shape
+    hh_cut: int = int(hh / zoom_factor)
+    ww_cut: int = int(ww / zoom_factor)
+    start_hh: int = (hh - hh_cut) // 2
+    start_ww: int = (ww - ww_cut) // 2
+    cut_field: Complex[Array, "hh_cut ww_cut"] = jax.lax.dynamic_slice(
         wavefront.field,
-        (start_H, start_W),
-        (H_cut, W_cut),
+        (start_hh, start_ww),
+        (hh_cut, ww_cut),
     )
-    zoomed_field: Complex[Array, "H W"] = jax.image.resize(
+    zoomed_field: Complex[Array, "hh ww"] = jax.image.resize(
         image=cut_field,
-        shape=(H, W),
+        shape=(hh, ww),
         method="trilinear",
     )
     zoomed_wavefront: OpticalWavefront = make_optical_wavefront(
@@ -336,7 +337,8 @@ def optical_zoom(
     wavefront: OpticalWavefront,
     zoom_factor: scalar_numeric,
 ) -> OpticalWavefront:
-    """This is the optical zoom function that only modifies the calibration and leaves everything else the same.
+    """This is the optical zoom function that only modifies the calibration 
+    and leaves everything else the same.
 
     Parameters
     ----------

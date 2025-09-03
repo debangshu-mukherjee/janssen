@@ -1,5 +1,5 @@
-Contributing Guidelines
-=======================
+Janssen Design Principles
+=========================
 
 .. include:: ../../CONTRIBUTING.md
    :parser: myst_parser.sphinx_

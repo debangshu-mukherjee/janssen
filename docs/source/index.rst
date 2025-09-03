@@ -9,7 +9,6 @@ Welcome to Janssen's documentation!
    :caption: Contents:
 
    organization
-   installation
    contributing
    api
    tutorials/index

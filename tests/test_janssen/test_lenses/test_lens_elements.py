@@ -54,7 +54,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         center_val = var_lens_thickness_profile[self.ny // 2, self.nx // 2]
         chex.assert_trees_all_close(center_val, center_thickness, rtol=1e-5)
         far_point_val = (
-            var_lens_thickness_profile[0, 0] if self.r[0, 0] > diameter / 2 else var_lens_thickness_profile[10, 10]
+            var_lens_thickness_profile[0, 0]
+            if self.r[0, 0] > diameter / 2
+            else var_lens_thickness_profile[10, 10]
         )
         if self.r[10, 10] > diameter / 2:
             chex.assert_trees_all_close(far_point_val, 0.0, atol=1e-10)
@@ -62,7 +64,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
             mid_radius = diameter / 4
             mid_idx = int(mid_radius / self.dx)
             if mid_idx > 0 and self.nx // 2 + mid_idx < self.nx:
-                mid_val = var_lens_thickness_profile[self.ny // 2, self.nx // 2 + mid_idx]
+                mid_val = var_lens_thickness_profile[
+                    self.ny // 2, self.nx // 2 + mid_idx
+                ]
                 if float(mid_val) > 0:
                     chex.assert_scalar_positive(float(center_val) - float(mid_val))
 
@@ -290,7 +294,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         chex.assert_trees_all_close(thickness_jit, thickness_normal)
 
         def loss_fn(r1: float) -> Array:
-            var_lens_thickness_profile = lens_thickness_profile(self.r, r1, 0.01, 0.001, 0.005)
+            var_lens_thickness_profile = lens_thickness_profile(
+                self.r, r1, 0.01, 0.001, 0.005
+            )
             return jnp.sum(var_lens_thickness_profile**2)
 
         grad_fn = jax.grad(loss_fn)
