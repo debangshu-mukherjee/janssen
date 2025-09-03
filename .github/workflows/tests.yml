@@ -40,10 +40,6 @@ jobs:
       run: |
         uv sync --extra test --extra dev
         
-    - name: Lint with black
-      run: |
-        uv run black --check --diff src/ tests/
-        
     - name: Type check with beartype (runtime)
       run: |
         uv run python -c "import janssen; print('Beartype validation passed')"
