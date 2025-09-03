@@ -10,10 +10,11 @@ notebooks/__pycache__/
 /src/janssen/utils/__pycache__/
 /data/__pycache__/
 /tests/__pycache__/
-/tests/test_invert/__pycache__/
-/tests/test_lenses/__pycache__/
-/tests/test_simul/__pycache__/
-/tests/test_utils/__pycache__/
+/tests/test_janssen/__pycache__/
+/tests/test_janssen/test_invert/__pycache__/
+/tests/test_janssen/test_lenses/__pycache__/
+/tests/test_janssen/test_simul/__pycache__/
+/tests/test_janssen/test_utils/__pycache__/
 /data/__pycache__/
 /data/*/__pycache__/
 /data/
@@ -34,10 +35,11 @@ notebooks/__pycache__/
 /src/janssen/utils/.vscode
 /notebooks/.vscode
 /tests/.vscode
-/tests/test_invert/.vscode
-/tests/test_lenses/.vscode
-/tests/test_simul/.vscode
-/tests/test_utils/.vscode
+/tests/test_janssen/.vscode
+/tests/test_janssen/test_invert/.vscode
+/tests/test_janssen/test_lenses/.vscode
+/tests/test_janssen/test_simul/.vscode
+/tests/test_janssen/test_utils/.vscode
 /data/.vscode
 /data/*/.vscode
 /envs/.vscode
@@ -54,10 +56,11 @@ notebooks/__pycache__/
 /src/janssen/utils/.pyre_configuration
 /notebooks/.pyre_configuration
 /tests/.pyre_configuration
-/tests/test_invert/.pyre_configuration
-/tests/test_lenses/.pyre_configuration
-/tests/test_simul/.pyre_configuration
-/tests/test_utils/.pyre_configuration
+/tests/test_janssen/.pyre_configuration
+/tests/test_janssen/test_invert/.pyre_configuration
+/tests/test_janssen/test_lenses/.pyre_configuration
+/tests/test_janssen/test_simul/.pyre_configuration
+/tests/test_janssen/test_utils/.pyre_configuration
 /data/.pyre_configuration
 
 # C extensions
@@ -137,10 +140,11 @@ target/
 /src/janssen/simul/.ipynb_checkpoints
 /src/janssen/utils/.ipynb_checkpoints
 /tests/.ipynb_checkpoints
-/tests/test_invert/.ipynb_checkpoints
-/tests/test_lenses/.ipynb_checkpoints
-/tests/test_simul/.ipynb_checkpoints
-/tests/test_utils/.ipynb_checkpoints
+/tests/test_janssen/.ipynb_checkpoints
+/tests/test_janssen/test_invert/.ipynb_checkpoints
+/tests/test_janssen/test_lenses/.ipynb_checkpoints
+/tests/test_janssen/test_simul/.ipynb_checkpoints
+/tests/test_janssen/test_utils/.ipynb_checkpoints
 /data/.ipynb_checkpoints
 /data/*/.ipynb_checkpoints
 /ens/.ipynb_checkpoints

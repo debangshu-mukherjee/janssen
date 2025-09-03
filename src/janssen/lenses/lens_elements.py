@@ -141,7 +141,10 @@ def lens_focal_length(
         jnp.logical_and((r1 == special_r1), (r2 == special_r2)), (n == special_n)
     )
     special_case_f: Float[Array, " "] = jnp.asarray(0.15)
-    general_f: Float[Array, " "] = jnp.asarray(1.0 / ((n - 1.0) * (1.0 / r1 - 1.0 / r2)))
+    epsilon: float = 1e-10
+    r_diff = 1.0 / r1 - 1.0 / r2
+    r_diff_safe = jnp.where(jnp.abs(r_diff) < epsilon, epsilon, r_diff)
+    general_f: Float[Array, " "] = jnp.asarray(1.0 / ((n - 1.0) * r_diff_safe))
     standard_f: Float[Array, " "] = jnp.where(is_special_case, special_case_f, general_f)
     f: Float[Array, " "] = jnp.where(is_symmetric, symmetric_f, standard_f)
     return f
@@ -472,8 +475,9 @@ def meniscus_lens(
     - Create and return LensParams.
     """
     convex_first: Bool[Array, " "] = jnp.asarray(convex_first)
+    sign_factor = jnp.where(convex_first, 1.0, -1.0)
     r1_mag: Float[Array, ""] = jnp.asarray(
-        focal_length * (n - 1) * (1 - r_ratio) / (1 if convex_first else -1),
+        focal_length * (n - 1) * (1 - r_ratio) / sign_factor,
     )
     r2_mag: Float[Array, ""] = jnp.abs(r1_mag * r_ratio)
     r1: Float[Array, ""] = jnp.where(
