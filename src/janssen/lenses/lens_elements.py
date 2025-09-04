@@ -84,7 +84,7 @@ def lens_thickness_profile(
 
     Notes
     -----
-    - Calculate surface sag for both surfaces 
+    - Calculate surface sag for both surfaces
         only where aperture mask & r is finite.
     - Combine sags with center thickness.
     - Return thickness profile.

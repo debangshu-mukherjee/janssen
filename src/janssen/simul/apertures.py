@@ -35,13 +35,12 @@ pupil functions for optical systems.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Optional, Tuple, Union
-from jaxtyping import Array, Bool, Float
+from jaxtyping import Array, Bool, Float, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
-    beartype,
-    jaxtyped,
     make_optical_wavefront,
     scalar_float,
     scalar_numeric,
@@ -506,7 +505,7 @@ def supergaussian_apodizer_elliptical(
     sigma_y : scalar_float
         Width along y' (meters) after rotation by `theta`.
     m : scalar_numeric
-        Super-Gaussian order 
+        Super-Gaussian order
         (m=1 → Gaussian; m>1 → flatter top, sharper edges).
     theta : Optional[scalar_float], optional
         Rotation angle in radians (counter-clockwise), by default 0.0.

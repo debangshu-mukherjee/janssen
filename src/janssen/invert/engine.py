@@ -39,16 +39,15 @@ _create_frequency_grids : function, internal
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Callable, Optional, Tuple
-from jaxtyping import Array, Complex, Float
+from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.lenses import angular_spectrum_prop
 from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
-    beartype,
-    jaxtyped,
     make_optical_wavefront,
     make_sample_function,
     scalar_float,
@@ -156,24 +155,24 @@ def epie_optical(
         position_processor: Callable = jax.lax.cond(
             use_vmap, lambda: single_pie_vmap, lambda: single_pie_sequential
         )
-        updated_state: tuple[Complex[Array, " H W"], Complex[Array, " H W"]] = (
-            position_processor(
-                object_prop_ft,
-                surface_pattern_current,
-                image_data,
-                positions,
-                frequency_x_grid,
-                frequency_y_grid,
-                pixel_mask,
-                propagation_distance_2,
-                magnification,
-                alpha_object,
-                gamma_object,
-                alpha_surface,
-                gamma_surface,
-                initial_object.wavelength,
-                initial_object.dx,
-            )
+        updated_state: tuple[
+            Complex[Array, " H W"], Complex[Array, " H W"]
+        ] = position_processor(
+            object_prop_ft,
+            surface_pattern_current,
+            image_data,
+            positions,
+            frequency_x_grid,
+            frequency_y_grid,
+            pixel_mask,
+            propagation_distance_2,
+            magnification,
+            alpha_object,
+            gamma_object,
+            alpha_surface,
+            gamma_surface,
+            initial_object.wavelength,
+            initial_object.dx,
         )
         return updated_state
 
@@ -293,8 +292,8 @@ def single_pie_iteration(
     ) * _get_propagation_kernel(
         surface_plane.shape, propagation_distance_2, wavelength, dx
     )
-    sensor_plane_ft: Complex[Array, " H W"] = _apply_coherent_transfer_function(
-        surface_prop_ft
+    sensor_plane_ft: Complex[Array, " H W"] = (
+        _apply_coherent_transfer_function(surface_prop_ft)
     )
     sensor_plane: Complex[Array, " H W"] = jnp.fft.ifft2(
         jnp.fft.ifftshift(sensor_plane_ft)

@@ -40,11 +40,10 @@ NamedTuple classes to ensure proper runtime type checking of the contents.
 """
 
 import jax
+from beartype import beartype
 from beartype.typing import NamedTuple, Tuple, TypeAlias, Union
 from jax.tree_util import register_pytree_node_class
-from jaxtyping import Array, Bool, Complex, Float, Int, Num
-
-from .decorators import beartype, jaxtyped
+from jaxtyping import Array, Bool, Complex, Float, Int, Num, jaxtyped
 
 jax.config.update("jax_enable_x64", True)
 
@@ -72,7 +71,7 @@ class LensParams(NamedTuple):
     center_thickness : Float[Array, " "]
         Thickness at the center of the lens in meters
     r1 : Float[Array, " "]
-        Radius of curvature of the first surface in meters 
+        Radius of curvature of the first surface in meters
         (positive for convex)
     r2 : Float[Array, " "]
         Radius of curvature of the second surface in meters (
@@ -210,7 +209,7 @@ class OpticalWavefront(NamedTuple):
     dx : Float[Array, " "]
         Spatial sampling interval (grid spacing) in meters.
     z_position : Float[Array, " "]
-        Axial position of the wavefront along the propagation direction. 
+        Axial position of the wavefront along the propagation direction.
         In meters.
     polarization : Bool[Array, " "]
         Whether the field is polarized (True for 3D field, False for 2D field).
@@ -428,7 +427,8 @@ class OptimizerState(NamedTuple):
     def tree_flatten(
         self,
     ) -> Tuple[
-        Tuple[Complex[Array, "..."], Float[Array, "..."], Int[Array, " "]], None
+        Tuple[Complex[Array, "..."], Float[Array, "..."], Int[Array, " "]],
+        None,
     ]:
         """Flatten the OptimizerState into a tuple of its components."""
         return (

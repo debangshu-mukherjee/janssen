@@ -30,11 +30,11 @@ NamedTuple classes to ensure proper runtime type checking of the contents.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Optional, Tuple, Union
 from jax import lax
-from jaxtyping import Array, Bool, Complex, Float, Int, Num
+from jaxtyping import Array, Bool, Complex, Float, Int, Num, jaxtyped
 
-from .decorators import beartype, jaxtyped
 from .types import (
     Diffractogram,
     GridParams,
@@ -74,10 +74,10 @@ def make_lens_params(
     center_thickness : scalar_float
         Thickness at the center of the lens in meters
     r1 : scalar_float
-        Radius of curvature of the first surface in meters 
+        Radius of curvature of the first surface in meters
         (positive for convex)
     r2 : scalar_float
-        Radius of curvature of the second surface in meters 
+        Radius of curvature of the second surface in meters
         (positive for convex)
 
     Returns

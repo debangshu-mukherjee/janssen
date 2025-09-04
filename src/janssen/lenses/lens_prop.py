@@ -31,14 +31,13 @@ and the specific requirements of the simulation.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Optional
-from jaxtyping import Array, Bool, Complex, Float, Integer
+from jaxtyping import Array, Bool, Complex, Float, Integer, jaxtyped
 
 from janssen.utils import (
     LensParams,
     OpticalWavefront,
-    beartype,
-    jaxtyped,
     make_optical_wavefront,
     scalar_float,
     scalar_integer,
@@ -168,7 +167,7 @@ def fresnel_prop(
 
     - Calculate the wavenumber
     - Create spatial coordinates
-    - Quadratic phase factor for Fresnel approximation 
+    - Quadratic phase factor for Fresnel approximation
         (pre-free-space propagation)
     - Apply quadratic phase to the input field
     - Compute Fourier transform of the input field
@@ -330,20 +329,20 @@ def digital_zoom(
     Algorithm:
 
     For zoom in (zoom_factor >= 1.0):
-    - Calculate the crop fraction (1 / zoom_factor) to determine the 
+    - Calculate the crop fraction (1 / zoom_factor) to determine the
         central region to extract
-    - Create interpolation coordinates for the zoomed region centered 
+    - Create interpolation coordinates for the zoomed region centered
         on the image
-    - Use scipy.ndimage.map_coordinates with bilinear interpolation 
+    - Use scipy.ndimage.map_coordinates with bilinear interpolation
         to sample the field
     - Return the zoomed field with adjusted pixel size (dx / zoom_factor)
 
     For zoom out (zoom_factor < 1.0):
-    - Calculate the shrink fraction (zoom_factor) to determine the 
+    - Calculate the shrink fraction (zoom_factor) to determine the
         final image size
     - Create a coordinate mapping from the full image to the shrunken region
     - Use scipy.ndimage.map_coordinates to interpolate the original field
-    - Apply a mask to zero out regions outside the shrunken 
+    - Apply a mask to zero out regions outside the shrunken
         area (padding effect)
     - Return the zoomed field with adjusted pixel size (dx / zoom_factor)
     """
@@ -514,15 +513,15 @@ def lens_propagation(
     -----
     Algorithm:
 
-    - Create a meshgrid of coordinates based on the incoming wavefront's 
+    - Create a meshgrid of coordinates based on the incoming wavefront's
         shape and pixel size.
     - Calculate the phase profile and transmission function of the lens.
     - Apply the phase screen to the incoming wavefront's field.
-    - Return the new optical wavefront with the updated field, wavelength, 
+    - Return the new optical wavefront with the updated field, wavelength,
         and pixel size.
     """
     from .lens_elements import create_lens_phase
-    
+
     hh: int
     ww: int
     hh, ww = incoming.field.shape

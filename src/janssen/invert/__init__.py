@@ -21,7 +21,7 @@ Routine Listings
 ----------------
 create_loss_function
     Factory function for creating various loss functions
-simple_microscope_ptychography  
+simple_microscope_ptychography
     Main ptychography reconstruction algorithm for optical microscopy
 epie_optical
     Extended PIE algorithm for optical ptychography

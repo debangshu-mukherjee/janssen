@@ -26,13 +26,12 @@ simulations and are optimized for use with JAX transformations.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Tuple
-from jaxtyping import Array, Complex, Float, Int, Num
+from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
-    beartype,
-    jaxtyped,
     make_optical_wavefront,
     scalar_float,
 )
@@ -100,7 +99,7 @@ def normalize_field(
 
     Notes
     -----
-    - Calculate the power of the field as the sum of the square of 
+    - Calculate the power of the field as the sum of the square of
         the absolute value of the field.
     - Normalize the field by dividing by the square root of the power.
     - Return the normalized field.
@@ -217,7 +216,7 @@ def scale_pixel(
     ) -> Complex[Array, " hh ww"]:
         """
         If the new pixel size is smaller than the old one.
-        
+
         Then the new FOV is smaller too at the same field
         size. So we will first find the new smaller FOV,
         and crop to that size with the current pixel size.
@@ -250,7 +249,7 @@ def scale_pixel(
     ) -> Complex[Array, " hh ww"]:
         """
         If the new pixel size is larger than the old one.
-        
+
         Then the new FOV of the final field is larger too
         at the same field size. So we will need to first
         get the current FOV data with the new pixel size,

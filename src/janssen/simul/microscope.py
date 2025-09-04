@@ -25,8 +25,9 @@ and are designed for use in inverse problems and ptychography reconstruction.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Optional, Tuple
-from jaxtyping import Array, Complex, Float, Int, Num
+from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
 from janssen.lenses.lens_prop import fraunhofer_prop, optical_zoom
 from janssen.utils import (
@@ -34,8 +35,6 @@ from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
-    beartype,
-    jaxtyped,
     make_diffractogram,
     make_microscope_data,
     make_optical_wavefront,
@@ -57,7 +56,7 @@ def linear_interaction(
 ) -> OpticalWavefront:
     """Propagate an optical wavefront through a sample.
 
-    The sample is modeled as a complex function that modifies 
+    The sample is modeled as a complex function that modifies
     the incoming wavefront. Using linear interaction.
 
     Parameters
@@ -173,8 +172,8 @@ def simple_microscope(
 ) -> MicroscopeData:
     """Calculate the 3D diffractograms of the entire imaging.
 
-    This cuts the sample, and then generates a diffractogram with the 
-    desired camera pixel size - all done in parallel. 
+    This cuts the sample, and then generates a diffractogram with the
+    desired camera pixel size - all done in parallel.
     Done at every pixel positions.
 
     Parameters

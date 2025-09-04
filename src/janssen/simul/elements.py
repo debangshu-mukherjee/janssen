@@ -48,13 +48,12 @@ vectorial field calculations.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Callable, Optional, Tuple
-from jaxtyping import Array, Bool, Complex, Float, Num
+from jaxtyping import Array, Bool, Complex, Float, Num, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
-    beartype,
-    jaxtyped,
     make_optical_wavefront,
     scalar_float,
 )
@@ -144,13 +143,13 @@ def prism_phase_ramp(
     incoming : OpticalWavefront
         Input scalar wavefront.
     deflect_x : scalar_float, optional
-        Deflection along +x. 
+        Deflection along +x.
         If `use_small_angle` is True, interpreted as angle (rad).
         Otherwise interpreted as spatial frequency kx [rad/m], by default 0.0.
     deflect_y : scalar_float, optional
         Deflection along +y (angle or ky), by default 0.0.
     use_small_angle : bool, optional
-        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle. 
+        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle.
         Default True.
 
     Returns
@@ -205,7 +204,7 @@ def beam_splitter(
     t2 : scalar_float, optional
         Complex transmission amplitude, by default jnp.sqrt(0.5).
     r2 : scalar_float, optional
-        Complex reflection amplitude. 
+        Complex reflection amplitude.
         Default 1j * jnp.sqrt(0.5) for 50/50 convention.
     normalize : bool, optional
         If True, scale (t, r) so that |t|^2 + |r|^2 = 1, by default True.
@@ -281,7 +280,7 @@ def mirror_reflection(
         Multiply by exp(i*pi) = -1 to simulate phase inversion on reflection.
         Default True.
     conjugate : bool, optional
-        Conjugate the complex field, useful when reversing propagation 
+        Conjugate the complex field, useful when reversing propagation
         direction. Default is True.
 
     Returns
@@ -455,7 +454,7 @@ def phase_grating_sawtooth(
     Notes
     -----
     - Compute fractional coordinate within each period.
-    - Sawtooth phase in [0, depth) → shift to mean-zero if desired 
+    - Sawtooth phase in [0, depth) → shift to mean-zero if desired
         (kept at [0, depth)).
     - Apply phase with exp(i*phase).
     """
@@ -521,7 +520,7 @@ def apply_phase_mask_fn(
     incoming : OpticalWavefront
         Input field.
     phase_fn : callable
-        Function producing a phase map (radians) given 
+        Function producing a phase map (radians) given
         centered grids xx, yy (meters).
 
     Returns
@@ -760,7 +759,7 @@ def phase_grating_blazed_elliptical(
     r"""
     Orientation-aware elliptical blazed grating.
 
-    Supports anisotropic periods along rotated axes (x', y') 
+    Supports anisotropic periods along rotated axes (x', y')
     and optional 2D blaze.
 
     Parameters
@@ -787,7 +786,7 @@ def phase_grating_blazed_elliptical(
     Notes
     -----
     - Build centered grids xx, yy (meters) and rotate → (x', y').
-    - Compute fractional coordinates 
+    - Compute fractional coordinates
         ..math::
         fu = frac(x'/period_x)
         fv = frac(y'/period_y)

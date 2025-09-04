@@ -8,8 +8,6 @@ Provides the foundation for type-safe JAX programming with PyTrees.
 
 Submodules
 ----------
-decorators
-    Decorators for type checking and JAX transformations
 factory
     Factory functions for creating data structures
 types
@@ -17,10 +15,6 @@ types
 
 Routine Listings
 ----------------
-beartype
-    Runtime type checker decorator
-jaxtyped
-    JAX array shape and dtype type checker
 Diffractogram
     PyTree for storing diffraction patterns
 GridParams
@@ -69,7 +63,6 @@ proper type checking and validation. All PyTrees are registered with
 JAX and support automatic differentiation.
 """
 
-from .decorators import beartype, jaxtyped
 from .factory import (
     make_diffractogram,
     make_grid_params,
@@ -96,8 +89,6 @@ from .types import (
 )
 
 __all__: list[str] = [
-    "beartype",
-    "jaxtyped",
     "Diffractogram",
     "GridParams",
     "LensParams",

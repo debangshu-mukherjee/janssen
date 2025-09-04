@@ -22,16 +22,15 @@ and automatic differentiation for gradient-based optimization.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Dict, Optional, Tuple
-from jaxtyping import Array, Complex, Float
+from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.simul import simple_microscope
 from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
-    beartype,
-    jaxtyped,
     make_optical_wavefront,
     make_sample_function,
     scalar_float,
@@ -118,8 +117,8 @@ def simple_microscope_ptychography(
     ],
 ]:
     """Solve the optical ptychography inverse problem.
-    
-    Here experimental diffraction patterns are used to reconstruct a sample, 
+
+    Here experimental diffraction patterns are used to reconstruct a sample,
     lightwave, and optical system parameters.
 
     Parameters

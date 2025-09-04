@@ -63,6 +63,7 @@ grad, and vmap.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import (
     Any,
     Callable,
@@ -72,7 +73,7 @@ from beartype.typing import (
     Tuple,
     Union,
 )
-from jaxtyping import Array, Complex, Float
+from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import OptimizerState, make_optimizer_state
 
@@ -290,6 +291,7 @@ class Optimizer(NamedTuple):
     update: Callable
 
 
+@jaxtyped(typechecker=beartype)
 def wirtinger_grad(
     func2diff: Callable[..., Float[Array, " ..."]],
     argnums: Optional[Union[int, Sequence[int]]] = 0,
@@ -361,6 +363,7 @@ def wirtinger_grad(
     return grad_f
 
 
+@jaxtyped(typechecker=beartype)
 def complex_adam(
     params: Complex[Array, " ..."],
     grads: Complex[Array, " ..."],
@@ -428,6 +431,7 @@ def complex_adam(
     return new_params, (m, v, t)
 
 
+@jaxtyped(typechecker=beartype)
 def complex_adagrad(
     params: Complex[Array, " ..."],
     grads: Complex[Array, " ..."],
@@ -477,6 +481,7 @@ def complex_adagrad(
     return new_params, new_accumulated_grads
 
 
+@jaxtyped(typechecker=beartype)
 def complex_rmsprop(
     params: Complex[Array, " ..."],
     grads: Complex[Array, " ..."],
@@ -538,6 +543,7 @@ def complex_rmsprop(
     return new_params, new_moving_avg
 
 
+@jaxtyped(typechecker=beartype)
 def init_adam(shape: Tuple) -> OptimizerState:
     """Initialize Adam optimizer state.
 
@@ -554,6 +560,7 @@ def init_adam(shape: Tuple) -> OptimizerState:
     return make_optimizer_state(shape)
 
 
+@jaxtyped(typechecker=beartype)
 def init_adagrad(shape: Tuple) -> OptimizerState:
     """Initialize Adagrad optimizer state.
 
@@ -570,6 +577,7 @@ def init_adagrad(shape: Tuple) -> OptimizerState:
     return make_optimizer_state(shape)
 
 
+@jaxtyped(typechecker=beartype)
 def init_rmsprop(shape: Tuple) -> OptimizerState:
     """Initialize RMSprop optimizer state.
 
@@ -586,6 +594,7 @@ def init_rmsprop(shape: Tuple) -> OptimizerState:
     return make_optimizer_state(shape)
 
 
+@jaxtyped(typechecker=beartype)
 def adam_update(
     params: Complex[Array, " ..."],
     grads: Complex[Array, " ..."],
@@ -641,6 +650,7 @@ def adam_update(
     )
 
 
+@jaxtyped(typechecker=beartype)
 def adagrad_update(
     params: Complex[Array, " ..."],
     grads: Complex[Array, " ..."],
@@ -686,6 +696,7 @@ def adagrad_update(
     )
 
 
+@jaxtyped(typechecker=beartype)
 def rmsprop_update(
     params: Complex[Array, " ..."],
     grads: Complex[Array, " ..."],
