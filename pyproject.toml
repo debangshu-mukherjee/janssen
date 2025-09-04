@@ -61,6 +61,8 @@ docs = [
     "sphinx-autodoc-typehints>=3.0.1",
     "sphinx-rtd-theme>=3.0.2",
     "sphinxcontrib-napoleon>=0.7",
+    "pydoclint>=0.7.3",
+    "interrogate>=1.7.0",
 ]
 test = [
     "pytest>=8.3.5",
@@ -154,6 +156,7 @@ docstring-code-line-length = 79
 
 [tool.ruff.lint]
 select = [
+    "D",
     "E", 
     "F", 
     "B", 
@@ -177,6 +180,8 @@ ignore = [
     "PYI021",
     "F722",
     "COM812",
+    "D205",
+    "D212",
 ]
 
 [tool.ruff.lint.flake8-bugbear]
@@ -194,11 +199,26 @@ extend-immutable-calls = [
 [tool.ruff.lint.pylint]
 max-args = 10
 
-[tool.ruff.lint.per-file-ignores]
-"**/*.py" = ["F821"]
-
 [tool.ruff.lint.isort]
 known-third-party = ["jax", "jaxtyping"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D"]
+
+[tool.pydoclint]
+style = "numpy"
+check-return-types = true
+check-yield-types = true
+check-arg-order = true
+require-return-section-when-returning = true
+require-yield-section-when-yielding = true
+
+[tool.interrogate]
+fail-under = 90
+style = "sphinx"
+exclude = ["tests", "build", "dist"]
+ignore-init-module = true
+quiet = true

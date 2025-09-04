@@ -1,6 +1,8 @@
 """
-Module: janssen.simul.elements
-------------------------------
+Module: janssen.simul.elements.
+
+-------------------------------
+
 Common optical elements beyond lenses and basic apertures.
 
 Functions
@@ -10,7 +12,10 @@ prism_phase_ramp
 beam_splitter
     Splits a field into transmitted and reflected arms with given (t, r).
 mirror_reflection
-    Applies mirror reflection(s): coordinate flip(s), optional conjugation, π phase.
+    Applies mirror reflection(s): 
+    coordinate flip(s), 
+    optional conjugation, 
+    π phase.
 phase_grating_sine
     Sinusoidal phase grating.
 amplitude_grating_binary
@@ -32,7 +37,8 @@ quarter_waveplate
 half_waveplate
     Half-waveplate with fast axis angle theta.
 phase_grating_blazed_elliptical
-    Elliptical blazed phase grating with period_x, period_y, theta, depth, and two_dim.
+    Elliptical blazed phase grating with 
+    period_x, period_y, theta, depth, and two_dim.
 
 Internal utilities
 ------------------
@@ -140,12 +146,14 @@ def prism_phase_ramp(
     incoming : OpticalWavefront
         Input scalar wavefront.
     deflect_x : scalar_float, optional
-        Deflection along +x. If `use_small_angle` is True, interpreted as angle (rad).
+        Deflection along +x. 
+        If `use_small_angle` is True, interpreted as angle (rad).
         Otherwise interpreted as spatial frequency kx [rad/m], by default 0.0.
     deflect_y : scalar_float, optional
         Deflection along +y (angle or ky), by default 0.0.
     use_small_angle : bool, optional
-        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle, by default True.
+        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle. 
+        Default True.
 
     Returns
     -------
@@ -199,7 +207,8 @@ def beam_splitter(
     t2 : scalar_float, optional
         Complex transmission amplitude, by default jnp.sqrt(0.5).
     r2 : scalar_float, optional
-        Complex reflection amplitude, by default 1j * jnp.sqrt(0.5) for 50/50 convention.
+        Complex reflection amplitude. 
+        Default 1j * jnp.sqrt(0.5) for 50/50 convention.
     normalize : bool, optional
         If True, scale (t, r) so that |t|^2 + |r|^2 = 1, by default True.
 
@@ -271,9 +280,11 @@ def mirror_reflection(
     flip_y : bool, optional
         Flip along y-axis (rows), by default False.
     add_pi_phase : bool, optional
-        Multiply by exp(i*pi) = -1 to simulate phase inversion on reflection, by default True.
+        Multiply by exp(i*pi) = -1 to simulate phase inversion on reflection.
+        Default True.
     conjugate : bool, optional
-        Conjugate the complex field (useful when reversing propagation direction), by default True.
+        Conjugate the complex field, useful when reversing propagation 
+        direction. Default is True.
 
     Returns
     -------
@@ -446,7 +457,8 @@ def phase_grating_sawtooth(
     Notes
     -----
     - Compute fractional coordinate within each period.
-    - Sawtooth phase in [0, depth) → shift to mean-zero if desired (kept at [0, depth)).
+    - Sawtooth phase in [0, depth) → shift to mean-zero if desired 
+        (kept at [0, depth)).
     - Apply phase with exp(i*phase).
     """
     ny, nx = incoming.field.shape[:2]
@@ -511,7 +523,8 @@ def apply_phase_mask_fn(
     incoming : OpticalWavefront
         Input field.
     phase_fn : callable
-        Function producing a phase map (radians) given centered grids xx, yy (meters).
+        Function producing a phase map (radians) given 
+        centered grids xx, yy (meters).
 
     Returns
     -------
@@ -581,7 +594,7 @@ def waveplate_jones(
     theta: scalar_float = 0.0,
 ) -> OpticalWavefront:
     """
-    Waveplate/retarder with retardance `delta` (radians) and fast-axis angle `theta`.
+    Waveplate/retarder with retardance `delta` and fast-axis angle `theta`.
 
     Special cases: quarter-wave (delta=π/2), half-wave (delta=π).
 
@@ -683,7 +696,7 @@ def quarter_waveplate(
     theta: Optional[scalar_float] = 0.0,
 ) -> OpticalWavefront:
     """
-    Convenience wrapper for a quarter-wave plate (δ = π/2) with fast-axis angle `theta`.
+    Apply a quarter-wave plate (δ = π/2) with fast-axis angle `theta`.
 
     Parameters
     ----------
@@ -713,7 +726,7 @@ def half_waveplate(
     theta: Optional[scalar_float] = 0.0,
 ) -> OpticalWavefront:
     """
-    Convenience wrapper for a half-wave plate (δ = π) with fast-axis angle `theta`.
+    Apply a half-wave plate (δ = π) with fast-axis angle `theta`.
 
     Parameters
     ----------
@@ -746,10 +759,11 @@ def phase_grating_blazed_elliptical(
     depth: Optional[scalar_float] = 2.0 * jnp.pi,
     two_dim: Optional[bool] = False,
 ) -> OpticalWavefront:
-    """
+    r"""
     Orientation-aware elliptical blazed grating.
 
-    Supports anisotropic periods along rotated axes (x', y') and optional 2D blaze.
+    Supports anisotropic periods along rotated axes (x', y') 
+    and optional 2D blaze.
 
     Parameters
     ----------
@@ -775,9 +789,16 @@ def phase_grating_blazed_elliptical(
     Notes
     -----
     - Build centered grids xx, yy (meters) and rotate → (x', y').
-    - Compute fractional coordinates fu = frac(x'/period_x), fv = frac(y'/period_y).
-    - If `two_dim`:
-      phase = depth * frac(fu + fv); else phase = depth * fu.
+    - Compute fractional coordinates 
+        ..math::
+        fu = frac(x'/period_x)
+        fv = frac(y'/period_y)
+    - if `two_dim` is True
+        ..math::
+        phase = depth * frac(fu + fv)
+      else,
+        ..math::
+        phase = depth * fu
     - Multiply by exp(i * phase) and return.
     """
     ny, nx = incoming.field.shape[:2]

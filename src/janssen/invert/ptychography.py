@@ -1,6 +1,8 @@
 """
-Module: janssen.invert.ptychography
+Module: janssen.invert.ptychography.
+
 -------------------------------------
+
 Codes for optical propagation through lenses and optical elements.
 
 Functions
@@ -29,6 +31,7 @@ from janssen.utils import (
     scalar_integer,
 )
 
+from .loss_functions import create_loss_function
 from .optimizers import (
     Optimizer,
     adagrad_update,
@@ -49,6 +52,18 @@ OPTIMIZERS: Dict[str, Optimizer] = {
 
 
 def get_optimizer(optimizer_name: str) -> Optimizer:
+    """Get the optimizer function based on the optimizer name.
+
+    Parameters
+    ----------
+    optimizer_name : str
+        The name of the optimizer to get.
+
+    Returns
+    -------
+    Optimizer
+        The optimizer function.
+    """
     if optimizer_name not in OPTIMIZERS:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
     return OPTIMIZERS[optimizer_name]
@@ -95,7 +110,10 @@ def simple_microscope_ptychography(
         Float[Array, " S"],  # intermediate_travel_distances
     ],
 ]:
-    """Solve the optical ptychography inverse problem where experimental diffraction patterns are used to reconstruct a sample, lightwave, and optical system parameters.
+    """Solve the optical ptychography inverse problem.
+    
+    Here experimental diffraction patterns are used to reconstruct a sample, 
+    lightwave, and optical system parameters.
 
     Parameters
     ----------
@@ -213,7 +231,7 @@ def simple_microscope_ptychography(
         return simulated_data.image_data
 
     # Create loss function using the tools module
-    loss_func = ptt.create_loss_function(
+    loss_func = create_loss_function(
         forward_fn, experimental_data.image_data, loss_type
     )
 

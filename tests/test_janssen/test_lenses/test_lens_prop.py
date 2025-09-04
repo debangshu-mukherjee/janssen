@@ -14,7 +14,6 @@ from janssen.lenses import (
     optical_zoom,
 )
 from janssen.utils import (
-    LensParams,
     OpticalWavefront,
     make_lens_params,
     make_optical_wavefront,
@@ -23,7 +22,6 @@ from janssen.utils import (
 
 class TestLensProp(chex.TestCase, parameterized.TestCase):
     def setUp(self) -> None:
-        """Set up common test fixtures."""
         super().setUp()
         self.nx = 128
         self.ny = 128
@@ -66,7 +64,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_angular_spectrum_prop_basic(self) -> None:
-        """Test basic angular spectrum propagation."""
+        """
+        Test basic angular spectrum propagation.
+        """
         var_angular_spectrum = self.variant(angular_spectrum_prop)
         z_distance = 1e-3
         
@@ -105,7 +105,10 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
     def test_angular_spectrum_prop_distances(
         self, z_distance: float, refractive_index: float
     ) -> None:
-        """Test angular spectrum propagation at various distances and media."""
+        """
+        Test angular spectrum propagation at various distances and
+        media.
+        """
         var_angular_spectrum = self.variant(angular_spectrum_prop)
         
         propagated = var_angular_spectrum(
@@ -123,7 +126,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_fresnel_prop_basic(self) -> None:
-        """Test basic Fresnel propagation."""
+        """
+        Test basic Fresnel propagation.
+        """
         var_fresnel = self.variant(fresnel_prop)
         z_distance = 1e-3
         
@@ -149,7 +154,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         ("water", 1.33),
     )
     def test_fresnel_prop_refractive_index(self, refractive_index: float) -> None:
-        """Test Fresnel propagation in different media."""
+        """
+        Test Fresnel propagation in different media.
+        """
         var_fresnel = self.variant(fresnel_prop)
         z_distance = 5e-3
         
@@ -164,7 +171,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_fraunhofer_prop_basic(self) -> None:
-        """Test basic Fraunhofer propagation."""
+        """
+        Test basic Fraunhofer propagation.
+        """
         var_fraunhofer = self.variant(fraunhofer_prop)
         z_distance = 0.1  # Longer distance for far-field
         
@@ -184,7 +193,10 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_propagation_consistency(self) -> None:
-        """Test that different propagation methods give similar results in appropriate regimes."""
+        """
+        Test that different propagation methods give similar results in
+        appropriate regimes.
+        """
         var_angular = self.variant(angular_spectrum_prop)
         var_fresnel = self.variant(fresnel_prop)
         
@@ -217,7 +229,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         ("no_zoom", 1.0),
     )
     def test_digital_zoom(self, zoom_factor: float) -> None:
-        """Test digital zoom functionality."""
+        """
+        Test digital zoom functionality.
+        """
         var_digital_zoom = self.variant(digital_zoom)
         
         zoomed = var_digital_zoom(self.test_wavefront, zoom_factor)
@@ -249,7 +263,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         ("no_zoom", 1.0),
     )
     def test_optical_zoom(self, zoom_factor: float) -> None:
-        """Test optical zoom functionality."""
+        """
+        Test optical zoom functionality.
+        """
         var_optical_zoom = self.variant(optical_zoom)
         
         zoomed = var_optical_zoom(self.test_wavefront, zoom_factor)
@@ -269,7 +285,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_lens_propagation(self) -> None:
-        """Test propagation through a lens."""
+        """
+        Test propagation through a lens.
+        """
         var_lens_prop = self.variant(lens_propagation)
         
         output = var_lens_prop(self.test_wavefront, self.test_lens)
@@ -289,7 +307,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         )
 
     def test_jax_transformations_angular_spectrum(self) -> None:
-        """Test JAX transformations on angular spectrum propagation."""
+        """
+        Test JAX transformations on angular spectrum propagation.
+        """
         @jax.jit
         def jitted_prop(wavefront: OpticalWavefront, z: float) -> OpticalWavefront:
             return angular_spectrum_prop(wavefront, z)
@@ -311,7 +331,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         chex.assert_tree_all_finite(grad)
 
     def test_jax_transformations_zoom(self) -> None:
-        """Test JAX transformations on zoom functions."""
+        """
+        Test JAX transformations on zoom functions.
+        """
         # Test vmap on digital zoom
         zoom_factors = jnp.array([0.5, 1.0, 2.0])
         vmapped_digital = jax.vmap(
@@ -329,7 +351,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         ("random_phase", jnp.exp(1j * jax.random.uniform(jax.random.PRNGKey(0), (128, 128), minval=0, maxval=2*jnp.pi))),
     )
     def test_propagation_edge_cases(self, field: Complex[Array, "128 128"]) -> None:
-        """Test propagation with edge case fields."""
+        """
+        Test propagation with edge case fields.
+        """
         wavefront = make_optical_wavefront(
             field=field,
             wavelength=self.wavelength,
@@ -351,7 +375,9 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         chex.assert_shape(fraunhofer_result.field, field.shape)
 
     def test_energy_conservation(self) -> None:
-        """Test energy conservation in propagation."""
+        """
+        Test energy conservation in propagation.
+        """
         z_distance = 1e-3
         
         # Angular spectrum should conserve energy
@@ -387,7 +413,10 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         )
 
     def test_plane_wave_propagation(self) -> None:
-        """Test that a plane wave accumulates only phase during propagation."""
+        """
+        Test that a plane wave accumulates only phase during
+        propagation.
+        """
         z_distance = 1e-3
         
         propagated = angular_spectrum_prop(self.plane_wave, z_distance)

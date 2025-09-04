@@ -1,6 +1,8 @@
 """
-Module: janssen.simul.microscope
---------------------------------
+Module: janssen.simul.microscope.
+
+---------------------------------
+
 Codes for optical propagation through lenses and optical elements.
 
 Functions
@@ -23,6 +25,7 @@ import jax.numpy as jnp
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, Int, Num
 
+from janssen.lenses import fraunhofer_prop, optical_zoom
 from janssen.utils import (
     Diffractogram,
     MicroscopeData,
@@ -49,9 +52,10 @@ def linear_interaction(
     sample: SampleFunction,
     light: OpticalWavefront,
 ) -> OpticalWavefront:
-    """Propagate an optical wavefront through a sample using linear interaction.
+    """Propagate an optical wavefront through a sample.
 
-    The sample is modeled as a complex function that modifies the incoming wavefront.
+    The sample is modeled as a complex function that modifies 
+    the incoming wavefront. Using linear interaction.
 
     Parameters
     ----------
@@ -127,8 +131,6 @@ def simple_diffractogram(
     - Calculate the field intensity of the camera image
     - Create a diffractogram from the camera image
     """
-    from janssen.lenses import fraunhofer_prop, optical_zoom
-
     at_sample_plane: OpticalWavefront = linear_interaction(
         sample=sample_cut,
         light=lightwave,
@@ -166,10 +168,11 @@ def simple_microscope(
     camera_pixel_size: scalar_float,
     aperture_center: Optional[Float[Array, " 2"]] = None,
 ) -> MicroscopeData:
-    """Calculate the 3D diffractograms of the entire imaging done at every pixel positions.
+    """Calculate the 3D diffractograms of the entire imaging.
 
-    This cuts the sample, and then generates a diffractogram with the desired camera
-    pixel size - all done in parallel.
+    This cuts the sample, and then generates a diffractogram with the 
+    desired camera pixel size - all done in parallel. 
+    Done at every pixel positions.
 
     Parameters
     ----------

@@ -1,6 +1,8 @@
 """
-Module: janssen.invert
+Module: janssen.invert.
+
 ----------------------
+
 Inversion algorithms for phase retrieval and ptychography.
 
 Submodules

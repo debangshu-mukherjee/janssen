@@ -171,7 +171,9 @@ html_js_files = ["custom.js"]
 
 
 def skip_member(app, what, name, obj, skip, options):
-    """Skip specific members in documentation."""
+    """
+    Skip specific members in documentation.
+    """
     skip_names = [
         "Float",
         "Array",
@@ -191,7 +193,9 @@ def skip_member(app, what, name, obj, skip, options):
 
 
 def process_signature(app, what, name, obj, options, signature, return_annotation):
-    """Process signatures to handle jaxtyping annotations."""
+    """
+    Process signatures to handle jaxtyping annotations.
+    """
     if signature:
         signature = signature.replace('Float[Array, " ', "FloatArray[")
         signature = signature.replace('Int[Array, " ', "IntArray[")

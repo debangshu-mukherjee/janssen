@@ -1,6 +1,8 @@
 """
-Module: janssen.lenses.lens_elements
-------------------------------------
+Module: janssen.lenses.lens_elements.
+
+-------------------------------------
+
 Optics model for simulation of optical lenses.
 
 Functions
@@ -76,7 +78,8 @@ def lens_thickness_profile(
 
     Notes
     -----
-    - Calculate surface sag for both surfaces only where aperture mask & r is finite.
+    - Calculate surface sag for both surfaces 
+        only where aperture mask & r is finite.
     - Combine sags with center thickness.
     - Return thickness profile.
     """

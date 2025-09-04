@@ -1,6 +1,8 @@
 """
-Module: janssen.lenses
-----------------------
+Module: janssen.lenses.
+
+-----------------------
+
 Differentiable optical lenses.
 
 This package implements various lenses and optical propagators.

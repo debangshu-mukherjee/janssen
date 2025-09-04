@@ -1,6 +1,8 @@
 """
-Module: janssen.utils.decorators
+Module: janssen.utils.decorators.
+
 ---------------------------------
+
 Decorators for type checking and JAX transformations.
 
 This module provides conditional decorators that can be disabled during

@@ -1,6 +1,8 @@
 """
-Module: janssen.simul.helper
-----------------------------
+Module: janssen.simul.helper.
+
+-----------------------------
+
 Utility functions for optical propagation.
 
 Functions
@@ -93,7 +95,8 @@ def normalize_field(
 
     Notes
     -----
-    - Calculate the power of the field as the sum of the square of the absolute value of the field.
+    - Calculate the power of the field as the sum of the square of 
+        the absolute value of the field.
     - Normalize the field by dividing by the square root of the power.
     - Return the normalized field.
     """
@@ -208,8 +211,9 @@ def scale_pixel(
         field: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
         """
-        If the new pixel size is smaller than the old one,
-        then the new FOV is smaller too at the same field
+        If the new pixel size is smaller than the old one.
+        
+        Then the new FOV is smaller too at the same field
         size. So we will first find the new smaller FOV,
         and crop to that size with the current pixel size.
         Then we will resize to the new pizel size with the
@@ -240,8 +244,9 @@ def scale_pixel(
         field: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
         """
-        If the new pixel size is larger than the old one,
-        then the new FOV of the final field is larger too
+        If the new pixel size is larger than the old one.
+        
+        Then the new FOV of the final field is larger too
         at the same field size. So we will need to first
         get the current FOV data with the new pixel size,
         which will be smaller than the current field size.

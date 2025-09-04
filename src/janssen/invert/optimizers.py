@@ -102,7 +102,7 @@ def create_cosine_scheduler(
     total_steps: int,
     final_lr_factor: Optional[float] = 0.01,
 ) -> SchedulerFn:
-    """Creates a cosine learning rate scheduler.
+    """Create a cosine learning rate scheduler.
 
     This scheduler implements a cosine annealing schedule that smoothly
     decreases the learning rate from the initial value to a final value
@@ -150,11 +150,12 @@ def create_cosine_scheduler(
 
 
 def create_step_scheduler(step_size: int, gamma: float = 0.1) -> SchedulerFn:
-    """Creates a step decay scheduler that reduces learning rate by gamma every
-    step_size steps.
+    """Create a step decay scheduler.
 
-    This scheduler implements a step-wise learning rate decay where the learning rate
-    is multiplied by gamma every step_size steps.
+    This creates a step decay scheduler that reduces learning rate by gamma
+    every step_size steps. This scheduler implements a step-wise learning
+    rate decay where the
+    learning rate is multiplied by gamma every step_size steps.
 
     Parameters
     ----------
@@ -198,11 +199,11 @@ def create_warmup_cosine_scheduler(
     warmup_steps: int,
     final_lr_factor: float = 0.01,
 ) -> SchedulerFn:
-    """Creates a scheduler with linear warmup followed by cosine decay.
+    """Create a scheduler with linear warmup followed by cosine decay.
 
-    This scheduler combines a linear warmup phase with a cosine annealing decay.
-    During warmup, the learning rate increases linearly from 0 to the initial value.
-    After warmup, it follows a cosine decay schedule.
+    This scheduler combines a linear warmup phase with a cosine annealing
+    decay. During warmup, the learning rate increases linearly from 0 to
+    the initial value. After warmup, it follows a cosine decay schedule.
 
     Parameters
     ----------
@@ -236,11 +237,8 @@ def create_warmup_cosine_scheduler(
     def scheduler_fn(
         state: LRSchedulerState,
     ) -> Tuple[float, LRSchedulerState]:
-        # Linear warmup
         warmup_progress = jnp.minimum(state.step / warmup_steps, 1.0)
         warmup_lr = state.initial_lr * warmup_progress
-
-        # Cosine decay after warmup
         remaining_steps = total_steps - warmup_steps
         decay_progress = (
             jnp.maximum(0.0, state.step - warmup_steps) / remaining_steps
@@ -250,10 +248,7 @@ def create_warmup_cosine_scheduler(
         decay_lr = state.initial_lr * (
             final_lr_factor + (1 - final_lr_factor) * cosine_decay
         )
-
-        # Choose between warmup and decay
         lr = jnp.where(state.step < warmup_steps, warmup_lr, decay_lr)
-
         new_state = LRSchedulerState(
             step=state.step + 1, learning_rate=lr, initial_lr=state.initial_lr
         )
@@ -490,7 +485,7 @@ def complex_rmsprop(
     decay_rate: float = 0.9,
     eps: float = 1e-8,
 ) -> Tuple[Complex[Array, " ..."], Complex[Array, " ..."]]:
-    """Complex-valued RMSprop optimizer based on Wirtinger derivatives.
+    r"""Complex-valued RMSprop optimizer based on Wirtinger derivatives.
 
     This function performs one step of the RMSprop optimization algorithm
     for complex-valued parameters using Wirtinger calculus.
@@ -523,9 +518,15 @@ def complex_rmsprop(
     Notes
     -----
     Algorithm:
-    - Update moving average of squared gradients: v = ρ * v + (1 - ρ) * |grads|²
-    - Calculate adaptive learning rate: lr_adaptive = lr / (√v + ε)
-    - Apply update: new_params = params - lr_adaptive * grads
+    - Update moving average of squared gradients:
+        .. math::
+        v = \rho \cdot v + (1 - \rho) \cdot |\text{grads}|^2
+    - Calculate adaptive learning rate:
+        .. math::
+        lr_{adaptive} = \frac{lr}{\sqrt{v} + \epsilon}
+    - Apply update:
+    .. math::
+        \text{new\_params} = \text{params} - lr_{adaptive} \cdot \text{grads}
     - Return updated parameters and moving average
     """
     moving_avg = state

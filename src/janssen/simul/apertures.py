@@ -1,12 +1,14 @@
 """
-Module: janssen.simul.apertures
--------------------------------
+Module: janssen.simul.apertures.
+
+--------------------------------
+
 Aperture and apodizer elements for shaping optical wavefronts.
 
 Functions
 ---------
 circular_aperture
-    Applies a circular aperture (optionally offset) with uniform transmittivity.
+    Applies a circular aperture (optionally offset) with uniform transmittivity
 rectangular_aperture
     Applies an axis-aligned rectangular aperture with uniform transmittivity.
 annular_aperture
@@ -17,11 +19,11 @@ variable_transmission_aperture
 gaussian_apodizer
     Applies a Gaussian apodizer (smooth transmission mask) to the wavefront.
 supergaussian_apodizer
-    Applies a super-Gaussian apodizer (smooth transmission mask) to the wavefront.
+    Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront.
 gaussian_apodizer_elliptical
     Applies a Gaussian apodizer (smooth transmission mask) to the wavefront.
 supergaussian_apodizer_elliptical
-    Applies a super-Gaussian apodizer (smooth transmission mask) to the wavefront.
+    Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront.
 """
 
 import jax
@@ -46,7 +48,7 @@ def _xy_grids(
     nx: int, ny: int, dx: float
 ) -> Tuple[Float[Array, " H W"], Float[Array, " H W"]]:
     """
-    Internal helper to create centered spatial coordinate grids (in meters).
+    Create centered spatial coordinate grids (in meters).
 
     Parameters
     ----------
@@ -419,7 +421,9 @@ def gaussian_apodizer_elliptical(
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
-    Apply an elliptical Gaussian apodizer to the wavefront, with optional rotation.
+    Apply an elliptical Gaussian apodizer to the wavefront.
+
+    With optional rotation, through an angle `theta`.
 
     Parameters
     ----------
@@ -495,7 +499,8 @@ def supergaussian_apodizer_elliptical(
     sigma_y : scalar_float
         Width along y' (meters) after rotation by `theta`.
     m : scalar_numeric
-        Super-Gaussian order (m=1 → Gaussian; m>1 → flatter top, sharper edges).
+        Super-Gaussian order 
+        (m=1 → Gaussian; m>1 → flatter top, sharper edges).
     theta : Optional[scalar_float], optional
         Rotation angle in radians (counter-clockwise), by default 0.0.
     center : Optional[Float[Array, " 2"]], optional

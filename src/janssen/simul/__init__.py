@@ -1,6 +1,7 @@
 """
-Module: janssen.simul
----------------------
+Module: janssen.simul.
+
+----------------------
 Differentiable optical simulation toolkit.
 
 This package implements various optical components and propagation models
@@ -14,9 +15,11 @@ apertures
 elements
     Common optical elements beyond lenses and basic apertures.
 helper
-    Utility functions for creating grids, phase manipulation, and field calculations
+    Utility functions for creating grids, phase manipulation, and field 
+    calculations.
 lens_optics
-    Optical propagation functions including angular spectrum, Fresnel, and Fraunhofer methods
+    Optical propagation functions including angular spectrum, Fresnel, 
+    and Fraunhofer methods.
 lenses`:
     Models for various lens types and their optical properties
 microscope

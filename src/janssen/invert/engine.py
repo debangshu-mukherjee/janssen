@@ -1,6 +1,8 @@
 """
-Module: janssen.invert.engine
+Module: janssen.invert.engine.
+
 -------------------------------
+
 Engine for optical ptychography.
 
 Functions
@@ -68,7 +70,7 @@ def epie_optical(
     gamma_surface: Optional[scalar_float] = 0.5,
     num_loops: Optional[scalar_integer] = 10,
 ) -> tuple[OpticalWavefront, SampleFunction]:
-    """Extended Ptychographic Iterative Engine for optical ptychography reconstruction.
+    """Reconstruct ptychography using the extended PIE algorithm.
 
     Parameters
     ----------
