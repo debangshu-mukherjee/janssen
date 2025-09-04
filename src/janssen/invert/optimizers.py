@@ -288,13 +288,16 @@ def wirtinger_grad(
 ) -> Callable[
     ..., Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]
 ]:
-    """Compute the Wirtinger gradient of a complex-valued function.
+    r"""Compute the Wirtinger gradient of a complex-valued function.
 
     This function returns a new function that computes the Wirtinger gradient
     of the input function f with respect to the specified argument(s).
     This is based on the formula for Wirtinger derivative:
 
-    ∂f/∂z = ½(∂f/∂x - i∂f/∂y)
+    .. math::
+        \frac{\partial f}{\partial z} = \frac{1}{2} \left( \frac{\partial f}
+        {\partial x} - i \frac{\partial f}{\partial y} \right)
+
 
     Parameters
     ----------
@@ -306,7 +309,7 @@ def wirtinger_grad(
 
     Returns
     -------
-    grad_f : Callable[..., Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]]
+    grad_f : Callable[..., Complex[Array, " ..."] | Tuple[Complex[Array, " ..."], ...]]
         A function that computes the Wirtinger gradient of f with respect to
         the specified argument(s).
     """
