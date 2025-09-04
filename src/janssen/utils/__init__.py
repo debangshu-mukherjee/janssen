@@ -15,45 +15,45 @@ types
 
 Routine Listings
 ----------------
-Diffractogram
+Diffractogram : PyTree
     PyTree for storing diffraction patterns
-GridParams
+GridParams : PyTree
     PyTree for computational grid parameters
-LensParams
+LensParams : PyTree
     PyTree for lens optical parameters
-MicroscopeData
+MicroscopeData : PyTree
     PyTree for microscopy data
-OpticalWavefront
+OpticalWavefront : PyTree
     PyTree for optical wavefront representation
-OptimizerState
+OptimizerState : PyTree
     PyTree for optimizer state tracking
-SampleFunction
+SampleFunction : PyTree
     PyTree for sample representation
-make_diffractogram
+make_diffractogram : function
     Factory function for Diffractogram creation
-make_grid_params
+make_grid_params : function
     Factory function for GridParams creation
-make_lens_params
+make_lens_params : function
     Factory function for LensParams creation
-make_microscope_data
+make_microscope_data : function
     Factory function for MicroscopeData creation
-make_optical_wavefront
+make_optical_wavefront : function
     Factory function for OpticalWavefront creation
-make_optimizer_state
+make_optimizer_state : function
     Factory function for OptimizerState creation
-make_sample_function
+make_sample_function : function
     Factory function for SampleFunction creation
-non_jax_number
+non_jax_number : TypeAlias
     Type alias for Python numeric types
-scalar_bool
+scalar_bool : TypeAlias
     Type alias for scalar boolean values
-scalar_complex
+scalar_complex : TypeAlias
     Type alias for scalar complex values
-scalar_float
+scalar_float : TypeAlias
     Type alias for scalar float values
-scalar_integer
+scalar_integer : TypeAlias
     Type alias for scalar integer values
-scalar_numeric
+scalar_numeric : TypeAlias
     Type alias for any scalar numeric value
 
 Notes

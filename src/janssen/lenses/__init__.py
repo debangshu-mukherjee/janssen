@@ -15,35 +15,35 @@ lens_prop
 
 Routine Listings
 ----------------
-create_lens_phase
+create_lens_phase : function
     Create phase profile for a lens based on its parameters
-double_concave_lens
+double_concave_lens : function
     Create parameters for a double concave lens
-double_convex_lens
+double_convex_lens : function
     Create parameters for a double convex lens
-lens_focal_length
+lens_focal_length : function
     Calculate focal length from lens parameters
-lens_thickness_profile
+lens_thickness_profile : function
     Calculate thickness profile of a lens
-meniscus_lens
+meniscus_lens : function
     Create parameters for a meniscus lens
-plano_concave_lens
+plano_concave_lens : function
     Create parameters for a plano-concave lens
-plano_convex_lens
+plano_convex_lens : function
     Create parameters for a plano-convex lens
-propagate_through_lens
+propagate_through_lens : function
     Propagate optical wavefront through a lens
-angular_spectrum_prop
+angular_spectrum_prop : function
     Angular spectrum propagation method
-digital_zoom
+digital_zoom : function
     Digital zoom transformation for optical fields
-fraunhofer_prop
+fraunhofer_prop : function
     Fraunhofer (far-field) propagation
-fresnel_prop
+fresnel_prop : function
     Fresnel (near-field) propagation
-lens_propagation
+lens_propagation : function
     General lens-based propagation
-optical_zoom
+optical_zoom : function
     Optical zoom transformation
 
 Notes
