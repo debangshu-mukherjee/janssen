@@ -1,6 +1,5 @@
 """
 Module: janssen.simul.apertures.
-
 --------------------------------
 
 Aperture and apodizer elements for shaping optical wavefronts.

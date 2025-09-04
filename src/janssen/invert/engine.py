@@ -1,6 +1,5 @@
 """
 Module: janssen.invert.engine.
-
 -------------------------------
 
 Engine for optical ptychography.

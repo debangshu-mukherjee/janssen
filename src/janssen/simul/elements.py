@@ -1,6 +1,5 @@
 """
 Module: janssen.simul.elements.
-
 -------------------------------
 
 Common optical elements beyond lenses and basic apertures.

@@ -1,6 +1,5 @@
 """
 Module: janssen.utils.decorators.
-
 ---------------------------------
 
 Decorators for type checking and JAX transformations.

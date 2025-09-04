@@ -1,6 +1,5 @@
 """
 Module: janssen.utils.types.
-
 ----------------------------
 
 Data structures and type definitions for optical microscopy.

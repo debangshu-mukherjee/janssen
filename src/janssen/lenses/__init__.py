@@ -1,6 +1,5 @@
 """
 Module: janssen.lenses.
-
 -----------------------
 
 Differentiable optical lenses.

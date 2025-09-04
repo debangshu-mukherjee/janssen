@@ -1,6 +1,5 @@
 """
 Module: janssen.simul.microscope.
-
 ---------------------------------
 
 Codes for optical propagation through lenses and optical elements.

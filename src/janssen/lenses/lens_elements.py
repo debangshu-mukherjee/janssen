@@ -1,6 +1,5 @@
 """
 Module: janssen.lenses.lens_elements.
-
 -------------------------------------
 
 Optics model for simulation of optical lenses.

@@ -1,6 +1,5 @@
 """
 Module: janssen.simul.helper.
-
 -----------------------------
 
 Utility functions for optical propagation.

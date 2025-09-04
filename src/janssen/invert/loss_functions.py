@@ -1,6 +1,5 @@
 """
 Module: janssen.invert.loss_functions.
-
 -------------------------------------
 Loss function implementations for ptychography optimization.
 

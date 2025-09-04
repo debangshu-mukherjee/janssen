@@ -1,6 +1,5 @@
 """
 Module: janssen.utils.factory.
-
 ------------------------------
 
 Factory functions for creating data structures.

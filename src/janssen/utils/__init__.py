@@ -1,6 +1,5 @@
 """
 Module: janssen.utils.
-
 ----------------------
 
 Common utility functions used throughout the code.

@@ -1,6 +1,5 @@
 """
 Module: janssen.invert.ptychography.
-
 -------------------------------------
 
 Codes for optical propagation through lenses and optical elements.

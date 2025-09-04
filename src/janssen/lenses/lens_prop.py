@@ -1,6 +1,5 @@
 """
 Module: janssen.lenses.lens_prop.
-
 ---------------------------------
 
 Codes for optical propgation steps.

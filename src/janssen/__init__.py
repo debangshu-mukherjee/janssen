@@ -1,6 +1,5 @@
 """
 Module: janssen.
-
 ---------------
 
 Ptychography through differentiable programming in JAX.

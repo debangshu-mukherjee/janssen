@@ -1,6 +1,5 @@
 """
 Module: janssen.simul.
-
 ----------------------
 Differentiable optical simulation toolkit.
 
