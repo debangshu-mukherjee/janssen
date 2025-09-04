@@ -1,39 +1,36 @@
-"""
-Module: janssen.utils.types.
-----------------------------
+"""Defined type aliases and PyTrees.
 
+Extended Summary
+----------------
 Data structures and type definitions for optical microscopy.
 
-Type Aliases
-------------
-non_jax_number
+Routine Listings
+----------------
+non_jax_number : TypeAlias
     A type alias for int, float or complex
-scalar_bool
+scalar_bool : TypeAlias
     A type alias for bool or Bool[Array, " "]
-scalar_complex
+scalar_complex : TypeAlias
     A type alias for complex or Complex[Array, " "]
-scalar_float
+scalar_float : TypeAlias
     A type alias for float or Float[Array, " "]
-scalar_integer
+scalar_integer : TypeAlias
     A type alias for int or Int[Array, " "]
-scalar_numeric
+scalar_numeric : TypeAlias
     A type alias for int, float, complex or Num[Array, " "]
-
-Classes
--------
-LensParams
+LensParams : PyTree
     A named tuple for lens parameters
-GridParams
+GridParams : PyTree
     A named tuple for computational grid parameters
-OpticalWavefront
+OpticalWavefront : PyTree
     A named tuple for representing an optical wavefront
-MicroscopeData
+MicroscopeData : PyTree
     A named tuple for storing 3D or 4D microscope image data
-SampleFunction
+SampleFunction : PyTree
     A named tuple for representing a sample function
-Diffractogram
+Diffractogram : PyTree
     A named tuple for storing a single diffraction pattern
-OptimizerState
+OptimizerState : PyTree
     A PyTree for maintaining optimizer state (moments and step count)
 
 Notes

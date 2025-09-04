@@ -1,24 +1,25 @@
-"""
-Module: janssen.utils.factory.
-------------------------------
+"""Factory functions for creating data structures.
 
-Factory functions for creating data structures.
+Extended Summary
+----------------
+Factory functions for creating data structures with runtime type checking.
+All runtime validations use JAX safe conditional statements.
 
-Functions
----------
-make_lens_params
+Routine Listings
+----------------
+make_lens_params : function
     Creates a LensParams instance with runtime type checking
-make_grid_params
+make_grid_params : function
     Creates a GridParams instance with runtime type checking
-make_optical_wavefront
+make_optical_wavefront : function
     Creates an OpticalWavefront instance with runtime type checking
-make_microscope_data
+make_microscope_data : function
     Creates a MicroscopeData instance with runtime type checking
-make_diffractogram
+make_diffractogram : function
     Creates a Diffractogram instance with runtime type checking
-make_sample_function
+make_sample_function : function
     Creates a SampleFunction instance with runtime type checking
-make_optimizer_state
+make_optimizer_state : function
     Creates an OptimizerState instance with runtime type checking
 
 Notes

@@ -1,9 +1,7 @@
-"""
-Module: janssen.
----------------
+"""Ptychography through differentiable programming in JAX.
 
-Ptychography through differentiable programming in JAX.
-
+Extended Summary
+----------------
 A comprehensive toolkit for ptychography simulations and reconstructions
 using JAX for automatic differentiation and acceleration. Supports both
 optical and electron microscopy applications with fully differentiable

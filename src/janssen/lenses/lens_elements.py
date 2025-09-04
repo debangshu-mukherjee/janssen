@@ -1,11 +1,13 @@
-"""
-Module: janssen.lenses.lens_elements.
--------------------------------------
+"""Lens elements for optical simulations.
 
-Optics model for simulation of optical lenses.
+Extended Summary
+----------------
+Physical modeling of various optical lens types including spherical lenses,
+plano lenses, and meniscus lenses. Provides functions for calculating lens
+properties and propagating optical fields through lens elements.
 
-Functions
----------
+Routine Listings
+----------------
 lens_thickness_profile
     Calculates the thickness profile of a lens
 lens_focal_length
@@ -24,6 +26,12 @@ plano_concave_lens
     Creates parameters for a plano-concave lens
 meniscus_lens
     Creates parameters for a meniscus (concavo-convex) lens
+
+Notes
+-----
+All lens functions use the thin lens approximation when appropriate and
+support JAX transformations. Phase profiles are calculated based on the
+optical path difference through the lens material.
 """
 
 import jax

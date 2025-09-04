@@ -1,28 +1,36 @@
-"""
-Module: janssen.simul.apertures.
---------------------------------
+"""Aperture functions for optical simulations.
 
-Aperture and apodizer elements for shaping optical wavefronts.
+Extended Summary
+----------------
+Optical aperture and apodization functions for controlling the amplitude
+and phase of optical wavefronts. Includes both hard apertures and smooth
+apodization functions commonly used in optical systems.
 
-Functions
----------
+Routine Listings
+----------------
 circular_aperture
     Applies a circular aperture (optionally offset) with uniform transmittivity
 rectangular_aperture
-    Applies an axis-aligned rectangular aperture with uniform transmittivity.
+    Applies an axis-aligned rectangular aperture with uniform transmittivity
 annular_aperture
-    Applies a concentric ring (donut) aperture between inner/outer diameters.
+    Applies a concentric ring (donut) aperture between inner/outer diameters
 variable_transmission_aperture
     Applies an arbitrary transmission mask (array or callable), including
-    common apodizers such as Gaussian or super-Gaussian.
+    common apodizers such as Gaussian or super-Gaussian
 gaussian_apodizer
-    Applies a Gaussian apodizer (smooth transmission mask) to the wavefront.
+    Applies a Gaussian apodizer (smooth transmission mask) to the wavefront
 supergaussian_apodizer
-    Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront.
+    Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront
 gaussian_apodizer_elliptical
-    Applies a Gaussian apodizer (smooth transmission mask) to the wavefront.
+    Applies an elliptical Gaussian apodizer to the wavefront
 supergaussian_apodizer_elliptical
-    Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront.
+    Applies an elliptical super-Gaussian apodizer to the wavefront
+
+Notes
+-----
+All aperture functions are compatible with JAX transformations and support
+automatic differentiation. The apertures can be combined to create complex
+pupil functions for optical systems.
 """
 
 import jax

@@ -1,11 +1,12 @@
-"""
-Module: janssen.simul.helper.
------------------------------
+"""Helper functions for optical simulations.
 
-Utility functions for optical propagation.
+Extended Summary
+----------------
+Utility functions for creating computational grids, manipulating optical
+fields, and performing common operations in optical simulations.
 
-Functions
----------
+Routine Listings
+----------------
 create_spatial_grid
     Creates a 2D spatial grid for optical propagation
 normalize_field
@@ -16,6 +17,11 @@ field_intensity
     Calculates intensity from a complex field
 scale_pixel
     Rescales OpticalWavefront pixel size while keeping array shape fixed
+
+Notes
+-----
+These helper functions provide common operations needed in optical
+simulations and are optimized for use with JAX transformations.
 """
 
 import jax

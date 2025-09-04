@@ -1,15 +1,23 @@
-"""
-Module: janssen.invert.ptychography.
--------------------------------------
+"""Ptychography algorithms and optimization.
 
-Codes for optical propagation through lenses and optical elements.
+Extended Summary
+----------------
+High-level ptychography reconstruction algorithms that combine optimization
+strategies with forward models. Provides complete reconstruction pipelines
+for recovering complex-valued sample functions from intensity measurements.
 
-Functions
----------
+Routine Listings
+----------------
 get_optimizer
     Returns an optimizer object based on the specified name
 simple_microscope_ptychography
     Performs ptychography reconstruction using a simple microscope model
+
+Notes
+-----
+These functions provide complete reconstruction pipelines that can be
+directly applied to experimental data. All functions support JAX transformations
+and automatic differentiation for gradient-based optimization.
 """
 
 import jax

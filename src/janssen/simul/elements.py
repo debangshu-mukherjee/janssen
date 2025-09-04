@@ -1,24 +1,23 @@
-"""
-Module: janssen.simul.elements.
--------------------------------
+"""Optical element implementations.
 
-Common optical elements beyond lenses and basic apertures.
+Extended Summary
+----------------
+Optical elements and components for building complex optical systems.
+Includes gratings, waveplates, polarizers, beam splitters, and other
+common optical components used in microscopy and optical systems.
 
-Functions
----------
+Routine Listings
+----------------
 prism_phase_ramp
-    Applies a linear phase ramp to simulate beam deviation/dispersion.
+    Applies a linear phase ramp to simulate beam deviation/dispersion
 beam_splitter
-    Splits a field into transmitted and reflected arms with given (t, r).
+    Splits a field into transmitted and reflected arms with given (t, r)
 mirror_reflection
-    Applies mirror reflection(s): 
-    coordinate flip(s), 
-    optional conjugation, 
-    π phase.
+    Applies mirror reflection(s): coordinate flip(s), optional conjugation, π phase
 phase_grating_sine
-    Sinusoidal phase grating.
+    Sinusoidal phase grating
 amplitude_grating_binary
-    Binary amplitude grating with duty cycle.
+    Binary amplitude grating with duty cycle
 phase_grating_sawtooth
     Blazed (sawtooth) phase grating.
 apply_phase_mask
@@ -36,14 +35,14 @@ quarter_waveplate
 half_waveplate
     Half-waveplate with fast axis angle theta.
 phase_grating_blazed_elliptical
-    Elliptical blazed phase grating with 
-    period_x, period_y, theta, depth, and two_dim.
+    Elliptical blazed phase grating with period_x, period_y, theta, depth, and two_dim
 
-Internal utilities
-------------------
-_xy_grids
-    Builds centered (x, y) grids.
-_rotate_coords
+Notes
+-----
+All optical elements are implemented as pure JAX functions and support
+automatic differentiation. Elements can be composed to create complex
+optical systems. Polarization-sensitive elements use Jones calculus for
+vectorial field calculations.
     Rotates coordinates by an angle theta.
 """
 

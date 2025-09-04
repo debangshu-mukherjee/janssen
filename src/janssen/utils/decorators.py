@@ -1,27 +1,20 @@
-"""
-Module: janssen.utils.decorators.
----------------------------------
+"""Decorators for type checking and JAX transformations.
 
-Decorators for type checking and JAX transformations.
-
+Extended Summary
+----------------
 This module provides conditional decorators that can be disabled during
 documentation builds to allow Sphinx autodoc to properly introspect functions.
 
-Decorators
-----------
-jaxtyped
+Routine Listings
+----------------
+jaxtyped : decorator
     Decorator for type checking with jaxtyping
     Mocks when building documentation
-beartype
+beartype : decorator
     Decorator for type checking with beartype
     Mocks when building documentation
-
-
-Environment Variables
----------------------
-BUILDING_DOCS
+BUILDING_DOCS : environment variable
     Set to 1 to enable type checking during documentation builds
-
 
 Notes
 -----

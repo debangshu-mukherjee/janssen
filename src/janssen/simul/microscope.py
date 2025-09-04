@@ -1,11 +1,13 @@
-"""
-Module: janssen.simul.microscope.
----------------------------------
+"""Codes for optical propagation through lenses and optical elements.
 
-Codes for optical propagation through lenses and optical elements.
+Extended Summary
+----------------
+Microscope forward models for simulating image formation in optical
+microscopy. Includes functions for computing diffraction patterns and
+modeling light-sample interactions.
 
-Functions
----------
+Routine Listings
+----------------
 lens_propagation
     Propagates an optical wavefront through a lens
 linear_interaction
@@ -13,10 +15,12 @@ linear_interaction
 simple_diffractogram
     Calculates the diffractogram of a sample using a simple model
 simple_microscope
-    Calculates the 3D diffractograms of the entire imaging done at
-    every pixel positions. This cuts the sample, and then generates
-    a diffractogram with the desired camera pixel size - all done
-    in parallel.
+    Calculates 3D diffractograms at all pixel positions in parallel
+
+Notes
+-----
+These functions provide complete forward models for optical microscopy
+and are designed for use in inverse problems and ptychography reconstruction.
 """
 
 import jax

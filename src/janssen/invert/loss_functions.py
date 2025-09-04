@@ -1,8 +1,7 @@
-"""
-Module: janssen.invert.loss_functions.
--------------------------------------
-Loss function implementations for ptychography optimization.
+"""Loss function implementations for ptychography optimization.
 
+Extended Summary
+----------------
 This module provides loss functions for comparing model outputs with experimental
 data in ptychography applications. All functions are JAX-compatible and support
 automatic differentiation for optimization.

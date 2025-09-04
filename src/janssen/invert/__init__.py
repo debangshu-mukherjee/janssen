@@ -1,19 +1,47 @@
-"""
-Module: janssen.invert.
-----------------------
+"""Inversion algorithms for phase retrieval and ptychography.
 
-Inversion algorithms for phase retrieval and ptychography.
+Extended Summary
+----------------
+Comprehensive algorithms for phase retrieval and ptychographic reconstruction
+using differentiable programming techniques. Includes various optimization
+strategies and loss functions for reconstructing complex-valued fields.
 
 Submodules
 ----------
-loss_functions
-    Loss functions for comparing model output with experimental data
-ptychography
-    Ptychography algorithms for reconstructing sample, lightwave, and optical system parameters
-optimizers
-    Optimizers for optimizing the sample, lightwave, and optical system parameters
 engine
-    Engine for running the ptychography algorithms
+    Reconstruction engine
+ptychography
+    Ptychographic algorithms
+optimizers
+    Optimization routines
+loss_functions
+    Loss function definitions
+
+Routine Listings
+----------------
+create_loss_function
+    Factory function for creating various loss functions
+simple_microscope_ptychography  
+    Main ptychography reconstruction algorithm for optical microscopy
+epie_optical
+    Extended PIE algorithm for optical ptychography
+single_pie_iteration
+    Single iteration of PIE algorithm
+single_pie_sequential
+    Sequential PIE implementation for multiple positions
+single_pie_vmap
+    Vectorized PIE implementation using vmap
+init_adam
+    Initialize Adam optimizer state
+init_adagrad
+    Initialize Adagrad optimizer state
+init_rmsprop
+    Initialize RMSprop optimizer state
+
+Notes
+-----
+All functions are JAX-compatible and support automatic differentiation.
+The algorithms can be composed with JIT compilation for improved performance.
 """
 
 from .engine import (

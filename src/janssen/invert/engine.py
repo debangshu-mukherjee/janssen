@@ -1,33 +1,39 @@
-"""
-Module: janssen.invert.engine.
--------------------------------
+"""Engine for optical ptychography.
 
-Engine for optical ptychography.
+Extended Summary
+----------------
+Main ePIE reconstruction algorithm for optical ptychography.
+Parallel processing over positions using vmap for faster but approximate PIE.
+Sequential processing over positions for refinement.
+Updates object wavefront using rPIE algorithm.
+Updates surface pattern using modified PIE.
+Applies coherent transfer function in Fourier domain.
+Applies position shift using phase multiplication.
+Computes sensor plane intensity with pixel response.
+Creates frequency grids for Fourier transforms.
 
-Functions
----------
-epie_optical
+
+Routine Listings
+----------------
+epie_optical : function
     Main ePIE reconstruction algorithm for optical ptychography
-single_pie_iteration
+single_pie_iteration : function
     Single iteration of the ePIE algorithm
 single_pie_vmap
     Parallel processing over positions using vmap for faster but approximate PIE.
-single_pie_sequential
+single_pie_sequential : function
     Sequential processing over positions for refinement.
-
-Internal Functions
-------------------
-_update_object_wavefront
+_update_object_wavefront : function, internal
     Updates object wavefront using rPIE algorithm
-_update_surface_pattern
+_update_surface_pattern : function, internal
     Updates surface pattern using modified PIE
-_apply_coherent_transfer_function
+_apply_coherent_transfer_function : function, internal
     Applies coherent transfer function in Fourier domain
-_apply_position_shift
+_apply_position_shift : function, internal
     Applies position shift using phase multiplication
-_compute_sensor_intensity
+_compute_sensor_intensity : function, internal
     Computes sensor plane intensity with pixel response
-_create_frequency_grids
+_create_frequency_grids : function, internal
     Creates frequency grids for Fourier transforms
 """
 

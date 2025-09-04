@@ -1,11 +1,14 @@
-"""
-Module: janssen.lenses.lens_prop.
----------------------------------
+"""Lens propagation functions.
 
-Codes for optical propgation steps.
+Extended Summary
+----------------
+Optical field propagation methods based on scalar diffraction theory.
+Implements various propagation algorithms including angular spectrum,
+Fresnel, and Fraunhofer propagation methods for simulating light
+propagation in optical systems.
 
-Functions
----------
+Routine Listings
+----------------
 angular_spectrum_prop
     Propagates a complex optical field using the angular spectrum method
 fresnel_prop
@@ -18,6 +21,12 @@ optical_zoom
     Modifies the calibration of an optical wavefront without changing its field
 lens_propagation
     Propagates an optical wavefront through a lens
+
+Notes
+-----
+All propagation methods are implemented using FFT-based algorithms for
+efficiency. The choice of propagation method depends on the Fresnel number
+and the specific requirements of the simulation.
 """
 
 import jax
