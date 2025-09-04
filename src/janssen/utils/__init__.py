@@ -27,6 +27,8 @@ OpticalWavefront : PyTree
     PyTree for optical wavefront representation
 OptimizerState : PyTree
     PyTree for optimizer state tracking
+PtychographyParams : PyTree
+    PyTree for ptychography reconstruction parameters
 SampleFunction : PyTree
     PyTree for sample representation
 make_diffractogram : function
@@ -41,6 +43,8 @@ make_optical_wavefront : function
     Factory function for OpticalWavefront creation
 make_optimizer_state : function
     Factory function for OptimizerState creation
+make_ptychography_params : function
+    Factory function for PtychographyParams creation
 make_sample_function : function
     Factory function for SampleFunction creation
 non_jax_number : TypeAlias
@@ -70,6 +74,7 @@ from .factory import (
     make_microscope_data,
     make_optical_wavefront,
     make_optimizer_state,
+    make_ptychography_params,
     make_sample_function,
 )
 from .types import (
@@ -79,6 +84,7 @@ from .types import (
     MicroscopeData,
     OpticalWavefront,
     OptimizerState,
+    PtychographyParams,
     SampleFunction,
     non_jax_number,
     scalar_bool,
@@ -95,6 +101,7 @@ __all__: list[str] = [
     "MicroscopeData",
     "OpticalWavefront",
     "OptimizerState",
+    "PtychographyParams",
     "SampleFunction",
     "make_diffractogram",
     "make_grid_params",
@@ -102,6 +109,7 @@ __all__: list[str] = [
     "make_microscope_data",
     "make_optical_wavefront",
     "make_optimizer_state",
+    "make_ptychography_params",
     "make_sample_function",
     "non_jax_number",
     "scalar_bool",

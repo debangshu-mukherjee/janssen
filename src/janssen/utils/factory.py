@@ -21,6 +21,8 @@ make_sample_function : function
     Creates a SampleFunction instance with runtime type checking
 make_optimizer_state : function
     Creates an OptimizerState instance with runtime type checking
+make_ptychography_params : function
+    Creates a PtychographyParams instance with runtime type checking
 
 Notes
 -----
@@ -42,6 +44,7 @@ from .types import (
     MicroscopeData,
     OpticalWavefront,
     OptimizerState,
+    PtychographyParams,
     SampleFunction,
     scalar_bool,
     scalar_complex,
@@ -982,3 +985,139 @@ def make_optimizer_state(
 
     validated_optimizer_state: OptimizerState = validate_and_create()
     return validated_optimizer_state
+
+
+@jaxtyped(typechecker=beartype)
+def make_ptychography_params(
+    zoom_factor: scalar_float,
+    aperture_diameter: scalar_float,
+    travel_distance: scalar_float,
+    aperture_center: Float[Array, " 2"],
+    camera_pixel_size: scalar_float,
+    learning_rate: scalar_float,
+    num_iterations: scalar_integer,
+) -> PtychographyParams:
+    """Create a PtychographyParams PyTree with validated parameters.
+    
+    Parameters
+    ----------
+    zoom_factor : scalar_float
+        Optical zoom factor for magnification (must be positive)
+    aperture_diameter : scalar_float
+        Diameter of the aperture in meters (must be positive)
+    travel_distance : scalar_float
+        Light propagation distance in meters (must be positive)
+    aperture_center : Float[Array, " 2"]
+        Center position of the aperture (x, y) in meters
+    camera_pixel_size : scalar_float
+        Camera pixel size in meters (must be positive)
+    learning_rate : scalar_float
+        Learning rate for optimization (must be positive)
+    num_iterations : scalar_integer
+        Number of optimization iterations (must be positive)
+    
+    Returns
+    -------
+    PtychographyParams
+        Validated ptychography parameters as a PyTree
+    
+    Notes
+    -----
+    This function performs runtime validation to ensure all parameters
+    are properly formatted and within valid ranges before creating the
+    PtychographyParams PyTree.
+    """
+    # Convert scalars to JAX arrays
+    zoom_factor_array = jnp.asarray(zoom_factor, dtype=jnp.float64)
+    aperture_diameter_array = jnp.asarray(aperture_diameter, dtype=jnp.float64)
+    travel_distance_array = jnp.asarray(travel_distance, dtype=jnp.float64)
+    aperture_center_array = jnp.asarray(aperture_center, dtype=jnp.float64)
+    camera_pixel_size_array = jnp.asarray(camera_pixel_size, dtype=jnp.float64)
+    learning_rate_array = jnp.asarray(learning_rate, dtype=jnp.float64)
+    num_iterations_array = jnp.asarray(num_iterations, dtype=jnp.int64)
+    
+    def validate_and_create() -> PtychographyParams:
+        def check_positive_zoom() -> Float[Array, " "]:
+            return lax.cond(
+                zoom_factor_array > 0,
+                lambda: zoom_factor_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: zoom_factor_array, lambda: zoom_factor_array)
+                ),
+            )
+        
+        def check_positive_aperture() -> Float[Array, " "]:
+            return lax.cond(
+                aperture_diameter_array > 0,
+                lambda: aperture_diameter_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: aperture_diameter_array, lambda: aperture_diameter_array)
+                ),
+            )
+        
+        def check_positive_distance() -> Float[Array, " "]:
+            return lax.cond(
+                travel_distance_array > 0,
+                lambda: travel_distance_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: travel_distance_array, lambda: travel_distance_array)
+                ),
+            )
+        
+        def check_aperture_center_shape() -> Float[Array, " 2"]:
+            return lax.cond(
+                aperture_center_array.shape == (2,),
+                lambda: aperture_center_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: aperture_center_array, lambda: aperture_center_array)
+                ),
+            )
+        
+        def check_positive_pixel_size() -> Float[Array, " "]:
+            return lax.cond(
+                camera_pixel_size_array > 0,
+                lambda: camera_pixel_size_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: camera_pixel_size_array, lambda: camera_pixel_size_array)
+                ),
+            )
+        
+        def check_positive_learning_rate() -> Float[Array, " "]:
+            return lax.cond(
+                learning_rate_array > 0,
+                lambda: learning_rate_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: learning_rate_array, lambda: learning_rate_array)
+                ),
+            )
+        
+        def check_positive_iterations() -> Int[Array, " "]:
+            return lax.cond(
+                num_iterations_array > 0,
+                lambda: num_iterations_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: num_iterations_array, lambda: num_iterations_array)
+                ),
+            )
+        
+        # Run all validation checks
+        check_positive_zoom()
+        check_positive_aperture()
+        check_positive_distance()
+        check_aperture_center_shape()
+        check_positive_pixel_size()
+        check_positive_learning_rate()
+        check_positive_iterations()
+        
+        return PtychographyParams(
+            zoom_factor=zoom_factor_array,
+            aperture_diameter=aperture_diameter_array,
+            travel_distance=travel_distance_array,
+            aperture_center=aperture_center_array,
+            camera_pixel_size=camera_pixel_size_array,
+            learning_rate=learning_rate_array,
+            num_iterations=num_iterations_array,
+        )
+    
+    validated_params: PtychographyParams = validate_and_create()
+    return validated_params

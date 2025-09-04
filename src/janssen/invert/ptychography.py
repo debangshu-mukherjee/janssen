@@ -30,6 +30,7 @@ from janssen.simul import simple_microscope
 from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
+    PtychographyParams,
     SampleFunction,
     make_optical_wavefront,
     make_sample_function,
@@ -80,13 +81,7 @@ def simple_microscope_ptychography(
     experimental_data: MicroscopeData,
     guess_sample: SampleFunction,
     guess_lightwave: OpticalWavefront,
-    zoom_factor: scalar_float,
-    aperture_diameter: scalar_float,
-    travel_distance: scalar_float,
-    camera_pixel_size: scalar_float,
-    aperture_center: Optional[Float[Array, " 2"]] = None,
-    learning_rate: Optional[scalar_float] = 0.01,
-    num_iterations: Optional[scalar_integer] = 1000,
+    params: PtychographyParams,
     save_every: Optional[scalar_integer] = 10,
     loss_type: Optional[str] = "mse",
     optimizer_name: Optional[str] = "adam",
@@ -129,20 +124,15 @@ def simple_microscope_ptychography(
         Initial guess for the sample properties.
     guess_lightwave : OpticalWavefront
         Initial guess for the lightwave.
-    zoom_factor : scalar_float
-        Initial guess for the optical zoom factor.
-    aperture_diameter : scalar_float
-        Initial guess for the aperture diameter in meters.
-    travel_distance : scalar_float
-        Initial guess for the light propagation distance in meters.
-    camera_pixel_size : scalar_float
-        The pixel size of the camera in meters (fixed parameter).
-    aperture_center : Float[Array, " 2"], optional
-        Initial guess for the center of the aperture.
-    learning_rate : scalar_float, optional
-        Learning rate for optimization. Default is 0.01.
-    num_iterations : scalar_integer, optional
-        Number of optimization iterations. Default is 1000.
+    params : PtychographyParams
+        Ptychography parameters including:
+        - zoom_factor: Optical zoom factor for magnification
+        - aperture_diameter: Diameter of the aperture in meters
+        - travel_distance: Light propagation distance in meters
+        - aperture_center: Center position of the aperture (x, y)
+        - camera_pixel_size: Camera pixel size in meters
+        - learning_rate: Learning rate for optimization
+        - num_iterations: Number of optimization iterations
     save_every : scalar_integer, optional
         Save intermediate results every n iterations. Default is 10.
     loss_type : str, optional
@@ -189,6 +179,14 @@ def simple_microscope_ptychography(
             - intermediate_travel_distances : Float[Array, " S"]
                 Intermediate travel distances during optimization.
     """
+    # Extract parameters from PtychographyParams
+    zoom_factor = params.zoom_factor
+    aperture_diameter = params.aperture_diameter
+    travel_distance = params.travel_distance
+    aperture_center = params.aperture_center
+    camera_pixel_size = params.camera_pixel_size
+    learning_rate = params.learning_rate
+    num_iterations = params.num_iterations
 
     # Define bound enforcement functions
     def enforce_bounds(param, param_bounds):

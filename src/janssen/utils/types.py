@@ -32,6 +32,8 @@ Diffractogram : PyTree
     A named tuple for storing a single diffraction pattern
 OptimizerState : PyTree
     A PyTree for maintaining optimizer state (moments and step count)
+PtychographyParams : PyTree
+    A PyTree for ptychography reconstruction parameters
 
 Notes
 -----
@@ -40,10 +42,9 @@ NamedTuple classes to ensure proper runtime type checking of the contents.
 """
 
 import jax
-from beartype import beartype
 from beartype.typing import NamedTuple, Tuple, TypeAlias, Union
 from jax.tree_util import register_pytree_node_class
-from jaxtyping import Array, Bool, Complex, Float, Int, Num, jaxtyped
+from jaxtyping import Array, Bool, Complex, Float, Int, Num
 
 jax.config.update("jax_enable_x64", True)
 
@@ -55,7 +56,6 @@ scalar_integer: TypeAlias = Union[int, Int[Array, " "]]
 scalar_numeric: TypeAlias = Union[int, float, complex, Num[Array, " "]]
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class LensParams(NamedTuple):
     """PyTree structure for lens parameters.
@@ -128,7 +128,6 @@ class LensParams(NamedTuple):
         return cls(*children)
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class GridParams(NamedTuple):
     """PyTree structure for computational grid parameters.
@@ -194,7 +193,6 @@ class GridParams(NamedTuple):
         return cls(*children)
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class OpticalWavefront(NamedTuple):
     """PyTree structure for representing an optical wavefront.
@@ -261,7 +259,6 @@ class OpticalWavefront(NamedTuple):
         return cls(*children)
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class MicroscopeData(NamedTuple):
     """PyTree structure for representing an 3D or 4D microscope image.
@@ -320,7 +317,6 @@ class MicroscopeData(NamedTuple):
         return cls(*children)
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class SampleFunction(NamedTuple):
     """PyTree structure for representing a sample function.
@@ -358,7 +354,6 @@ class SampleFunction(NamedTuple):
         return cls(*children)
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class Diffractogram(NamedTuple):
     """PyTree structure for representing a single diffractogram.
@@ -405,7 +400,6 @@ class Diffractogram(NamedTuple):
         return cls(*children)
 
 
-@jaxtyped(typechecker=beartype)
 @register_pytree_node_class
 class OptimizerState(NamedTuple):
     """PyTree structure for maintaining optimizer state.
@@ -449,4 +443,87 @@ class OptimizerState(NamedTuple):
         ],
     ) -> "OptimizerState":
         """Unflatten the OptimizerState from a tuple of its components."""
+        return cls(*children)
+
+
+@register_pytree_node_class
+class PtychographyParams(NamedTuple):
+    """PyTree structure for ptychography reconstruction parameters.
+    
+    Attributes
+    ----------
+    zoom_factor : Float[Array, " "]
+        Optical zoom factor for magnification
+    aperture_diameter : Float[Array, " "]
+        Diameter of the aperture in meters
+    travel_distance : Float[Array, " "]
+        Light propagation distance in meters
+    aperture_center : Float[Array, " 2"]
+        Center position of the aperture (x, y) in meters
+    camera_pixel_size : Float[Array, " "]
+        Camera pixel size in meters (typically fixed)
+    learning_rate : Float[Array, " "]
+        Learning rate for optimization
+    num_iterations : Int[Array, " "]
+        Number of optimization iterations
+    
+    Notes
+    -----
+    This class encapsulates all the optical and optimization parameters
+    used in ptychographic reconstruction. It is registered as a PyTree
+    node to enable JAX transformations and gradient-based optimization
+    of these parameters.
+    """
+    
+    zoom_factor: Float[Array, " "]
+    aperture_diameter: Float[Array, " "]
+    travel_distance: Float[Array, " "]
+    aperture_center: Float[Array, " 2"]
+    camera_pixel_size: Float[Array, " "]
+    learning_rate: Float[Array, " "]
+    num_iterations: Int[Array, " "]
+    
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " 2"],
+            Float[Array, " "],
+            Float[Array, " "],
+            Int[Array, " "],
+        ],
+        None,
+    ]:
+        """Flatten the PtychographyParams into a tuple of its components."""
+        return (
+            (
+                self.zoom_factor,
+                self.aperture_diameter,
+                self.travel_distance,
+                self.aperture_center,
+                self.camera_pixel_size,
+                self.learning_rate,
+                self.num_iterations,
+            ),
+            None,
+        )
+    
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " 2"],
+            Float[Array, " "],
+            Float[Array, " "],
+            Int[Array, " "],
+        ],
+    ) -> "PtychographyParams":
+        """Unflatten the PtychographyParams from a tuple of its components."""
         return cls(*children)
