@@ -216,17 +216,25 @@ def beam_splitter(
     - Multiply field by t and r.
     - Return two wavefronts sharing same metadata.
     """
-    t_val: Complex[Array, " "] = jnp.sqrt(jnp.asarray(t2, dtype=jnp.complex128))
-    r_val: Complex[Array, " "] = 1j * jnp.sqrt(jnp.asarray(r2, dtype=jnp.complex128))
+    t_val: Complex[Array, " "] = jnp.sqrt(
+        jnp.asarray(t2, dtype=jnp.complex128)
+    )
+    r_val: Complex[Array, " "] = 1j * jnp.sqrt(
+        jnp.asarray(r2, dtype=jnp.complex128)
+    )
 
     def normalize_values() -> Tuple[Complex[Array, " "], Complex[Array, " "]]:
-        power: Float[Array, " "] = (jnp.abs(t_val) ** 2) + (jnp.abs(r_val) ** 2)
+        power: Float[Array, " "] = (jnp.abs(t_val) ** 2) + (
+            jnp.abs(r_val) ** 2
+        )
         sqrt_power: Float[Array, " "] = jnp.sqrt(jnp.maximum(power, 1e-20))
         t_norm: Complex[Array, " "] = t_val / sqrt_power
         r_norm: Complex[Array, " "] = r_val / sqrt_power
         return (t_norm, r_norm)
 
-    t_val, r_val = jax.lax.cond(normalize, normalize_values, lambda: (t_val, r_val))
+    t_val, r_val = jax.lax.cond(
+        normalize, normalize_values, lambda: (t_val, r_val)
+    )
 
     wf_t = make_optical_wavefront(
         field=incoming.field * t_val,
@@ -279,9 +287,15 @@ def mirror_reflection(
     - Optional -1 factor for π phase.
     """
     field = incoming.field
-    field = jax.lax.cond(flip_x, lambda f: jnp.flip(f, axis=-1), lambda f: f, field)
-    field = jax.lax.cond(flip_y, lambda f: jnp.flip(f, axis=-2), lambda f: f, field)
-    field = jax.lax.cond(conjugate, lambda f: jnp.conjugate(f), lambda f: f, field)
+    field = jax.lax.cond(
+        flip_x, lambda f: jnp.flip(f, axis=-1), lambda f: f, field
+    )
+    field = jax.lax.cond(
+        flip_y, lambda f: jnp.flip(f, axis=-2), lambda f: f, field
+    )
+    field = jax.lax.cond(
+        conjugate, lambda f: jnp.conjugate(f), lambda f: f, field
+    )
     field = jax.lax.cond(add_pi_phase, lambda f: -f, lambda f: f, field)
 
     return make_optical_wavefront(
@@ -331,7 +345,9 @@ def phase_grating_sine(
     uu, _ = _rotate_coords(xx, yy, theta)
     phase: Float[Array, " ny nx"]
     phase = depth * jnp.sin(2.0 * jnp.pi * uu / period)
-    field_out: Complex[Array, " ny nx"] = add_phase_screen(incoming.field, phase)
+    field_out: Complex[Array, " ny nx"] = add_phase_screen(
+        incoming.field, phase
+    )
     return make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
@@ -389,9 +405,9 @@ def amplitude_grating_binary(
     duty: Float[Array, " "] = jnp.clip(duty_cycle, 0.0, 1.0)
     frac: Num[Array, " ny nx"] = (uu / period) - jnp.floor(uu / period)
     mask_high: Bool[Array, " ny nx"] = frac < duty
-    tmap: Float[Array, " ny nx"] = jnp.where(mask_high, trans_high, trans_low).astype(
-        jnp.float64
-    )
+    tmap: Float[Array, " ny nx"] = jnp.where(
+        mask_high, trans_high, trans_low
+    ).astype(jnp.float64)
     field_out: Complex[Array, " ny nx"] = incoming.field * tmap
     return make_optical_wavefront(
         field=field_out,
@@ -483,7 +499,9 @@ def apply_phase_mask(
 @jaxtyped(typechecker=beartype)
 def apply_phase_mask_fn(
     incoming: OpticalWavefront,
-    phase_fn: Callable[[Float[Array, "H W"], Float[Array, "H W"]], Float[Array, "H W"]],
+    phase_fn: Callable[
+        [Float[Array, "H W"], Float[Array, "H W"]], Float[Array, "H W"]
+    ],
 ) -> OpticalWavefront:
     """
     Build and apply a phase mask from a callable `phase_fn(xx, yy)`.
@@ -599,7 +617,9 @@ def waveplate_jones(
     d: Complex[Array, " hh ww"] = (st * st) + (e * ct * ct)
     ex_out: Complex[Array, " hh ww"] = (a * ex) + (b * ey)
     ey_out: Complex[Array, " hh ww"] = (c * ex) + (d * ey)
-    field_out: Complex[Array, " hh ww 2"] = jnp.stack([ex_out, ey_out], axis=-1)
+    field_out: Complex[Array, " hh ww 2"] = jnp.stack(
+        [ex_out, ey_out], axis=-1
+    )
     jones_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,

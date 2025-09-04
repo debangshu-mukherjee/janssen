@@ -340,7 +340,9 @@ def gaussian_apodizer(
     x0, y0 = center[0], center[1]
     r2: Float[Array, " H W"] = (xx - x0) ** 2 + (yy - y0) ** 2
     gauss: Float[Array, " H W"] = jnp.exp(-r2 / (2.0 * sigma**2))
-    tmap: Float[Array, " H W"] = jnp.clip(gauss * peak_transmittivity, 0.0, 1.0)
+    tmap: Float[Array, " H W"] = jnp.clip(
+        gauss * peak_transmittivity, 0.0, 1.0
+    )
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * tmap,
         wavelength=incoming.wavelength,
@@ -395,7 +397,9 @@ def supergaussian_apodizer(
     x0, y0 = center[0], center[1]
     r2: Float[Array, " H W"] = (xx - x0) ** 2 + (yy - y0) ** 2
     super_gauss: Float[Array, " H W"] = jnp.exp(-((r2 / (sigma**2)) ** m))
-    tmap: Float[Array, " H W"] = jnp.clip(super_gauss * peak_transmittivity, 0.0, 1.0)
+    tmap: Float[Array, " H W"] = jnp.clip(
+        super_gauss * peak_transmittivity, 0.0, 1.0
+    )
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * tmap,
         wavelength=incoming.wavelength,

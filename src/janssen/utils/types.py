@@ -32,6 +32,8 @@ SampleFunction
     A named tuple for representing a sample function
 Diffractogram
     A named tuple for storing a single diffraction pattern
+OptimizerState
+    A PyTree for maintaining optimizer state (moments and step count)
 
 Factory Functions
 -----------------
@@ -47,6 +49,8 @@ make_diffractogram
     Creates a Diffractogram instance with runtime type checking
 make_sample_function
     Creates a SampleFunction instance with runtime type checking
+make_optimizer_state
+    Creates an OptimizerState instance with runtime type checking
 
 Notes
 -----
@@ -391,7 +395,8 @@ class Diffractogram(NamedTuple):
     def tree_flatten(
         self,
     ) -> Tuple[
-        Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]], None
+        Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]],
+        None,
     ]:
         return (
             (
@@ -406,8 +411,60 @@ class Diffractogram(NamedTuple):
     def tree_unflatten(
         cls,
         _aux_data: None,
-        children: Tuple[Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]],
+        children: Tuple[
+            Float[Array, " hh ww"], Float[Array, " "], Float[Array, " "]
+        ],
     ) -> "Diffractogram":
+        return cls(*children)
+
+
+@jaxtyped(typechecker=beartype)
+@register_pytree_node_class
+class OptimizerState(NamedTuple):
+    """PyTree structure for maintaining optimizer state.
+
+    Attributes
+    ----------
+    m : Complex[Array, "..."]
+        First moment estimate (for Adam-like optimizers)
+    v : Float[Array, "..."]
+        Second moment estimate (for Adam-like optimizers)
+    step : Int[Array, ""]
+        Step count
+
+    Notes
+    -----
+    This class is registered as a PyTree node, making it compatible with JAX transformations
+    like jit, grad, and vmap. The auxiliary data in tree_flatten is None as all relevant
+    data is stored in JAX arrays.
+    """
+
+    m: Complex[Array, "..."]
+    v: Float[Array, "..."]
+    step: Int[Array, ""]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[Complex[Array, "..."], Float[Array, "..."], Int[Array, ""]], None
+    ]:
+        return (
+            (
+                self.m,
+                self.v,
+                self.step,
+            ),
+            None,
+        )
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Complex[Array, "..."], Float[Array, "..."], Int[Array, ""]
+        ],
+    ) -> "OptimizerState":
         return cls(*children)
 
 
@@ -490,7 +547,9 @@ def make_lens_params(
             return lax.cond(
                 n > 0,
                 lambda: n,
-                lambda: lax.stop_gradient(lax.cond(False, lambda: n, lambda: n)),
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: n, lambda: n)
+                ),
             )
 
         def check_center_thickness() -> Float[Array, " "]:
@@ -498,11 +557,17 @@ def make_lens_params(
                 center_thickness > 0,
                 lambda: center_thickness,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: center_thickness, lambda: center_thickness)
+                    lax.cond(
+                        False,
+                        lambda: center_thickness,
+                        lambda: center_thickness,
+                    )
                 ),
             )
 
-        def check_radii_finite() -> Tuple[Float[Array, " "], Float[Array, " "]]:
+        def check_radii_finite() -> Tuple[
+            Float[Array, " "], Float[Array, " "]
+        ]:
             return lax.cond(
                 jnp.logical_and(jnp.isfinite(r1), jnp.isfinite(r2)),
                 lambda: (r1, r2),
@@ -593,7 +658,9 @@ def make_grid_params(
         ]:
             return lax.cond(
                 jnp.logical_and(
-                    jnp.logical_and(xx.ndim == array_dims, yy.ndim == array_dims),
+                    jnp.logical_and(
+                        xx.ndim == array_dims, yy.ndim == array_dims
+                    ),
                     jnp.logical_and(
                         phase_profile.ndim == array_dims,
                         transmission.ndim == array_dims,
@@ -617,9 +684,12 @@ def make_grid_params(
         ]:
             return lax.cond(
                 jnp.logical_and(
-                    jnp.logical_and(xx.shape == (hh, ww), yy.shape == (hh, ww)),
                     jnp.logical_and(
-                        phase_profile.shape == (hh, ww), transmission.shape == (hh, ww)
+                        xx.shape == (hh, ww), yy.shape == (hh, ww)
+                    ),
+                    jnp.logical_and(
+                        phase_profile.shape == (hh, ww),
+                        transmission.shape == (hh, ww),
                     ),
                 ),
                 lambda: (xx, yy, phase_profile, transmission),
@@ -634,7 +704,9 @@ def make_grid_params(
 
         def check_transmission_range() -> Float[Array, " hh ww"]:
             return lax.cond(
-                jnp.logical_and(jnp.all(transmission >= 0), jnp.all(transmission <= 1)),
+                jnp.logical_and(
+                    jnp.all(transmission >= 0), jnp.all(transmission <= 1)
+                ),
                 lambda: transmission,
                 lambda: lax.stop_gradient(
                     lax.cond(False, lambda: transmission, lambda: transmission)
@@ -646,15 +718,19 @@ def make_grid_params(
                 jnp.all(jnp.isfinite(phase_profile)),
                 lambda: phase_profile,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: phase_profile, lambda: phase_profile)
+                    lax.cond(
+                        False, lambda: phase_profile, lambda: phase_profile
+                    )
                 ),
             )
 
-        def check_grid_finite() -> (
-            Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]
-        ):
+        def check_grid_finite() -> Tuple[
+            Float[Array, " hh ww"], Float[Array, " hh ww"]
+        ]:
             return lax.cond(
-                jnp.logical_and(jnp.all(jnp.isfinite(xx)), jnp.all(jnp.isfinite(yy))),
+                jnp.logical_and(
+                    jnp.all(jnp.isfinite(xx)), jnp.all(jnp.isfinite(yy))
+                ),
                 lambda: (xx, yy),
                 lambda: lax.stop_gradient(
                     lax.cond(False, lambda: (xx, yy), lambda: (xx, yy))
@@ -734,9 +810,9 @@ def make_optical_wavefront(
     polarization: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
 
     def validate_and_create() -> OpticalWavefront:
-        def check_field_dimensions() -> (
-            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
-        ):
+        def check_field_dimensions() -> Union[
+            Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]
+        ]:
             non_polar_dimensions: int = 2
             polar_dimensions: int = 3
 
@@ -767,9 +843,9 @@ def make_optical_wavefront(
                 check_scalar,
             )
 
-        def check_field_finite() -> (
-            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
-        ):
+        def check_field_finite() -> Union[
+            Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]
+        ]:
             return lax.cond(
                 jnp.all(jnp.isfinite(field)),
                 lambda: field,
@@ -791,7 +867,9 @@ def make_optical_wavefront(
             return lax.cond(
                 dx > 0,
                 lambda: dx,
-                lambda: lax.stop_gradient(lax.cond(False, lambda: dx, lambda: dx)),
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx, lambda: dx)
+                ),
             )
 
         def check_z_position() -> Float[Array, " "]:
@@ -869,9 +947,9 @@ def make_microscope_data(
         - Check P matches between image_data and positions
     - Create and return MicroscopeData instance
     """
-    image_data: Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]] = (
-        jnp.asarray(image_data, dtype=jnp.float64)
-    )
+    image_data: Union[
+        Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]
+    ] = jnp.asarray(image_data, dtype=jnp.float64)
     positions: Num[Array, " pp 2"] = jnp.asarray(positions, dtype=jnp.float64)
     wavelength: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
@@ -880,9 +958,9 @@ def make_microscope_data(
     expected_diffractogram_dim_4d: int = 4
 
     def validate_and_create() -> MicroscopeData:
-        def check_image_dimensions() -> (
-            Union[Float[Array, "P H W"], Float[Array, "X Y H W"]]
-        ):
+        def check_image_dimensions() -> Union[
+            Float[Array, "P H W"], Float[Array, "X Y H W"]
+        ]:
             return lax.cond(
                 jnp.logical_or(
                     image_data.ndim == expected_diffractogram_dim_3d,
@@ -894,9 +972,9 @@ def make_microscope_data(
                 ),
             )
 
-        def check_image_finite() -> (
-            Union[Float[Array, "P H W"], Float[Array, "X Y H W"]]
-        ):
+        def check_image_finite() -> Union[
+            Float[Array, "P H W"], Float[Array, "X Y H W"]
+        ]:
             return lax.cond(
                 jnp.all(jnp.isfinite(image_data)),
                 lambda: image_data,
@@ -905,9 +983,9 @@ def make_microscope_data(
                 ),
             )
 
-        def check_image_nonnegative() -> (
-            Union[Float[Array, "P H W"], Float[Array, "X Y H W"]]
-        ):
+        def check_image_nonnegative() -> Union[
+            Float[Array, "P H W"], Float[Array, "X Y H W"]
+        ]:
             return lax.cond(
                 jnp.all(image_data >= 0),
                 lambda: image_data,
@@ -947,7 +1025,9 @@ def make_microscope_data(
             return lax.cond(
                 dx > 0,
                 lambda: dx,
-                lambda: lax.stop_gradient(lax.cond(False, lambda: dx, lambda: dx)),
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx, lambda: dx)
+                ),
             )
 
         def check_consistency() -> Tuple[
@@ -1100,7 +1180,9 @@ def make_diffractogram(
             return lax.cond(
                 dx > 0,
                 lambda: dx,
-                lambda: lax.stop_gradient(lax.cond(False, lambda: dx, lambda: dx)),
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx, lambda: dx)
+                ),
             )
 
         check_2d_image()
@@ -1155,7 +1237,9 @@ def make_sample_function(
         - Check dx is positive
     - Create and return SampleFunction instance
     """
-    sample: Complex[Array, " hh ww"] = jnp.asarray(sample, dtype=jnp.complex128)
+    sample: Complex[Array, " hh ww"] = jnp.asarray(
+        sample, dtype=jnp.complex128
+    )
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     expected_sample_dim: int = 2
 
@@ -1182,7 +1266,9 @@ def make_sample_function(
             return lax.cond(
                 dx > 0,
                 lambda: dx,
-                lambda: lax.stop_gradient(lax.cond(False, lambda: dx, lambda: dx)),
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx, lambda: dx)
+                ),
             )
 
         check_2d_sample()
@@ -1196,3 +1282,117 @@ def make_sample_function(
 
     validated_sample_function: SampleFunction = validate_and_create()
     return validated_sample_function
+
+
+@jaxtyped(typechecker=beartype)
+def make_optimizer_state(
+    shape: Tuple,
+    m: Optional[Union[Complex[Array, " ..."], scalar_complex]] = 1j,
+    v: Optional[Union[Float[Array, " ..."], scalar_float]] = 0.0,
+    step: Optional[scalar_integer] = 0,
+) -> OptimizerState:
+    """JAX-safe factory function for OptimizerState with data validation.
+
+    Parameters
+    ----------
+    shape : Tuple
+        Shape of the parameters to be optimized
+    m : Optional[Complex[Array, "..."]], optional
+        First moment estimate. If None, initialized to zeros with given shape.
+        Default is 1j.
+    v : Optional[Float[Array, "..."]], optional
+        Second moment estimate. If None, initialized to zeros with given shape.
+        Default is 0.0.
+    step : Optional[scalar_integer], optional
+        Step count. Default is 0.
+
+    Returns
+    -------
+    validated_optimizer_state : OptimizerState
+        Validated optimizer state instance
+
+    Raises
+    ------
+    ValueError
+        If arrays have incompatible shapes with the given shape parameter
+
+    Notes
+    -----
+    Algorithm:
+
+    - If m is None, initialize with complex zeros of given shape
+    - If v is None, initialize with real zeros of given shape
+    - If step is None, initialize to 0
+    - Convert all inputs to JAX arrays with appropriate dtypes
+    - Validate arrays have compatible shapes
+    - Create and return OptimizerState instance
+    """
+    sentinel_m = 1j
+    sentinel_v = 0.0
+
+    m_input = jnp.asarray(m, dtype=jnp.complex128)
+    v_input = jnp.asarray(v, dtype=jnp.float64)
+    step_input = jnp.asarray(step, dtype=jnp.int32)
+
+    m_array = lax.cond(
+        jnp.all(m_input == sentinel_m),
+        lambda: jnp.zeros(shape, dtype=jnp.complex128),
+        lambda: lax.cond(
+            m_input.ndim == 0,
+            lambda: jnp.broadcast_to(m_input, shape),
+            lambda: m_input,
+        ),
+    )
+
+    v_array = lax.cond(
+        jnp.logical_and(jnp.all(v_input == sentinel_v), v_input.ndim == 0),
+        lambda: jnp.zeros(shape, dtype=jnp.float64),
+        lambda: lax.cond(
+            v_input.ndim == 0,
+            lambda: jnp.broadcast_to(v_input, shape),
+            lambda: v_input,
+        ),
+    )
+
+    step_array = step_input
+
+    def validate_and_create() -> OptimizerState:
+        def check_m_shape() -> Complex[Array, " ..."]:
+            return lax.cond(
+                m_array.shape == shape,
+                lambda: m_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: m_array, lambda: m_array)
+                ),
+            )
+
+        def check_v_shape() -> Float[Array, " ..."]:
+            return lax.cond(
+                v_array.shape == shape,
+                lambda: v_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: v_array, lambda: v_array)
+                ),
+            )
+
+        def check_step_scalar() -> Int[Array, " "]:
+            return lax.cond(
+                step_array.ndim == 0,
+                lambda: step_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: step_array, lambda: step_array)
+                ),
+            )
+
+        check_m_shape()
+        check_v_shape()
+        check_step_scalar()
+
+        return OptimizerState(
+            m=m_array,
+            v=v_array,
+            step=step_array,
+        )
+
+    validated_optimizer_state: OptimizerState = validate_and_create()
+    return validated_optimizer_state

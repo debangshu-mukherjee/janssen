@@ -301,7 +301,9 @@ def single_pie_iteration(
     ratio_map_upsampled: Float[Array, "H W"] = jnp.repeat(
         jnp.repeat(ratio_map, magnification, axis=0), magnification, axis=1
     )
-    sensor_plane_new: Complex[Array, "H W"] = ratio_map_upsampled * sensor_plane
+    sensor_plane_new: Complex[Array, "H W"] = (
+        ratio_map_upsampled * sensor_plane
+    )
     sensor_plane_new_ft: Complex[Array, "H W"] = jnp.fft.fftshift(
         jnp.fft.fft2(sensor_plane_new)
     )
@@ -314,7 +316,10 @@ def single_pie_iteration(
         jnp.fft.ifftshift(
             surface_prop_ft_updated
             * _get_propagation_kernel(
-                surface_prop_ft_updated.shape, -propagation_distance_2, wavelength, dx
+                surface_prop_ft_updated.shape,
+                -propagation_distance_2,
+                wavelength,
+                dx,
             )
         )
     )
@@ -551,8 +556,12 @@ def single_pie_vmap(
         dx,
     )
 
-    averaged_object: Complex[Array, "H W"] = jnp.mean(batch_object_updates, axis=0)
-    averaged_surface: Complex[Array, "H W"] = jnp.mean(batch_surface_updates, axis=0)
+    averaged_object: Complex[Array, "H W"] = jnp.mean(
+        batch_object_updates, axis=0
+    )
+    averaged_surface: Complex[Array, "H W"] = jnp.mean(
+        batch_surface_updates, axis=0
+    )
     return averaged_object, averaged_surface
 
 
@@ -603,7 +612,8 @@ def _update_object_wavefront(
     surface_abs_squared: Float[Array, "H W"] = jnp.abs(surface_pattern) ** 2
     surface_max_squared: Float[Array, ""] = jnp.max(surface_abs_squared)
     denominator: Float[Array, "H W"] = (
-        alpha_object * surface_max_squared + (1 - alpha_object) * surface_abs_squared
+        alpha_object * surface_max_squared
+        + (1 - alpha_object) * surface_abs_squared
     )
     update_term: Complex[Array, "H W"] = (
         gamma_object * surface_conj * difference / (denominator + 1e-10)
@@ -659,7 +669,8 @@ def _update_surface_pattern(
     object_abs_squared: Float[Array, "H W"] = jnp.abs(object_shift) ** 2
     object_max_squared: Float[Array, ""] = jnp.max(object_abs_squared)
     denominator: Float[Array, "H W"] = (
-        alpha_surface * object_max_squared + (1 - alpha_surface) * object_abs_squared
+        alpha_surface * object_max_squared
+        + (1 - alpha_surface) * object_abs_squared
     )
     update_term: Complex[Array, "H W"] = (
         gamma_surface * object_conj * difference / (denominator + 1e-10)
@@ -795,7 +806,9 @@ def _get_propagation_kernel(
     frequency_x_grid: Float[Array, "H W"]
     frequency_y_grid: Float[Array, "H W"]
     frequency_x_grid, frequency_y_grid = jnp.meshgrid(frequency_x, frequency_y)
-    frequency_squared: Float[Array, "H W"] = frequency_x_grid**2 + frequency_y_grid**2
+    frequency_squared: Float[Array, "H W"] = (
+        frequency_x_grid**2 + frequency_y_grid**2
+    )
     k_0: scalar_float = 2 * jnp.pi / wavelength
     k_z: Complex[Array, "H W"] = jnp.sqrt(
         k_0**2 - (2 * jnp.pi) ** 2 * frequency_squared + 0j
@@ -891,7 +904,7 @@ def _create_frequency_grids(
 
 @jaxtyped(typechecker=beartype)
 def _get_ctf(
-    field_shape: Optional[Tuple[int, int]] = (256, 256)
+    field_shape: Optional[Tuple[int, int]] = (256, 256),
 ) -> Complex[Array, "H W"]:
     """Return a placeholder coherent transfer function.
 

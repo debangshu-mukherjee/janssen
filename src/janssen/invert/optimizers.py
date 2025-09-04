@@ -1,6 +1,4 @@
 """
-Module: janssen.invert.optimizers
------------------------------------
 Complex-valued optimizers with Wirtinger derivatives for ptychography.
 
 This module implements complex-valued optimization algorithms including Adam,
@@ -12,8 +10,6 @@ Classes
 -------
 LRSchedulerState
     State maintained by learning rate schedulers
-OptimizerState
-    State maintained by optimizers (moments, step count)
 Optimizer
     Optimizer configuration with init and update functions
 
@@ -67,8 +63,18 @@ grad, and vmap.
 
 import jax
 import jax.numpy as jnp
-from beartype.typing import Any, Callable, NamedTuple, Optional, Sequence, Tuple, Union
+from beartype.typing import (
+    Any,
+    Callable,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 from jaxtyping import Array, Complex, Float
+
+from janssen.utils import OptimizerState, make_optimizer_state
 
 
 class LRSchedulerState(NamedTuple):
@@ -89,17 +95,14 @@ class LRSchedulerState(NamedTuple):
     initial_lr: float
 
 
-SchedulerFn = Callable[[LRSchedulerState], tuple[float, LRSchedulerState]]
+SchedulerFn = Callable[[LRSchedulerState], Tuple[float, LRSchedulerState]]
 
 
 def create_cosine_scheduler(
     total_steps: int,
-    final_lr_factor: float = 0.01,
+    final_lr_factor: Optional[float] = 0.01,
 ) -> SchedulerFn:
-    """
-    Description
-    -----------
-    Creates a cosine learning rate scheduler.
+    """Creates a cosine learning rate scheduler.
 
     This scheduler implements a cosine annealing schedule that smoothly
     decreases the learning rate from the initial value to a final value
@@ -107,20 +110,21 @@ def create_cosine_scheduler(
 
     Parameters
     ----------
-    - `total_steps` (int):
+    total_steps : int
         Total number of optimization steps
-    - `final_lr_factor` (float):
+    final_lr_factor : float, optional
         Final learning rate as a fraction of initial learning rate.
         Default is 0.01.
 
     Returns
     -------
-    - `scheduler_fn` (SchedulerFn):
+    scheduler_fn : SchedulerFn
         A function that takes the current scheduler state and returns
         the new learning rate and updated state.
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Calculate progress as min(step / total_steps, 1.0)
     - Compute cosine decay factor using 0.5 * (1 + cos(π * progress))
     - Calculate new learning rate using linear interpolation
@@ -129,10 +133,14 @@ def create_cosine_scheduler(
     """
 
     @jax.jit
-    def scheduler_fn(state: LRSchedulerState) -> tuple[float, LRSchedulerState]:
+    def scheduler_fn(
+        state: LRSchedulerState,
+    ) -> Tuple[float, LRSchedulerState]:
         progress = jnp.minimum(state.step / total_steps, 1.0)
         cosine_decay = 0.5 * (1 + jnp.cos(jnp.pi * progress))
-        lr = state.initial_lr * (final_lr_factor + (1 - final_lr_factor) * cosine_decay)
+        lr = state.initial_lr * (
+            final_lr_factor + (1 - final_lr_factor) * cosine_decay
+        )
         new_state = LRSchedulerState(
             step=state.step + 1, learning_rate=lr, initial_lr=state.initial_lr
         )
@@ -142,30 +150,29 @@ def create_cosine_scheduler(
 
 
 def create_step_scheduler(step_size: int, gamma: float = 0.1) -> SchedulerFn:
-    """
-    Description
-    -----------
-    Creates a step decay scheduler that reduces learning rate by gamma every step_size steps.
+    """Creates a step decay scheduler that reduces learning rate by gamma every
+    step_size steps.
 
     This scheduler implements a step-wise learning rate decay where the learning rate
     is multiplied by gamma every step_size steps.
 
     Parameters
     ----------
-    - `step_size` (int):
+    step_size : int
         Number of steps between learning rate drops
-    - `gamma` (float):
+    gamma : float
         Multiplicative factor for learning rate decay.
         Default is 0.1.
 
     Returns
     -------
-    - `scheduler_fn` (SchedulerFn):
+    scheduler_fn : SchedulerFn
         A function that takes the current scheduler state and returns
         the new learning rate and updated state.
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Calculate number of learning rate drops as step // step_size
     - Compute new learning rate as initial_lr * (gamma ^ num_drops)
     - Update scheduler state with new step and learning rate
@@ -173,7 +180,9 @@ def create_step_scheduler(step_size: int, gamma: float = 0.1) -> SchedulerFn:
     """
 
     @jax.jit
-    def scheduler_fn(state: LRSchedulerState) -> tuple[float, LRSchedulerState]:
+    def scheduler_fn(
+        state: LRSchedulerState,
+    ) -> Tuple[float, LRSchedulerState]:
         num_drops = state.step // step_size
         lr = state.initial_lr * (gamma**num_drops)
         new_state = LRSchedulerState(
@@ -189,10 +198,7 @@ def create_warmup_cosine_scheduler(
     warmup_steps: int,
     final_lr_factor: float = 0.01,
 ) -> SchedulerFn:
-    """
-    Description
-    -----------
-    Creates a scheduler with linear warmup followed by cosine decay.
+    """Creates a scheduler with linear warmup followed by cosine decay.
 
     This scheduler combines a linear warmup phase with a cosine annealing decay.
     During warmup, the learning rate increases linearly from 0 to the initial value.
@@ -200,22 +206,23 @@ def create_warmup_cosine_scheduler(
 
     Parameters
     ----------
-    - `total_steps` (int):
+    total_steps : int
         Total number of optimization steps
-    - `warmup_steps` (int):
+    warmup_steps : int
         Number of warmup steps
-    - `final_lr_factor` (float):
+    final_lr_factor : float
         Final learning rate as a fraction of initial learning rate.
         Default is 0.01.
 
     Returns
     -------
-    - `scheduler_fn` (SchedulerFn):
+    scheduler_fn : SchedulerFn
         A function that takes the current scheduler state and returns
         the new learning rate and updated state.
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - During warmup phase (step < warmup_steps):
         - Calculate linear warmup learning rate
     - During decay phase (step >= warmup_steps):
@@ -226,14 +233,18 @@ def create_warmup_cosine_scheduler(
     """
 
     @jax.jit
-    def scheduler_fn(state: LRSchedulerState) -> tuple[float, LRSchedulerState]:
+    def scheduler_fn(
+        state: LRSchedulerState,
+    ) -> Tuple[float, LRSchedulerState]:
         # Linear warmup
         warmup_progress = jnp.minimum(state.step / warmup_steps, 1.0)
         warmup_lr = state.initial_lr * warmup_progress
 
         # Cosine decay after warmup
         remaining_steps = total_steps - warmup_steps
-        decay_progress = jnp.maximum(0.0, state.step - warmup_steps) / remaining_steps
+        decay_progress = (
+            jnp.maximum(0.0, state.step - warmup_steps) / remaining_steps
+        )
         decay_progress = jnp.minimum(decay_progress, 1.0)
         cosine_decay = 0.5 * (1 + jnp.cos(jnp.pi * decay_progress))
         decay_lr = state.initial_lr * (
@@ -252,56 +263,31 @@ def create_warmup_cosine_scheduler(
 
 
 def init_scheduler_state(initial_lr: float) -> LRSchedulerState:
-    """
-    Description
-    -----------
-    Initialize scheduler state with given learning rate.
+    """Initialize scheduler state with given learning rate.
 
     Parameters
     ----------
-    - `initial_lr` (float):
+    initial_lr : float
         Initial learning rate value
 
     Returns
     -------
-    - `state` (LRSchedulerState):
+    state : LRSchedulerState
         Initialized scheduler state with step=0 and learning_rate=initial_lr
     """
-    return LRSchedulerState(step=0, learning_rate=initial_lr, initial_lr=initial_lr)
-
-
-class OptimizerState(NamedTuple):
-    """
-    Description
-    -----------
-    State maintained by optimizers.
-
-    Attributes
-    ----------
-    - `m` (Array):
-        First moment estimate (for Adam-like optimizers)
-    - `v` (Array):
-        Second moment estimate (for Adam-like optimizers)
-    - `step` (Array):
-        Step count
-    """
-
-    m: Array  # First moment estimate
-    v: Array  # Second moment estimate
-    step: Array  # Step count
+    return LRSchedulerState(
+        step=0, learning_rate=initial_lr, initial_lr=initial_lr
+    )
 
 
 class Optimizer(NamedTuple):
-    """
-    Description
-    -----------
-    Optimizer configuration.
+    """Optimizer configuration.
 
     Attributes
     ----------
-    - `init` (Callable):
+    init : Callable
         Function to initialize optimizer state
-    - `update` (Callable):
+    update : Callable
         Function to update parameters using optimizer
     """
 
@@ -312,11 +298,11 @@ class Optimizer(NamedTuple):
 def wirtinger_grad(
     func2diff: Callable[..., Float[Array, " ..."]],
     argnums: Optional[Union[int, Sequence[int]]] = 0,
-) -> Callable[..., Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]]:
-    """
-    Description
-    -----------
-    Compute the Wirtinger gradient of a complex-valued function.
+) -> Callable[
+    ..., Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]
+]:
+    """Compute the Wirtinger gradient of a complex-valued function.
+
     This function returns a new function that computes the Wirtinger gradient
     of the input function f with respect to the specified argument(s).
     This is based on the formula for Wirtinger derivative:
@@ -325,16 +311,15 @@ def wirtinger_grad(
 
     Parameters
     ----------
-    - `func2diff` (Callable[..., Float[Array, " ..."]]):
+    func2diff : Callable[..., Float[Array, " ..."]]
         A complex-valued function to differentiate.
-    - `argnums` (Union[int, Sequence[int]]):
+    argnums : Union[int, Sequence[int]], optional
         Specifies which argument(s) to compute the gradient with respect to.
         Can be an int or a sequence of ints. Default is 0.
 
     Returns
     -------
-    - grad_f (Callable[..., Union[Complex[Array, " ..."],
-              Tuple[Complex[Array, " ..."], ...]]]):
+    grad_f : Callable[..., Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]]
         A function that computes the Wirtinger gradient of f with respect to
         the specified argument(s).
     """
@@ -342,7 +327,7 @@ def wirtinger_grad(
     def grad_f(
         *args: Any,
     ) -> Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]:
-        def split_complex(args):
+        def split_complex(args: Any) -> Tuple[Any, ...]:
             return tuple(
                 jnp.real(arg) if jnp.iscomplexobj(arg) else arg for arg in args
             ) + tuple(
@@ -350,7 +335,7 @@ def wirtinger_grad(
                 for arg in args
             )
 
-        def combine_complex(r, i):
+        def combine_complex(r: Any, i: Any) -> Tuple[Any, ...]:
             return tuple(
                 rr + 1j * ii if jnp.iscomplexobj(arg) else rr
                 for rr, ii, arg in zip(r, i, args, strict=False)
@@ -359,18 +344,24 @@ def wirtinger_grad(
         split_args = split_complex(args)
         n = len(args)
 
-        def f_real(*split_args):
-            return jnp.real(func2diff(*combine_complex(split_args[:n], split_args[n:])))
+        def f_real(*split_args: Any) -> Float[Array, " ..."]:
+            return jnp.real(
+                func2diff(*combine_complex(split_args[:n], split_args[n:]))
+            )
 
-        def f_imag(*split_args):
-            return jnp.imag(func2diff(*combine_complex(split_args[:n], split_args[n:])))
+        def f_imag(*split_args: Any) -> Float[Array, " ..."]:
+            return jnp.imag(
+                func2diff(*combine_complex(split_args[:n], split_args[n:]))
+            )
 
         gr = jax.grad(f_real, argnums=argnums)(*split_args)
         gi = jax.grad(f_imag, argnums=argnums)(*split_args)
 
         if isinstance(argnums, int):
             return 0.5 * (gr - 1j * gi)
-        return tuple(0.5 * (grr - 1j * gii) for grr, gii in zip(gr, gi, strict=False))
+        return tuple(
+            0.5 * (grr - 1j * gii) for grr, gii in zip(gr, gi, strict=False)
+        )
 
     return grad_f
 
@@ -384,46 +375,45 @@ def complex_adam(
     beta2: float = 0.999,
     eps: float = 1e-8,
 ) -> Tuple[
-    Complex[Array, " ..."], Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]
+    Complex[Array, " ..."],
+    Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int],
 ]:
-    """
-    Description
-    -----------
-    Complex-valued Adam optimizer based on Wirtinger derivatives.
+    """Complex-valued Adam optimizer based on Wirtinger derivatives.
 
     This function performs one step of the Adam optimization algorithm
     for complex-valued parameters using Wirtinger calculus.
 
     Parameters
     ----------
-    - `params` (Complex[Array, " ..."]):
+    params : Complex[Array, " ..."]
         Current complex-valued parameters
-    - `grads` (Complex[Array, " ..."]):
+    grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
-    - `state` (Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]):
+    state : Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]
         Optimizer state containing (first moment, second moment, timestep)
-    - `learning_rate` (float):
+    learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.001.
-    - `beta1` (float):
+    beta1 : float, optional
         Exponential decay rate for first moment estimates.
         Default is 0.9.
-    - `beta2` (float):
+    beta2 : float, optional
         Exponential decay rate for second moment estimates.
         Default is 0.999.
-    - `eps` (float):
+    eps : float, optional
         Small value to avoid division by zero.
         Default is 1e-8.
 
     Returns
     -------
-    - `new_params` (Complex[Array, " ..."]):
+    new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    - `new_state` (Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]):
+    new_state : Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]
         Updated optimizer state
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Increment timestep counter
     - Update first moment estimate: m = β₁ * m + (1 - β₁) * grads
     - Update second moment estimate: v = β₂ * v + (1 - β₂) * |grads|²
@@ -450,54 +440,45 @@ def complex_adagrad(
     learning_rate: float = 0.01,
     eps: float = 1e-8,
 ) -> Tuple[Complex[Array, " ..."], Complex[Array, " ..."]]:
-    """
-    Description
-    -----------
-    Complex-valued Adagrad optimizer based on Wirtinger derivatives.
+    """Complex-valued Adagrad optimizer based on Wirtinger derivatives.
 
     This function performs one step of the Adagrad optimization algorithm
     for complex-valued parameters using Wirtinger calculus.
 
     Parameters
     ----------
-    - `params` (Complex[Array, " ..."]):
+    params : Complex[Array, " ..."]
         Current complex-valued parameters
-    - `grads` (Complex[Array, " ..."]):
+    grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
-    - `state` (Complex[Array, " ..."]):
+    state : Complex[Array, " ..."]
         Optimizer state containing accumulated squared gradients
-    - `learning_rate` (float):
+    learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.01.
-    - `eps` (float):
+    eps : float, optional
         Small value to avoid division by zero.
         Default is 1e-8.
 
     Returns
     -------
-    - `new_params` (Complex[Array, " ..."]):
+    new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    - `new_state` (Complex[Array, " ..."]):
+    new_state : Complex[Array, " ..."]
         Updated optimizer state with accumulated gradients
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Update accumulated squared gradients: G = G + |grads|²
     - Calculate adaptive learning rate: lr_adaptive = lr / (√G + ε)
     - Apply update: new_params = params - lr_adaptive * grads
     - Return updated parameters and accumulated gradients
     """
     accumulated_grads = state
-
-    # Update accumulated squared gradients
     new_accumulated_grads = accumulated_grads + jnp.abs(grads) ** 2
-
-    # Compute adaptive learning rate
     adaptive_lr = learning_rate / (jnp.sqrt(new_accumulated_grads) + eps)
-
-    # Update parameters
     new_params = params - adaptive_lr * grads
-
     return new_params, new_accumulated_grads
 
 
@@ -509,115 +490,99 @@ def complex_rmsprop(
     decay_rate: float = 0.9,
     eps: float = 1e-8,
 ) -> Tuple[Complex[Array, " ..."], Complex[Array, " ..."]]:
-    """
-    Description
-    -----------
-    Complex-valued RMSprop optimizer based on Wirtinger derivatives.
+    """Complex-valued RMSprop optimizer based on Wirtinger derivatives.
 
     This function performs one step of the RMSprop optimization algorithm
     for complex-valued parameters using Wirtinger calculus.
 
     Parameters
     ----------
-    - `params` (Complex[Array, " ..."]):
+    params : Complex[Array, " ..."]
         Current complex-valued parameters
-    - `grads` (Complex[Array, " ..."]):
+    grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
-    - `state` (Complex[Array, " ..."]):
+    state : Complex[Array, " ..."]
         Optimizer state containing moving average of squared gradients
-    - `learning_rate` (float):
+    learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.001.
-    - `decay_rate` (float):
+    decay_rate : float, optional
         Decay rate for moving average of squared gradients.
         Default is 0.9.
-    - `eps` (float):
+    eps : float, optional
         Small value to avoid division by zero.
         Default is 1e-8.
 
     Returns
     -------
-    - `new_params` (Complex[Array, " ..."]):
+    new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    - `new_state` (Complex[Array, " ..."]):
+    new_state : Complex[Array, " ..."]
         Updated optimizer state with moving average
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Update moving average of squared gradients: v = ρ * v + (1 - ρ) * |grads|²
     - Calculate adaptive learning rate: lr_adaptive = lr / (√v + ε)
     - Apply update: new_params = params - lr_adaptive * grads
     - Return updated parameters and moving average
     """
     moving_avg = state
-
-    # Update moving average of squared gradients
-    new_moving_avg = decay_rate * moving_avg + (1 - decay_rate) * jnp.abs(grads) ** 2
-
-    # Compute adaptive learning rate
+    new_moving_avg = (
+        decay_rate * moving_avg + (1 - decay_rate) * jnp.abs(grads) ** 2
+    )
     adaptive_lr = learning_rate / (jnp.sqrt(new_moving_avg) + eps)
-
-    # Update parameters
     new_params = params - adaptive_lr * grads
-
     return new_params, new_moving_avg
 
 
-def init_adam(shape: tuple) -> OptimizerState:
-    """
-    Description
-    -----------
-    Initialize Adam optimizer state.
+def init_adam(shape: Tuple) -> OptimizerState:
+    """Initialize Adam optimizer state.
 
     Parameters
     ----------
-    - `shape` (tuple):
+    shape : Tuple
         Shape of the parameters to be optimized
 
     Returns
     -------
-    - `state` (OptimizerState):
+    state : OptimizerState
         Initialized Adam optimizer state with zero moments and step=0
     """
-    return OptimizerState(m=jnp.zeros(shape), v=jnp.zeros(shape), step=jnp.array(0))
+    return make_optimizer_state(shape)
 
 
-def init_adagrad(shape: tuple) -> OptimizerState:
-    """
-    Description
-    -----------
-    Initialize Adagrad optimizer state.
+def init_adagrad(shape: Tuple) -> OptimizerState:
+    """Initialize Adagrad optimizer state.
 
     Parameters
     ----------
-    - `shape` (tuple):
+    shape : Tuple
         Shape of the parameters to be optimized
 
     Returns
     -------
-    - `state` (OptimizerState):
+    state : OptimizerState
         Initialized Adagrad optimizer state with zero accumulated gradients
     """
-    return OptimizerState(m=jnp.zeros(shape), v=jnp.zeros(shape), step=jnp.array(0))
+    return make_optimizer_state(shape)
 
 
-def init_rmsprop(shape: tuple) -> OptimizerState:
-    """
-    Description
-    -----------
-    Initialize RMSprop optimizer state.
+def init_rmsprop(shape: Tuple) -> OptimizerState:
+    """Initialize RMSprop optimizer state.
 
     Parameters
     ----------
-    - `shape` (tuple):
+    shape : Tuple
         Shape of the parameters to be optimized
 
     Returns
     -------
-    - `state` (OptimizerState):
+    state : OptimizerState
         Initialized RMSprop optimizer state with zero moving average
     """
-    return OptimizerState(m=jnp.zeros(shape), v=jnp.zeros(shape), step=jnp.array(0))
+    return make_optimizer_state(shape)
 
 
 def adam_update(
@@ -628,42 +593,40 @@ def adam_update(
     beta1: float = 0.9,
     beta2: float = 0.999,
     eps: float = 1e-8,
-) -> tuple[Complex[Array, " ..."], OptimizerState]:
-    """
-    Description
-    -----------
-    Update parameters using Adam optimizer with Wirtinger derivatives.
+) -> Tuple[Complex[Array, " ..."], OptimizerState]:
+    """Update parameters using Adam optimizer with Wirtinger derivatives.
 
     Parameters
     ----------
-    - `params` (Complex[Array, " ..."]):
+    params : Complex[Array, " ..."]
         Current complex-valued parameters
-    - `grads` (Complex[Array, " ..."]):
+    grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
-    - `state` (OptimizerState):
+    state : OptimizerState
         Current optimizer state
-    - `learning_rate` (float):
+    learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.001.
-    - `beta1` (float):
+    beta1 : float, optional
         Exponential decay rate for first moment estimates.
         Default is 0.9.
-    - `beta2` (float):
+    beta2 : float, optional
         Exponential decay rate for second moment estimates.
         Default is 0.999.
-    - `eps` (float):
+    eps : float, optional
         Small value to avoid division by zero.
         Default is 1e-8.
 
     Returns
     -------
-    - `new_params` (Complex[Array, " ..."]):
+    new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    - `new_state` (OptimizerState):
+    new_state : OptimizerState
         Updated optimizer state
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Extract current state components (m, v, step)
     - Call complex_adam to perform the update
     - Return updated parameters and state
@@ -672,7 +635,9 @@ def adam_update(
     new_params, (new_m, new_v, new_step) = complex_adam(
         params, grads, (m, v, step), learning_rate, beta1, beta2, eps
     )
-    return new_params, OptimizerState(m=new_m, v=new_v, step=new_step)
+    return new_params, make_optimizer_state(
+        shape=new_m.shape, m=new_m, v=new_v, step=new_step
+    )
 
 
 def adagrad_update(
@@ -681,43 +646,43 @@ def adagrad_update(
     state: OptimizerState,
     learning_rate: float = 0.01,
     eps: float = 1e-8,
-) -> tuple[Complex[Array, " ..."], OptimizerState]:
-    """
-    Description
-    -----------
-    Update parameters using Adagrad optimizer with Wirtinger derivatives.
+) -> Tuple[Complex[Array, " ..."], OptimizerState]:
+    """Update parameters using Adagrad optimizer with Wirtinger derivatives.
 
     Parameters
     ----------
-    - `params` (Complex[Array, " ..."]):
+    params : Complex[Array, " ..."]
         Current complex-valued parameters
-    - `grads` (Complex[Array, " ..."]):
+    grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
-    - `state` (OptimizerState):
+    state : OptimizerState
         Current optimizer state
-    - `learning_rate` (float):
+    learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.01.
-    - `eps` (float):
+    eps : float, optional
         Small value to avoid division by zero.
         Default is 1e-8.
 
     Returns
     -------
-    - `new_params` (Complex[Array, " ..."]):
+    new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    - `new_state` (OptimizerState):
+    new_state : OptimizerState
         Updated optimizer state
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Extract current state components (m, v, step)
     - Call complex_adagrad to perform the update
     - Return updated parameters and state
     """
     m, v, step = state
     new_params, new_v = complex_adagrad(params, grads, v, learning_rate, eps)
-    return new_params, OptimizerState(m=m, v=new_v, step=step + 1)
+    return new_params, make_optimizer_state(
+        shape=new_v.shape, m=m, v=new_v, step=step + 1
+    )
 
 
 def rmsprop_update(
@@ -727,39 +692,37 @@ def rmsprop_update(
     learning_rate: float = 0.001,
     decay_rate: float = 0.9,
     eps: float = 1e-8,
-) -> tuple[Complex[Array, " ..."], OptimizerState]:
-    """
-    Description
-    -----------
-    Update parameters using RMSprop optimizer with Wirtinger derivatives.
+) -> Tuple[Complex[Array, " ..."], OptimizerState]:
+    """Update parameters using RMSprop optimizer with Wirtinger derivatives.
 
     Parameters
     ----------
-    - `params` (Complex[Array, " ..."]):
+    params : Complex[Array, " ..."]
         Current complex-valued parameters
-    - `grads` (Complex[Array, " ..."]):
+    grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
-    - `state` (OptimizerState):
+    state : OptimizerState
         Current optimizer state
-    - `learning_rate` (float):
+    learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.001.
-    - `decay_rate` (float):
+    decay_rate : float, optional
         Decay rate for moving average of squared gradients.
         Default is 0.9.
-    - `eps` (float):
+    eps : float, optional
         Small value to avoid division by zero.
         Default is 1e-8.
 
     Returns
     -------
-    - `new_params` (Complex[Array, " ..."]):
+    new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    - `new_state` (OptimizerState):
+    new_state : OptimizerState
         Updated optimizer state
 
-    Flow
-    ----
+    Notes
+    -----
+    Algorithm:
     - Extract current state components (m, v, step)
     - Call complex_rmsprop to perform the update
     - Return updated parameters and state
@@ -768,4 +731,6 @@ def rmsprop_update(
     new_params, new_v = complex_rmsprop(
         params, grads, v, learning_rate, decay_rate, eps
     )
-    return new_params, OptimizerState(m=m, v=new_v, step=step + 1)
+    return new_params, make_optimizer_state(
+        shape=new_v.shape, m=m, v=new_v, step=step + 1
+    )

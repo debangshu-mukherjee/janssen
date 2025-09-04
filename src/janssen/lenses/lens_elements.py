@@ -138,7 +138,8 @@ def lens_focal_length(
     special_r2: scalar_float = 0.3
     special_n: scalar_float = 1.5
     is_special_case: Bool[Array, " "] = jnp.logical_and(
-        jnp.logical_and((r1 == special_r1), (r2 == special_r2)), (n == special_n)
+        jnp.logical_and((r1 == special_r1), (r2 == special_r2)),
+        (n == special_n),
     )
     special_case_f: Float[Array, " "] = jnp.asarray(0.15)
     epsilon: float = 1e-10
@@ -198,7 +199,9 @@ def create_lens_phase(
     )
     k: Float[Array, " "] = jnp.asarray(2 * jnp.pi / wavelength)
     phase_profile: Float[Array, " hh ww"] = k * (params.n - 1) * thickness
-    transmission: Float[Array, " hh ww"] = (r <= params.diameter / 2).astype(float)
+    transmission: Float[Array, " hh ww"] = (r <= params.diameter / 2).astype(
+        float
+    )
     return (phase_profile, transmission)
 
 
@@ -273,7 +276,9 @@ def double_convex_lens(
     - Calculate r2 using R_ratio.
     - Create and return LensParams.
     """
-    r1: Float[Array, " "] = jnp.asarray(focal_length * (n - 1) * (1 + r_ratio) / 2)
+    r1: Float[Array, " "] = jnp.asarray(
+        focal_length * (n - 1) * (1 + r_ratio) / 2
+    )
     r2: Float[Array, " "] = jnp.asarray(r1 * r_ratio)
     params: LensParams = make_lens_params(
         focal_length=focal_length,
@@ -321,7 +326,9 @@ def double_concave_lens(
     - Calculate R2 using R_ratio.
     - Create and return LensParams.
     """
-    r1: Float[Array, " "] = jnp.asarray(focal_length * (n - 1) * (1 + r_ratio) / 2)
+    r1: Float[Array, " "] = jnp.asarray(
+        focal_length * (n - 1) * (1 + r_ratio) / 2
+    )
     r2: Float[Array, " "] = jnp.asarray(r1 * r_ratio)
     params: LensParams = make_lens_params(
         focal_length=focal_length,

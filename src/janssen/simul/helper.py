@@ -62,8 +62,12 @@ def create_spatial_grid(
     - Create a meshgrid of spatial coordinates.
     - Return the meshgrid.
     """
-    x: Float[Array, " nn"] = jnp.linspace(-diameter / 2, diameter / 2, num_points)
-    y: Float[Array, " nn"] = jnp.linspace(-diameter / 2, diameter / 2, num_points)
+    x: Float[Array, " nn"] = jnp.linspace(
+        -diameter / 2, diameter / 2, num_points
+    )
+    y: Float[Array, " nn"] = jnp.linspace(
+        -diameter / 2, diameter / 2, num_points
+    )
     xx: Float[Array, " nn nn"]
     yy: Float[Array, " nn nn"]
     xx, yy = jnp.meshgrid(x, y)
@@ -71,7 +75,9 @@ def create_spatial_grid(
 
 
 @jaxtyped(typechecker=beartype)
-def normalize_field(field: Complex[Array, " hh ww"]) -> Complex[Array, " hh ww"]:
+def normalize_field(
+    field: Complex[Array, " hh ww"],
+) -> Complex[Array, " hh ww"]:
     """
     Normalize complex field to unit power.
 
@@ -198,7 +204,9 @@ def scale_pixel(
     new_fov_h: scalar_float = hh * new_dx
     new_fov_w: scalar_float = ww * new_dx
 
-    def smaller_pixel_size(field: Complex[Array, " hh ww"]) -> Complex[Array, " hh ww"]:
+    def smaller_pixel_size(
+        field: Complex[Array, " hh ww"],
+    ) -> Complex[Array, " hh ww"]:
         """
         If the new pixel size is smaller than the old one,
         then the new FOV is smaller too at the same field
@@ -228,7 +236,9 @@ def scale_pixel(
         )
         return resized
 
-    def larger_pixel_size(field: Complex[Array, " hh ww"]) -> Complex[Array, " hh ww"]:
+    def larger_pixel_size(
+        field: Complex[Array, " hh ww"],
+    ) -> Complex[Array, " hh ww"]:
         """
         If the new pixel size is larger than the old one,
         then the new FOV of the final field is larger too

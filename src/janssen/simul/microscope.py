@@ -137,12 +137,16 @@ def simple_diffractogram(
     after_aperture: OpticalWavefront = circular_aperture(
         zoomed_wave, aperture_diameter, aperture_center
     )
-    at_camera: OpticalWavefront = fraunhofer_prop(after_aperture, travel_distance)
+    at_camera: OpticalWavefront = fraunhofer_prop(
+        after_aperture, travel_distance
+    )
     at_camera_scaled: OpticalWavefront = scale_pixel(
         at_camera,
         camera_pixel_size,
     )
-    scaled_camera_image: Float[Array, "H W"] = field_intensity(at_camera_scaled.field)
+    scaled_camera_image: Float[Array, "H W"] = field_intensity(
+        at_camera_scaled.field
+    )
     diffractogram: Diffractogram = make_diffractogram(
         image=scaled_camera_image,
         wavelength=at_camera_scaled.wavelength,
@@ -213,12 +217,12 @@ def simple_microscope(
         ww: int
         hh, ww = interaction_size
         x, y = this_position
-        start_cut_x: Int[Array, ""] = jnp.floor(x - (0.5 * interaction_size[1])).astype(
-            int
-        )
-        start_cut_y: Int[Array, ""] = jnp.floor(y - (0.5 * interaction_size[0])).astype(
-            int
-        )
+        start_cut_x: Int[Array, ""] = jnp.floor(
+            x - (0.5 * interaction_size[1])
+        ).astype(int)
+        start_cut_y: Int[Array, ""] = jnp.floor(
+            y - (0.5 * interaction_size[0])
+        ).astype(int)
         cutout_sample: Complex[Array, " hh ww"] = jax.lax.dynamic_slice(
             sample.sample,
             (start_cut_y, start_cut_x),
