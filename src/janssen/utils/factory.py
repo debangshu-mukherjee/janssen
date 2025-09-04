@@ -154,9 +154,9 @@ def make_lens_params(
                 ),
             )
 
-        def check_radii_finite() -> Tuple[
-            Float[Array, " "], Float[Array, " "]
-        ]:
+        def check_radii_finite() -> (
+            Tuple[Float[Array, " "], Float[Array, " "]]
+        ):
             return lax.cond(
                 jnp.logical_and(jnp.isfinite(r1), jnp.isfinite(r2)),
                 lambda: (r1, r2),
@@ -313,9 +313,9 @@ def make_grid_params(
                 ),
             )
 
-        def check_grid_finite() -> Tuple[
-            Float[Array, " hh ww"], Float[Array, " hh ww"]
-        ]:
+        def check_grid_finite() -> (
+            Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]
+        ):
             return lax.cond(
                 jnp.logical_and(
                     jnp.all(jnp.isfinite(xx)), jnp.all(jnp.isfinite(yy))
@@ -399,9 +399,9 @@ def make_optical_wavefront(
     polarization: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
 
     def validate_and_create() -> OpticalWavefront:
-        def check_field_dimensions() -> Union[
-            Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]
-        ]:
+        def check_field_dimensions() -> (
+            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
+        ):
             non_polar_dimensions: int = 2
             polar_dimensions: int = 3
 
@@ -432,9 +432,9 @@ def make_optical_wavefront(
                 check_scalar,
             )
 
-        def check_field_finite() -> Union[
-            Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]
-        ]:
+        def check_field_finite() -> (
+            Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
+        ):
             return lax.cond(
                 jnp.all(jnp.isfinite(field)),
                 lambda: field,
@@ -547,9 +547,9 @@ def make_microscope_data(
     expected_diffractogram_dim_4d: int = 4
 
     def validate_and_create() -> MicroscopeData:
-        def check_image_dimensions() -> Union[
-            Float[Array, " P H W"], Float[Array, " X Y H W"]
-        ]:
+        def check_image_dimensions() -> (
+            Union[Float[Array, " P H W"], Float[Array, " X Y H W"]]
+        ):
             return lax.cond(
                 jnp.logical_or(
                     image_data.ndim == expected_diffractogram_dim_3d,
@@ -561,9 +561,9 @@ def make_microscope_data(
                 ),
             )
 
-        def check_image_finite() -> Union[
-            Float[Array, " P H W"], Float[Array, " X Y H W"]
-        ]:
+        def check_image_finite() -> (
+            Union[Float[Array, " P H W"], Float[Array, " X Y H W"]]
+        ):
             return lax.cond(
                 jnp.all(jnp.isfinite(image_data)),
                 lambda: image_data,
@@ -572,9 +572,9 @@ def make_microscope_data(
                 ),
             )
 
-        def check_image_nonnegative() -> Union[
-            Float[Array, " P H W"], Float[Array, " X Y H W"]
-        ]:
+        def check_image_nonnegative() -> (
+            Union[Float[Array, " P H W"], Float[Array, " X Y H W"]]
+        ):
             return lax.cond(
                 jnp.all(image_data >= 0),
                 lambda: image_data,
@@ -998,7 +998,7 @@ def make_ptychography_params(
     num_iterations: scalar_integer,
 ) -> PtychographyParams:
     """Create a PtychographyParams PyTree with validated parameters.
-    
+
     Parameters
     ----------
     zoom_factor : scalar_float
@@ -1015,12 +1015,12 @@ def make_ptychography_params(
         Learning rate for optimization (must be positive)
     num_iterations : scalar_integer
         Number of optimization iterations (must be positive)
-    
+
     Returns
     -------
     PtychographyParams
         Validated ptychography parameters as a PyTree
-    
+
     Notes
     -----
     This function performs runtime validation to ensure all parameters
@@ -1035,71 +1035,99 @@ def make_ptychography_params(
     camera_pixel_size_array = jnp.asarray(camera_pixel_size, dtype=jnp.float64)
     learning_rate_array = jnp.asarray(learning_rate, dtype=jnp.float64)
     num_iterations_array = jnp.asarray(num_iterations, dtype=jnp.int64)
-    
+
     def validate_and_create() -> PtychographyParams:
         def check_positive_zoom() -> Float[Array, " "]:
             return lax.cond(
                 zoom_factor_array > 0,
                 lambda: zoom_factor_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: zoom_factor_array, lambda: zoom_factor_array)
+                    lax.cond(
+                        False,
+                        lambda: zoom_factor_array,
+                        lambda: zoom_factor_array,
+                    )
                 ),
             )
-        
+
         def check_positive_aperture() -> Float[Array, " "]:
             return lax.cond(
                 aperture_diameter_array > 0,
                 lambda: aperture_diameter_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: aperture_diameter_array, lambda: aperture_diameter_array)
+                    lax.cond(
+                        False,
+                        lambda: aperture_diameter_array,
+                        lambda: aperture_diameter_array,
+                    )
                 ),
             )
-        
+
         def check_positive_distance() -> Float[Array, " "]:
             return lax.cond(
                 travel_distance_array > 0,
                 lambda: travel_distance_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: travel_distance_array, lambda: travel_distance_array)
+                    lax.cond(
+                        False,
+                        lambda: travel_distance_array,
+                        lambda: travel_distance_array,
+                    )
                 ),
             )
-        
+
         def check_aperture_center_shape() -> Float[Array, " 2"]:
             return lax.cond(
                 aperture_center_array.shape == (2,),
                 lambda: aperture_center_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: aperture_center_array, lambda: aperture_center_array)
+                    lax.cond(
+                        False,
+                        lambda: aperture_center_array,
+                        lambda: aperture_center_array,
+                    )
                 ),
             )
-        
+
         def check_positive_pixel_size() -> Float[Array, " "]:
             return lax.cond(
                 camera_pixel_size_array > 0,
                 lambda: camera_pixel_size_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: camera_pixel_size_array, lambda: camera_pixel_size_array)
+                    lax.cond(
+                        False,
+                        lambda: camera_pixel_size_array,
+                        lambda: camera_pixel_size_array,
+                    )
                 ),
             )
-        
+
         def check_positive_learning_rate() -> Float[Array, " "]:
             return lax.cond(
                 learning_rate_array > 0,
                 lambda: learning_rate_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: learning_rate_array, lambda: learning_rate_array)
+                    lax.cond(
+                        False,
+                        lambda: learning_rate_array,
+                        lambda: learning_rate_array,
+                    )
                 ),
             )
-        
+
         def check_positive_iterations() -> Int[Array, " "]:
             return lax.cond(
                 num_iterations_array > 0,
                 lambda: num_iterations_array,
                 lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: num_iterations_array, lambda: num_iterations_array)
+                    lax.cond(
+                        False,
+                        lambda: num_iterations_array,
+                        lambda: num_iterations_array,
+                    )
                 ),
             )
-        
+
         # Run all validation checks
         check_positive_zoom()
         check_positive_aperture()
@@ -1108,7 +1136,7 @@ def make_ptychography_params(
         check_positive_pixel_size()
         check_positive_learning_rate()
         check_positive_iterations()
-        
+
         return PtychographyParams(
             zoom_factor=zoom_factor_array,
             aperture_diameter=aperture_diameter_array,
@@ -1118,6 +1146,6 @@ def make_ptychography_params(
             learning_rate=learning_rate_array,
             num_iterations=num_iterations_array,
         )
-    
+
     validated_params: PtychographyParams = validate_and_create()
     return validated_params

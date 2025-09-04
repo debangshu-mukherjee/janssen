@@ -68,7 +68,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
                     self.ny // 2, self.nx // 2 + mid_idx
                 ]
                 if float(mid_val) > 0:
-                    chex.assert_scalar_positive(float(center_val) - float(mid_val))
+                    chex.assert_scalar_positive(
+                        float(center_val) - float(mid_val)
+                    )
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_lens_thickness_profile_plano(self) -> None:
@@ -84,7 +86,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         mid_radius_idx = self.nx // 2 + int(diameter / (4 * self.dx))
         mid_val = var_lens_thickness_profile[self.ny // 2, mid_radius_idx]
         chex.assert_tree_all_finite(jnp.abs(center_val - mid_val))
-        chex.assert_scalar_positive(float(jnp.abs(center_val - mid_val)) - 1e-10)
+        chex.assert_scalar_positive(
+            float(jnp.abs(center_val - mid_val)) - 1e-10
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -144,13 +148,17 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         )
         chex.assert_shape(output_field, self.field.shape)
         chex.assert_trees_all_equal_shapes(output_field, self.field)
-        chex.assert_trees_all_equal(jnp.allclose(output_field, self.field), False)
+        chex.assert_trees_all_equal(
+            jnp.allclose(output_field, self.field), False
+        )
         center_in = self.field[self.ny // 2, self.nx // 2]
         center_out = output_field[self.ny // 2, self.nx // 2]
         phase_diff = jnp.angle(center_out / center_in)
         expected_phase = phase_profile[self.ny // 2, self.nx // 2]
         expected_phase_wrapped = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(phase_diff, expected_phase_wrapped, rtol=1e-5)
+        chex.assert_trees_all_close(
+            phase_diff, expected_phase_wrapped, rtol=1e-5
+        )
         corner_out = output_field[0, 0]
         chex.assert_trees_all_close(jnp.abs(corner_out), 0.0, atol=1e-10)
 
@@ -290,7 +298,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
             return lens_thickness_profile(r, r1, r2, ct, d)
 
         thickness_jit = jitted_thickness(self.r, 0.01, 0.01, 0.001, 0.005)
-        thickness_normal = lens_thickness_profile(self.r, 0.01, 0.01, 0.001, 0.005)
+        thickness_normal = lens_thickness_profile(
+            self.r, 0.01, 0.01, 0.001, 0.005
+        )
         chex.assert_trees_all_close(thickness_jit, thickness_normal)
 
         def loss_fn(r1: float) -> Array:
@@ -327,7 +337,9 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         phase_profile, transmission = create_lens_phase(
             self.xx, self.yy, self.default_params, self.wavelength
         )
-        output = propagate_through_lens(complex_field, phase_profile, transmission)
+        output = propagate_through_lens(
+            complex_field, phase_profile, transmission
+        )
         chex.assert_type(output, jnp.complex128)
 
     @parameterized.named_parameters(
@@ -335,11 +347,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         ("complex_uniform", jnp.ones((128, 128)) * (1 + 1j)),
         ("phase_uniform", jnp.exp(1j * jnp.ones((128, 128)))),
     )
-    def test_propagate_edge_cases(self, input_field: Complex[Array, "128 128"]) -> None:
+    def test_propagate_edge_cases(
+        self, input_field: Complex[Array, "128 128"]
+    ) -> None:
         phase_profile, transmission = create_lens_phase(
             self.xx, self.yy, self.default_params, self.wavelength
         )
-        output = propagate_through_lens(input_field, phase_profile, transmission)
+        output = propagate_through_lens(
+            input_field, phase_profile, transmission
+        )
         chex.assert_shape(output, input_field.shape)
         chex.assert_trees_all_equal(jnp.iscomplexobj(output), True)
 

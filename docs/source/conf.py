@@ -27,7 +27,9 @@ project = pyproject_data["project"]["name"]
 
 authors_data = pyproject_data["project"]["authors"]
 author = (
-    authors_data[0]["name"] if isinstance(authors_data[0], dict) else authors_data[0]
+    authors_data[0]["name"]
+    if isinstance(authors_data[0], dict)
+    else authors_data[0]
 )
 
 project_copyright = f"{datetime.now().year}, {author}"
@@ -111,9 +113,7 @@ autodoc_default_options = {
     "ignore-module-all": False,
 }
 
-autodoc_typehints = (
-    "signature"
-)
+autodoc_typehints = "signature"
 autodoc_typehints_format = "short"
 autodoc_typehints_description_target = "documented"
 python_use_unqualified_type_names = True
@@ -192,7 +192,9 @@ def skip_member(app, what, name, obj, skip, options):
     return skip
 
 
-def process_signature(app, what, name, obj, options, signature, return_annotation):
+def process_signature(
+    app, what, name, obj, options, signature, return_annotation
+):
     """
     Process signatures to handle jaxtyping annotations.
     """

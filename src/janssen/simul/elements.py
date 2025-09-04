@@ -13,7 +13,7 @@ prism_phase_ramp : function
 beam_splitter : function
     Splits a field into transmitted and reflected arms with given (t, r)
 mirror_reflection : function
-    Applies mirror reflection(s): coordinate flip(s), optional conjugation, 
+    Applies mirror reflection(s): coordinate flip(s), optional conjugation,
     π phase
 phase_grating_sine : function
     Sinusoidal phase grating
@@ -35,8 +35,8 @@ quarter_waveplate : function
     Quarter-waveplate with fast axis angle theta.
 half_waveplate : function
     Half-waveplate with fast axis angle theta.
-phase_grating_blazed_elliptical : function  
-    Elliptical blazed phase grating with period_x, period_y, theta, 
+phase_grating_blazed_elliptical : function
+    Elliptical blazed phase grating with period_x, period_y, theta,
     depth, and two_dim
 _xy_grids : function, internal
     Build centered (x, y) grids.

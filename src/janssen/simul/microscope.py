@@ -181,7 +181,7 @@ def simple_microscope(
     sample : SampleFunction
         The sample function representing the optical properties of the sample
     positions : Num[Array, " n 2"]
-        The positions in the sample plane where the diffractograms are 
+        The positions in the sample plane where the diffractograms are
         calculated.
     lightwave : OpticalWavefront
         The incoming optical wavefront

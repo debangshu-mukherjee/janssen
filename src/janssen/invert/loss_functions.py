@@ -2,14 +2,14 @@
 
 Extended Summary
 ----------------
-This module provides loss functions for comparing model outputs 
-with experimental data in ptychography applications. All functions 
+This module provides loss functions for comparing model outputs
+with experimental data in ptychography applications. All functions
 are JAX-compatible and support automatic differentiation for optimization.
 
 Routine Listings
 ----------------
 create_loss_function : function
-    Creates a JIT-compatible loss function for comparing model output with 
+    Creates a JIT-compatible loss function for comparing model output with
     experimental data.
 mae_loss : function
     Mean Absolute Error loss function (internal)
@@ -39,9 +39,9 @@ def create_loss_function(
     """
     Create a JIT-compatible loss function.
 
-    This function returns a new function that computes the loss between 
-    the output of a forward model and experimental data. The returned 
-    function is JIT-compatible and can be used with various optimization 
+    This function returns a new function that computes the loss between
+    the output of a forward model and experimental data. The returned
+    function is JIT-compatible and can be used with various optimization
     algorithms.
 
     Parameters
@@ -58,8 +58,8 @@ def create_loss_function(
     Returns
     -------
     loss_fn : Callable[[PyTree, ...], Float[Array, " "]]
-        A JIT-compatible function that computes the loss given the model 
-        parameters and any additional arguments required by the forward 
+        A JIT-compatible function that computes the loss given the model
+        parameters and any additional arguments required by the forward
         function.
 
     Notes

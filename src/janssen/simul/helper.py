@@ -7,7 +7,7 @@ fields, and performing common operations in optical simulations.
 
 Routine Listings
 ----------------
-create_spatial_grid : function  
+create_spatial_grid : function
     Creates a 2D spatial grid for optical propagation
 normalize_field : function
     Normalizes a complex field to unit power

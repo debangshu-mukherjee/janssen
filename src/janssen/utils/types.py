@@ -449,7 +449,7 @@ class OptimizerState(NamedTuple):
 @register_pytree_node_class
 class PtychographyParams(NamedTuple):
     """PyTree structure for ptychography reconstruction parameters.
-    
+
     Attributes
     ----------
     zoom_factor : Float[Array, " "]
@@ -466,7 +466,7 @@ class PtychographyParams(NamedTuple):
         Learning rate for optimization
     num_iterations : Int[Array, " "]
         Number of optimization iterations
-    
+
     Notes
     -----
     This class encapsulates all the optical and optimization parameters
@@ -474,7 +474,7 @@ class PtychographyParams(NamedTuple):
     node to enable JAX transformations and gradient-based optimization
     of these parameters.
     """
-    
+
     zoom_factor: Float[Array, " "]
     aperture_diameter: Float[Array, " "]
     travel_distance: Float[Array, " "]
@@ -482,7 +482,7 @@ class PtychographyParams(NamedTuple):
     camera_pixel_size: Float[Array, " "]
     learning_rate: Float[Array, " "]
     num_iterations: Int[Array, " "]
-    
+
     def tree_flatten(
         self,
     ) -> Tuple[
@@ -510,7 +510,7 @@ class PtychographyParams(NamedTuple):
             ),
             None,
         )
-    
+
     @classmethod
     def tree_unflatten(
         cls,
