@@ -125,11 +125,36 @@ dl.field-list > dt {
     padding-bottom: 0.3em;
 }
 
+/* Light mode type annotations */
 dl.field-list code.literal {
-    background: #f8f9fa;
+    background: transparent;
     border: none;
     padding: 2px 5px;
     color: #2980b9;
+}
+
+/* Dark mode type annotations */
+@media (prefers-color-scheme: dark) {
+    dl.field-list code.literal {
+        background: transparent;
+        color: #5eb3ff;
+    }
+}
+
+/* Furo theme dark mode */
+body[data-theme="dark"] dl.field-list code.literal,
+html[data-theme="dark"] dl.field-list code.literal {
+    background: transparent;
+    color: #5eb3ff;
+}
+
+/* Auto theme in dark mode */
+body[data-theme="auto"] dl.field-list code.literal,
+html[data-theme="auto"] dl.field-list code.literal {
+    @media (prefers-color-scheme: dark) {
+        background: transparent;
+        color: #5eb3ff;
+    }
 }
 
 /* Style for all custom sections */
