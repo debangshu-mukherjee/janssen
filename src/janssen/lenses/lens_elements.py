@@ -8,23 +8,23 @@ properties and propagating optical fields through lens elements.
 
 Routine Listings
 ----------------
-lens_thickness_profile
+lens_thickness_profile : function
     Calculates the thickness profile of a lens
-lens_focal_length
+lens_focal_length : function
     Calculates the focal length of a lens using the lensmaker's equation
-create_lens_phase
+create_lens_phase : function
     Creates the phase profile and transmission mask for a lens
-propagate_through_lens
+propagate_through_lens : function
     Propagates a field through a lens
-double_convex_lens
+double_convex_lens : function
     Creates parameters for a double convex lens
-double_concave_lens
+double_concave_lens : function
     Creates parameters for a double concave lens
-plano_convex_lens
+plano_convex_lens : function
     Creates parameters for a plano-convex lens
-plano_concave_lens
+plano_concave_lens : function
     Creates parameters for a plano-concave lens
-meniscus_lens
+meniscus_lens : function
     Creates parameters for a meniscus (concavo-convex) lens
 
 Notes

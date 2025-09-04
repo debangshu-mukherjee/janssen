@@ -9,17 +9,17 @@ propagation in optical systems.
 
 Routine Listings
 ----------------
-angular_spectrum_prop
+angular_spectrum_prop : function
     Propagates a complex optical field using the angular spectrum method
-fresnel_prop
+fresnel_prop : function
     Propagates a complex optical field using the Fresnel approximation
-fraunhofer_prop
+fraunhofer_prop : function
     Propagates a complex optical field using the Fraunhofer approximation
-digital_zoom
+digital_zoom : function
     Zooms an optical wavefront by a specified factor
-optical_zoom
+optical_zoom : function
     Modifies the calibration of an optical wavefront without changing its field
-lens_propagation
+lens_propagation : function
     Propagates an optical wavefront through a lens
 
 Notes
@@ -45,6 +45,7 @@ from janssen.utils import (
 )
 
 from ..simul.helper import add_phase_screen
+from .lens_elements import create_lens_phase
 
 jax.config.update("jax_enable_x64", True)
 
@@ -520,8 +521,6 @@ def lens_propagation(
     - Return the new optical wavefront with the updated field, wavelength,
         and pixel size.
     """
-    from .lens_elements import create_lens_phase
-
     hh: int
     ww: int
     hh, ww = incoming.field.shape

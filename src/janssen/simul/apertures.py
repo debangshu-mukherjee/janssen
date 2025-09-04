@@ -8,22 +8,22 @@ apodization functions commonly used in optical systems.
 
 Routine Listings
 ----------------
-circular_aperture
+circular_aperture : function
     Applies a circular aperture (optionally offset) with uniform transmittivity
-rectangular_aperture
+rectangular_aperture : function
     Applies an axis-aligned rectangular aperture with uniform transmittivity
-annular_aperture
+annular_aperture : function
     Applies a concentric ring (donut) aperture between inner/outer diameters
-variable_transmission_aperture
+variable_transmission_aperture : function
     Applies an arbitrary transmission mask (array or callable), including
     common apodizers such as Gaussian or super-Gaussian
-gaussian_apodizer
+gaussian_apodizer : function
     Applies a Gaussian apodizer (smooth transmission mask) to the wavefront
-supergaussian_apodizer
+supergaussian_apodizer : function
     Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront
-gaussian_apodizer_elliptical
+gaussian_apodizer_elliptical : function
     Applies an elliptical Gaussian apodizer to the wavefront
-supergaussian_apodizer_elliptical
+supergaussian_apodizer_elliptical : function
     Applies an elliptical super-Gaussian apodizer to the wavefront
 
 Notes

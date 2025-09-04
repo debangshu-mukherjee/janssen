@@ -2,19 +2,20 @@
 
 Extended Summary
 ----------------
-This module provides loss functions for comparing model outputs with experimental
-data in ptychography applications. All functions are JAX-compatible and support
-automatic differentiation for optimization.
+This module provides loss functions for comparing model outputs 
+with experimental data in ptychography applications. All functions 
+are JAX-compatible and support automatic differentiation for optimization.
 
-Functions
----------
-create_loss_function
-    Creates a JIT-compatible loss function for comparing model output with experimental data
-mae_loss
+Routine Listings
+----------------
+create_loss_function : function
+    Creates a JIT-compatible loss function for comparing model output with 
+    experimental data.
+mae_loss : function
     Mean Absolute Error loss function (internal)
-mse_loss
+mse_loss : function
     Mean Squared Error loss function (internal)
-rmse_loss
+rmse_loss : function
     Root Mean Squared Error loss function (internal)
 
 Notes
@@ -36,11 +37,12 @@ def create_loss_function(
     loss_type: str = "mae",
 ) -> Callable[..., Float[Array, " "]]:
     """
-    Create a JIT-compatible loss function for comparing model output with experimental data.
+    Create a JIT-compatible loss function.
 
-    This function returns a new function that computes the loss between the output
-    of a forward model and experimental data. The returned function is JIT-compatible
-    and can be used with various optimization algorithms.
+    This function returns a new function that computes the loss between 
+    the output of a forward model and experimental data. The returned 
+    function is JIT-compatible and can be used with various optimization 
+    algorithms.
 
     Parameters
     ----------
@@ -56,8 +58,9 @@ def create_loss_function(
     Returns
     -------
     loss_fn : Callable[[PyTree, ...], Float[Array, " "]]
-        A JIT-compatible function that computes the loss given the model parameters
-        and any additional arguments required by the forward function.
+        A JIT-compatible function that computes the loss given the model 
+        parameters and any additional arguments required by the forward 
+        function.
 
     Notes
     -----

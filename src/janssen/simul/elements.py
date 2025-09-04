@@ -8,34 +8,40 @@ common optical components used in microscopy and optical systems.
 
 Routine Listings
 ----------------
-prism_phase_ramp
+prism_phase_ramp : function
     Applies a linear phase ramp to simulate beam deviation/dispersion
-beam_splitter
+beam_splitter : function
     Splits a field into transmitted and reflected arms with given (t, r)
-mirror_reflection
-    Applies mirror reflection(s): coordinate flip(s), optional conjugation, π phase
-phase_grating_sine
+mirror_reflection : function
+    Applies mirror reflection(s): coordinate flip(s), optional conjugation, 
+    π phase
+phase_grating_sine : function
     Sinusoidal phase grating
-amplitude_grating_binary
+amplitude_grating_binary : function
     Binary amplitude grating with duty cycle
-phase_grating_sawtooth
+phase_grating_sawtooth : function
     Blazed (sawtooth) phase grating.
-apply_phase_mask
+apply_phase_mask : function
     Applies an arbitrary phase mask (SLM / phase screen).
-apply_phase_mask_fn
+apply_phase_mask_fn : function
     Builds a phase mask from a callable f(xx, yy) and applies it.
 polarizer_jones
     Linear polarizer at angle theta (Jones matrix) for 2-component fields.
-waveplate_jones
+waveplate_jones : function
     Waveplate (retarder) with retardance delta and fast axis angle theta.
-nd_filter
+nd_filter : function
     Neutral density filter with optical density (OD) or direct transmittance.
-quarter_waveplate
+quarter_waveplate : function
     Quarter-waveplate with fast axis angle theta.
-half_waveplate
+half_waveplate : function
     Half-waveplate with fast axis angle theta.
-phase_grating_blazed_elliptical
-    Elliptical blazed phase grating with period_x, period_y, theta, depth, and two_dim
+phase_grating_blazed_elliptical : function  
+    Elliptical blazed phase grating with period_x, period_y, theta, 
+    depth, and two_dim
+_xy_grids : function, internal
+    Build centered (x, y) grids.
+_rotate_coords : function, internal
+    Rotate coordinates by an angle theta.
 
 Notes
 -----

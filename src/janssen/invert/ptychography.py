@@ -8,9 +8,9 @@ for recovering complex-valued sample functions from intensity measurements.
 
 Routine Listings
 ----------------
-get_optimizer
+get_optimizer : function
     Returns an optimizer object based on the specified name
-simple_microscope_ptychography
+simple_microscope_ptychography : function
     Performs ptychography reconstruction using a simple microscope model
 
 Notes

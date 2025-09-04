@@ -8,13 +8,13 @@ modeling light-sample interactions.
 
 Routine Listings
 ----------------
-lens_propagation
+lens_propagation : function
     Propagates an optical wavefront through a lens
-linear_interaction
+linear_interaction : function
     Propagates an optical wavefront through a sample using linear interaction
-simple_diffractogram
+simple_diffractogram : function
     Calculates the diffractogram of a sample using a simple model
-simple_microscope
+simple_microscope : function
     Calculates 3D diffractograms at all pixel positions in parallel
 
 Notes
@@ -181,7 +181,8 @@ def simple_microscope(
     sample : SampleFunction
         The sample function representing the optical properties of the sample
     positions : Num[Array, " n 2"]
-        The positions in the sample plane where the diffractograms are calculated
+        The positions in the sample plane where the diffractograms are 
+        calculated.
     lightwave : OpticalWavefront
         The incoming optical wavefront
     zoom_factor : scalar_float

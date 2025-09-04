@@ -7,15 +7,15 @@ fields, and performing common operations in optical simulations.
 
 Routine Listings
 ----------------
-create_spatial_grid
+create_spatial_grid : function  
     Creates a 2D spatial grid for optical propagation
-normalize_field
+normalize_field : function
     Normalizes a complex field to unit power
-add_phase_screen
+add_phase_screen : function
     Adds a phase screen to a complex field
-field_intensity
+field_intensity : function
     Calculates intensity from a complex field
-scale_pixel
+scale_pixel : function
     Rescales OpticalWavefront pixel size while keeping array shape fixed
 
 Notes
