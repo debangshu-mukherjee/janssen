@@ -46,7 +46,6 @@ from janssen.utils import (
 )
 
 from ..simul.helper import add_phase_screen
-from .lens_elements import create_lens_phase
 
 jax.config.update("jax_enable_x64", True)
 
@@ -522,6 +521,8 @@ def lens_propagation(
     - Return the new optical wavefront with the updated field, wavelength, 
         and pixel size.
     """
+    from .lens_elements import create_lens_phase
+    
     hh: int
     ww: int
     hh, ww = incoming.field.shape
