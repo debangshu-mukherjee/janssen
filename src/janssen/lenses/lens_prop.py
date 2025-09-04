@@ -44,7 +44,6 @@ from janssen.utils import (
     scalar_numeric,
 )
 
-from ..simul.helper import add_phase_screen
 from .lens_elements import create_lens_phase
 
 jax.config.update("jax_enable_x64", True)
@@ -192,9 +191,8 @@ def fresnel_prop(
     quadratic_phase: Float[Array, " hh ww"] = (
         k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
     )
-    field_with_phase: Complex[Array, " hh ww"] = add_phase_screen(
-        incoming.field,
-        quadratic_phase,
+    field_with_phase: Complex[Array, " hh ww"] = (
+        incoming.field * jnp.exp(1j * quadratic_phase)
     )
     field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
         jnp.fft.fft2(jnp.fft.ifftshift(field_with_phase)),
@@ -210,9 +208,9 @@ def fresnel_prop(
         * incoming.wavelength
         * path_length
         * (fx_mesh**2 + fy_mesh**2)
-    )
-    propagated_ft: Complex[Array, " hh ww"] = add_phase_screen(
-        field_ft, transfer_phase
+    ) 
+    propagated_ft: Complex[Array, " hh ww"] = (
+        field_ft * jnp.exp(1j * transfer_phase)
     )
     propagated_field: Complex[Array, " hh ww"] = jnp.fft.fftshift(
         jnp.fft.ifft2(jnp.fft.ifftshift(propagated_ft)),
@@ -221,7 +219,7 @@ def fresnel_prop(
         k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
     )
     final_propagated_field: Complex[Array, " hh ww"] = jnp.fft.ifftshift(
-        add_phase_screen(propagated_field, final_quadratic_phase),
+        propagated_field * jnp.exp(1j * final_quadratic_phase),
     )
     propagated: OpticalWavefront = make_optical_wavefront(
         field=final_propagated_field,
@@ -538,9 +536,8 @@ def lens_propagation(
     phase_profile, transmission = create_lens_phase(
         xarr, yarr, lens, incoming.wavelength
     )
-    transmitted_field: Complex[Array, " hh ww"] = add_phase_screen(
-        incoming.field * transmission,
-        phase_profile,
+    transmitted_field: Complex[Array, " hh ww"] = (
+        incoming.field * transmission * jnp.exp(1j * phase_profile)
     )
     outgoing: OpticalWavefront = make_optical_wavefront(
         field=transmitted_field,
