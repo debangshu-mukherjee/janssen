@@ -545,7 +545,7 @@ def make_microscope_data(
 
     def validate_and_create() -> MicroscopeData:
         def check_image_dimensions() -> Union[
-            Float[Array, "P H W"], Float[Array, "X Y H W"]
+            Float[Array, " P H W"], Float[Array, " X Y H W"]
         ]:
             return lax.cond(
                 jnp.logical_or(
@@ -559,7 +559,7 @@ def make_microscope_data(
             )
 
         def check_image_finite() -> Union[
-            Float[Array, "P H W"], Float[Array, "X Y H W"]
+            Float[Array, " P H W"], Float[Array, " X Y H W"]
         ]:
             return lax.cond(
                 jnp.all(jnp.isfinite(image_data)),
@@ -570,7 +570,7 @@ def make_microscope_data(
             )
 
         def check_image_nonnegative() -> Union[
-            Float[Array, "P H W"], Float[Array, "X Y H W"]
+            Float[Array, " P H W"], Float[Array, " X Y H W"]
         ]:
             return lax.cond(
                 jnp.all(image_data >= 0),
@@ -617,13 +617,13 @@ def make_microscope_data(
             )
 
         def check_consistency() -> Tuple[
-            Union[Float[Array, "P H W"], Float[Array, "X Y H W"]],
+            Union[Float[Array, " P H W"], Float[Array, " X Y H W"]],
             Num[Array, " P 2"],
         ]:
             pp = positions.shape[0]
 
             def check_3d_consistency() -> Tuple[
-                Union[Float[Array, "pp H W"], Float[Array, "X Y H W"]],
+                Union[Float[Array, " pp H W"], Float[Array, " X Y H W"]],
                 Num[Array, " pp 2"],
             ]:
                 return lax.cond(
@@ -639,7 +639,7 @@ def make_microscope_data(
                 )
 
             def check_4d_consistency() -> Tuple[
-                Union[Float[Array, "P H W"], Float[Array, "X Y H W"]],
+                Union[Float[Array, " P H W"], Float[Array, " X Y H W"]],
                 Num[Array, " P 2"],
             ]:
                 return lax.cond(

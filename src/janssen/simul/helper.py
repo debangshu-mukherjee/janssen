@@ -114,7 +114,7 @@ def normalize_field(
 def add_phase_screen(
     field: Num[Array, " hh ww"],
     phase: Float[Array, " hh ww"],
-) -> Complex[Array, "H W"]:
+) -> Complex[Array, " H W"]:
     """
     Add a phase screen to a complex field.
 
@@ -262,7 +262,7 @@ def scale_pixel(
         data_minimia_h: Float[Array, " "] = jnp.min(jnp.abs(field))
         new_h: Int[Array, " "] = jnp.floor(current_fov_h / new_dx).astype(int)
         new_w: Int[Array, " "] = jnp.floor(current_fov_w / new_dx).astype(int)
-        resized: Complex[Array, "H W"] = jax.image.resize(
+        resized: Complex[Array, " H W"] = jax.image.resize(
             field,
             (new_h, new_w),
             method="linear",

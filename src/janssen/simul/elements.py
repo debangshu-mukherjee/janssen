@@ -510,7 +510,7 @@ def apply_phase_mask(
 def apply_phase_mask_fn(
     incoming: OpticalWavefront,
     phase_fn: Callable[
-        [Float[Array, "H W"], Float[Array, "H W"]], Float[Array, "H W"]
+        [Float[Array, " H W"], Float[Array, " H W"]], Float[Array, " H W"]
     ],
 ) -> OpticalWavefront:
     """

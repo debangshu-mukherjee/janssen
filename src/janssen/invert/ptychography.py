@@ -109,8 +109,8 @@ def simple_microscope_ptychography(
         scalar_float,  # final_travel_distance
     ],
     Tuple[
-        Complex[Array, "H W S"],  # intermediate_samples
-        Complex[Array, "H W S"],  # intermediate_lightwaves
+        Complex[Array, " H W S"],  # intermediate_samples
+        Complex[Array, " H W S"],  # intermediate_lightwaves
         Float[Array, " S"],  # intermediate_zoom_factors
         Float[Array, " S"],  # intermediate_aperture_diameters
         Float[Array, " 2 S"],  # intermediate_aperture_centers
@@ -177,9 +177,9 @@ def simple_microscope_ptychography(
             - final_travel_distance : scalar_float
                 Optimized travel distance.
         - Intermediate results tuple:
-            - intermediate_samples : Complex[Array, "H W S"]
+            - intermediate_samples : Complex[Array, " H W S"]
                 Intermediate samples during optimization.
-            - intermediate_lightwaves : Complex[Array, "H W S"]
+            - intermediate_lightwaves : Complex[Array, " H W S"]
                 Intermediate lightwaves during optimization.
             - intermediate_zoom_factors : Float[Array, " S"]
                 Intermediate zoom factors during optimization.

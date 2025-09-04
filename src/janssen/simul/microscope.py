@@ -72,7 +72,7 @@ def linear_interaction(
     OpticalWavefront
         The propagated optical wavefront after passing through the sample
     """
-    new_field: Complex[Array, "H W"] = sample.sample * light.field
+    new_field: Complex[Array, " H W"] = sample.sample * light.field
     interacted: OpticalWavefront = make_optical_wavefront(
         field=new_field,
         wavelength=light.wavelength,
@@ -149,7 +149,7 @@ def simple_diffractogram(
         at_camera,
         camera_pixel_size,
     )
-    scaled_camera_image: Float[Array, "H W"] = field_intensity(
+    scaled_camera_image: Float[Array, " H W"] = field_intensity(
         at_camera_scaled.field
     )
     diffractogram: Diffractogram = make_diffractogram(
@@ -223,10 +223,10 @@ def simple_microscope(
         ww: int
         hh, ww = interaction_size
         x, y = this_position
-        start_cut_x: Int[Array, ""] = jnp.floor(
+        start_cut_x: Int[Array, " "] = jnp.floor(
             x - (0.5 * interaction_size[1])
         ).astype(int)
-        start_cut_y: Int[Array, ""] = jnp.floor(
+        start_cut_y: Int[Array, " "] = jnp.floor(
             y - (0.5 * interaction_size[0])
         ).astype(int)
         cutout_sample: Complex[Array, " hh ww"] = jax.lax.dynamic_slice(
@@ -249,7 +249,7 @@ def simple_microscope(
         )
         return this_diffractogram.image
 
-    diffraction_images: Float[Array, "n hh ww"] = jax.vmap(
+    diffraction_images: Float[Array, " n hh ww"] = jax.vmap(
         diffractogram_at_position, in_axes=(None, 0)
     )(sample, pixel_positions)
     combined_data: MicroscopeData = make_microscope_data(

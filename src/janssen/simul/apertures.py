@@ -68,15 +68,15 @@ def _xy_grids(
 
     Returns
     -------
-    xx : Float[Array, "H W"]
+    xx : Float[Array, " H W"]
         X coordinate grid in meters.
-    yy : Float[Array, "H W"]
+    yy : Float[Array, " H W"]
         Y coordinate grid in meters.
     """
     x: Float[Array, " W"] = jnp.arange(-nx // 2, nx // 2) * dx
     y: Float[Array, " H"] = jnp.arange(-ny // 2, ny // 2) * dx
-    xx: Float[Array, "H W"]
-    yy: Float[Array, "H W"]
+    xx: Float[Array, " H W"]
+    yy: Float[Array, " H W"]
     xx, yy = jnp.meshgrid(x, y)
     return (xx, yy)
 

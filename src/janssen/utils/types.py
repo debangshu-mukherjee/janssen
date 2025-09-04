@@ -417,18 +417,18 @@ class OptimizerState(NamedTuple):
         First moment estimate (for Adam-like optimizers)
     v : Float[Array, "..."]
         Second moment estimate (for Adam-like optimizers)
-    step : Int[Array, ""]
+    step : Int[Array, " "]
         Step count
     """
 
     m: Complex[Array, "..."]
     v: Float[Array, "..."]
-    step: Int[Array, ""]
+    step: Int[Array, " "]
 
     def tree_flatten(
         self,
     ) -> Tuple[
-        Tuple[Complex[Array, "..."], Float[Array, "..."], Int[Array, ""]], None
+        Tuple[Complex[Array, "..."], Float[Array, "..."], Int[Array, " "]], None
     ]:
         """Flatten the OptimizerState into a tuple of its components."""
         return (
@@ -445,7 +445,7 @@ class OptimizerState(NamedTuple):
         cls,
         _aux_data: None,
         children: Tuple[
-            Complex[Array, "..."], Float[Array, "..."], Int[Array, ""]
+            Complex[Array, "..."], Float[Array, "..."], Int[Array, " "]
         ],
     ) -> "OptimizerState":
         """Unflatten the OptimizerState from a tuple of its components."""

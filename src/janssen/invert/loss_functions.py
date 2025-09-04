@@ -34,7 +34,7 @@ def create_loss_function(
     forward_function: Callable[..., Array],
     experimental_data: Array,
     loss_type: str = "mae",
-) -> Callable[..., Float[Array, ""]]:
+) -> Callable[..., Float[Array, " "]]:
     """
     Create a JIT-compatible loss function for comparing model output with experimental data.
 
@@ -55,7 +55,7 @@ def create_loss_function(
 
     Returns
     -------
-    loss_fn : Callable[[PyTree, ...], Float[Array, ""]]
+    loss_fn : Callable[[PyTree, ...], Float[Array, " "]]
         A JIT-compatible function that computes the loss given the model parameters
         and any additional arguments required by the forward function.
 
@@ -70,13 +70,13 @@ def create_loss_function(
     - Return the compiled loss function.
     """
 
-    def mae_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:
+    def mae_loss(diff: Float[Array, " H W"]) -> Float[Array, " H W"]:
         return jnp.mean(jnp.abs(diff))
 
-    def mse_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:
+    def mse_loss(diff: Float[Array, " H W"]) -> Float[Array, " H W"]:
         return jnp.mean(jnp.square(diff))
 
-    def rmse_loss(diff: Float[Array, "H W"]) -> Float[Array, "H W"]:
+    def rmse_loss(diff: Float[Array, " H W"]) -> Float[Array, " H W"]:
         return jnp.sqrt(jnp.mean(jnp.square(diff)))
 
     loss_functions = {"mae": mae_loss, "mse": mse_loss, "rmse": rmse_loss}
@@ -84,7 +84,7 @@ def create_loss_function(
     selected_loss_fn = loss_functions[loss_type]
 
     @jax.jit
-    def loss_fn(params: PyTree, *args: Any) -> Float[Array, ""]:
+    def loss_fn(params: PyTree, *args: Any) -> Float[Array, " "]:
         model_output = forward_function(params, *args)
         diff = model_output - experimental_data
         return selected_loss_fn(diff)

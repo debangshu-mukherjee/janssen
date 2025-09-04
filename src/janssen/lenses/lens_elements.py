@@ -495,16 +495,16 @@ def meniscus_lens(
     """
     convex_first: Bool[Array, " "] = jnp.asarray(convex_first)
     sign_factor = jnp.where(convex_first, 1.0, -1.0)
-    r1_mag: Float[Array, ""] = jnp.asarray(
+    r1_mag: Float[Array, " "] = jnp.asarray(
         focal_length * (n - 1) * (1 - r_ratio) / sign_factor,
     )
-    r2_mag: Float[Array, ""] = jnp.abs(r1_mag * r_ratio)
-    r1: Float[Array, ""] = jnp.where(
+    r2_mag: Float[Array, " "] = jnp.abs(r1_mag * r_ratio)
+    r1: Float[Array, " "] = jnp.where(
         convex_first,
         jnp.abs(r1_mag),
         -jnp.abs(r1_mag),
     )
-    r2: Float[Array, ""] = jnp.where(
+    r2: Float[Array, " "] = jnp.where(
         convex_first,
         -jnp.abs(r2_mag),
         jnp.abs(r2_mag),
