@@ -74,7 +74,6 @@ if BUILDING_DOCS:
         return func
 
 else:
-    # Normal runtime - use actual decorators
     try:
         from beartype import beartype
         from jaxtyping import jaxtyped

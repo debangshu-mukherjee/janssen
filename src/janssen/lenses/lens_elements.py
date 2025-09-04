@@ -36,13 +36,12 @@ optical path difference through the lens material.
 
 import jax
 import jax.numpy as jnp
+from beartype import beartype
 from beartype.typing import Optional, Tuple
-from jaxtyping import Array, Bool, Complex, Float
+from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
 from janssen.utils import (
     LensParams,
-    beartype,
-    jaxtyped,
     make_lens_params,
     scalar_bool,
     scalar_float,
