@@ -90,7 +90,7 @@ jobs:
       with:
         files: test-results.xml
         check_name: Test Results (Python ${{ matrix.python-version }})
-        comment_mode: create new
+        comment_mode: always
         
   build:
     runs-on: ubuntu-latest
