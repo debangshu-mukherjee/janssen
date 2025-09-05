@@ -1,0 +1,72 @@
+---
+code_id: 162735
+open_source: true
+repository_link: "https://github.com/debangshu-mukherjee/janssen"
+project_type: "OS"
+software_type: "S"
+official_use_only: {}
+developers:
+- email: "mukherjeed@ornl.gov"
+  orcid: ""
+  first_name: "Debangshu"
+  last_name: "Mukherjee"
+  middle_name: ""
+  affiliations:
+  - "Oak Ridge National Laboratory"
+- email: "blakemj@ornl.gov"
+  orcid: "0000-0002-4217-4397"
+  first_name: "Marea"
+  last_name: "Blake"
+  middle_name: "Joy"
+  affiliations:
+  - "Oak Ridge National Laboratory (ORNL), Oak Ridge, TN (United States). Chemical\
+    \ Sciences Division"
+- email: "doughtybl@ornl.gov"
+  orcid: "0000-0001-6429-9329"
+  first_name: "Benjamin"
+  last_name: "Doughty"
+  middle_name: "Lee"
+  affiliations:
+  - "Oak Ridge National Laboratory (ORNL), Oak Ridge, TN (United States). Chemical\
+    \ Sciences Division"
+- email: "abryan58@jhu.edu"
+  orcid: "0009-0007-6504-3596"
+  first_name: "Alisa"
+  last_name: "Bryantseva"
+  middle_name: ""
+  affiliations:
+  - "Johns Hopkins Univ., Baltimore, MD (United States)"
+contributors: []
+sponsoring_organizations:
+- organization_name: "USDOE Office of Science (SC)"
+  funding_identifiers:
+  - identifier_type: "FWPNumber"
+    identifier_value: "FWP ERKCZ6"
+  primary_award: "AC05-00OR22725"
+  DOE: true
+contributing_organizations: []
+research_organizations: []
+related_identifiers: []
+award_dois: []
+software_title: "Janssen"
+acronym: "janssen"
+doi: "10.5281/zenodo.17041632"
+description: "Differentiable and Modular Optical Microscopy Simulations and Inversions"
+programming_languages:
+- "Python"
+version_number: ""
+documentation_url: "https://janssen.readthedocs.io"
+country_of_origin: "United States"
+keywords: "ptychography; optical-microscopy; differentiable-programming"
+licenses:
+- "MIT License"
+recipient_org: "Oak Ridge National Laboratory"
+date_record_added: "2025-09-05"
+date_record_updated: "2025-09-05"
+is_migration: false
+is_file_certified: false
+last_editor: "mukherjeed@ornl.gov"
+is_limited: false
+links:
+- rel: "citation"
+  href: "https://www.osti.gov/doecode/biblio/162735"
