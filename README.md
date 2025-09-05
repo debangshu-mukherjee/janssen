@@ -1,5 +1,5 @@
 [![PyPI Downloads](https://static.pepy.tech/badge/janssen)](https://pepy.tech/projects/janssen)
-[![License](https://img.shields.io/pypi/l/janssen.svg)](https://github.com/debangshu-mukherjee/janssen/blob/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/janssen.svg)](https://github.com/debangshu-mukherjee/janssen/blob/main/LICENSE.md)
 [![PyPI version](https://img.shields.io/pypi/v/janssen.svg)](https://pypi.python.org/pypi/janssen)
 [![Python Versions](https://img.shields.io/pypi/pyversions/janssen.svg)](https://pypi.python.org/pypi/janssen)
 [![Documentation Status](https://readthedocs.org/projects/janssen/badge/?version=latest)](https://janssen.readthedocs.io/en/latest/?badge=latest)
