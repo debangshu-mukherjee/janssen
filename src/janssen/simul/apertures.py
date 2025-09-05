@@ -52,7 +52,7 @@ jax.config.update("jax_enable_x64", True)
 @jaxtyped(typechecker=beartype)
 def _xy_grids(
     nx: int, ny: int, dx: float
-) -> Tuple[Float[Array, " H W"], Float[Array, " H W"]]:
+) -> Tuple[Float[Array, " ny nx"], Float[Array, " ny nx"]]:
     """
     Create centered spatial coordinate grids (in meters).
 
@@ -67,15 +67,15 @@ def _xy_grids(
 
     Returns
     -------
-    xx : Float[Array, " H W"]
+    xx : Float[Array, " ny nx"]
         X coordinate grid in meters.
-    yy : Float[Array, " H W"]
+    yy : Float[Array, " ny nx"]
         Y coordinate grid in meters.
     """
-    x: Float[Array, " W"] = jnp.arange(-nx // 2, nx // 2) * dx
-    y: Float[Array, " H"] = jnp.arange(-ny // 2, ny // 2) * dx
-    xx: Float[Array, " H W"]
-    yy: Float[Array, " H W"]
+    x: Float[Array, " nx"] = jnp.arange(-nx // 2, nx // 2) * dx
+    y: Float[Array, " ny"] = jnp.arange(-ny // 2, ny // 2) * dx
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = jnp.meshgrid(x, y)
     return (xx, yy)
 
