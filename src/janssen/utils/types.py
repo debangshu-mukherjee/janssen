@@ -38,7 +38,8 @@ PtychographyParams : PyTree
 Notes
 -----
 Always use these factory functions instead of directly instantiating the
-NamedTuple classes to ensure proper runtime type checking of the contents.
+NamedTuple classes to ensure proper runtime type checking of the
+contents.
 """
 
 import jax
@@ -210,7 +211,8 @@ class OpticalWavefront(NamedTuple):
         Axial position of the wavefront along the propagation direction.
         In meters.
     polarization : Bool[Array, " "]
-        Whether the field is polarized (True for 3D field, False for 2D field).
+        Whether the field is polarized (True for 3D field, False for 2D
+        field).
     """
 
     field: Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
@@ -265,7 +267,8 @@ class MicroscopeData(NamedTuple):
 
     Attributes
     ----------
-    image_data : Float[Array, " pp hh ww"] | Float[Array, " xx yy hh ww"]
+    image_data :
+        Float[Array, " pp hh ww"] | Float[Array, " xx yy hh ww"]
         3D or 4D image data representing the optical field.
     positions : Num[Array, " pp 2"]
         Positions of the images during collection.

@@ -2,8 +2,10 @@
 
 Extended Summary
 ----------------
-Comprehensive algorithms for phase retrieval and ptychographic reconstruction
-using differentiable programming techniques. Includes various optimization
+Comprehensive algorithms for phase retrieval and ptychographic
+reconstruction
+using differentiable programming techniques. Includes various
+optimization
 strategies and loss functions for reconstructing complex-valued fields.
 
 Submodules
@@ -41,7 +43,8 @@ init_rmsprop : function
 Notes
 -----
 All functions are JAX-compatible and support automatic differentiation.
-The algorithms can be composed with JIT compilation for improved performance.
+The algorithms can be composed with JIT compilation for improved
+performance.
 """
 
 from .engine import (

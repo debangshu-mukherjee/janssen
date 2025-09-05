@@ -4,12 +4,14 @@ Extended Summary
 ----------------
 This module provides loss functions for comparing model outputs
 with experimental data in ptychography applications. All functions
-are JAX-compatible and support automatic differentiation for optimization.
+are JAX-compatible and support automatic differentiation for
+optimization.
 
 Routine Listings
 ----------------
 create_loss_function : function
-    Creates a JIT-compatible loss function for comparing model output with
+    Creates a JIT-compatible loss function for comparing model output
+    with
     experimental data.
 mae_loss : function
     Mean Absolute Error loss function (internal)
@@ -20,8 +22,10 @@ rmse_loss : function
 
 Notes
 -----
-All loss functions are designed to work with JAX transformations including
-jit, grad, and vmap. The create_loss_function factory returns a JIT-compiled
+All loss functions are designed to work with JAX transformations
+including
+jit, grad, and vmap. The create_loss_function factory returns a
+JIT-compiled
 function that can be used with various optimization algorithms.
 """
 
@@ -51,7 +55,8 @@ def create_loss_function(
     experimental_data : Array
         The experimental data to compare against.
     loss_type : str, optional
-        The type of loss to use. Options are "mae" (Mean Absolute Error),
+        The type of loss to use. Options are "mae" (Mean Absolute
+        Error),
         "mse" (Mean Squared Error), or "rmse" (Root Mean Squared Error),
         by default "mae".
 

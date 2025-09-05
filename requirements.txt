@@ -135,6 +135,7 @@ ipykernel==6.30.1
     #   jupyterlab
 ipython==9.5.0
     # via
+    #   black
     #   ipykernel
     #   ipywidgets
     #   jupyter-console
@@ -557,6 +558,8 @@ terminado==0.18.1
     #   jupyter-server-terminals
 tinycss2==1.4.0
     # via bleach
+tokenize-rt==6.2.0
+    # via black
 toolz==1.0.0
     # via chex
 tornado==6.5.2

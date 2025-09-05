@@ -155,7 +155,8 @@ def field_intensity(field: Complex[Array, " hh ww"]) -> Float[Array, " hh ww"]:
 
     Notes
     -----
-    - Calculate the intensity as the square of the absolute value of the field.
+    - Calculate the intensity as the square of the absolute value of the
+    field.
     - Return the intensity.
     """
     intensity: Float[Array, " hh ww"] = jnp.power(jnp.abs(field), 2)

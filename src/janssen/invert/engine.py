@@ -3,7 +3,8 @@
 Extended Summary
 ----------------
 Main ePIE reconstruction algorithm for optical ptychography.
-Parallel processing over positions using vmap for faster but approximate PIE.
+Parallel processing over positions using vmap for faster but approximate
+PIE.
 Sequential processing over positions for refinement.
 Updates object wavefront using rPIE algorithm.
 Updates surface pattern using modified PIE.
@@ -20,7 +21,8 @@ epie_optical : function
 single_pie_iteration : function
     Single iteration of the ePIE algorithm
 single_pie_vmap
-    Parallel processing over positions using vmap for faster but approximate PIE.
+    Parallel processing over positions using vmap for faster but
+    approximate PIE.
 single_pie_sequential : function
     Sequential processing over positions for refinement.
 _update_object_wavefront : function, internal
@@ -93,9 +95,11 @@ def epie_optical(
     magnification : scalar_integer
         Magnification factor for downsampling.
     vmap_iterations : scalar_integer, optional
-        Number of initial iterations to run in vmap mode for rapid convergence.
+        Number of initial iterations to run in vmap mode for rapid
+        convergence.
         If 0, use sequential mode for all iterations.
-        If > 0, use vmap for first N iterations, then switch to sequential.
+        If > 0, use vmap for first N iterations, then switch to
+        sequential.
         Default is 0.
     alpha_object : scalar_float, optional
         Object update mixing parameter. Default is 0.1.
@@ -372,7 +376,8 @@ def single_pie_sequential(
     wavelength: scalar_float,
     dx: scalar_float,
 ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
-    """Sequential processing over positions using fori_loop for proper PIE convergence.
+    """Sequential processing over positions using fori_loop for proper
+    PIE convergence.
 
     Parameters
     ----------
@@ -470,7 +475,8 @@ def single_pie_vmap(
     wavelength: scalar_float,
     dx: scalar_float,
 ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
-    """Parallel processing over positions using vmap for faster but approximate PIE.
+    """Parallel processing over positions using vmap for faster but
+    approximate PIE.
 
     All positions use the same initial state, then updates are averaged.
 
@@ -510,7 +516,8 @@ def single_pie_vmap(
     Returns
     -------
     tuple of (Complex[Array, " H W"], Complex[Array, " H W"])
-        Updated object and surface state after parallel processing and averaging.
+        Updated object and surface state after parallel processing and
+        averaging.
 
     Notes
     -----
@@ -720,9 +727,12 @@ def _apply_position_shift(
     frequency_x_grid: Float[Array, " H W"],
     frequency_y_grid: Float[Array, " H W"],
 ) -> Complex[Array, " H W"]:
-    """Apply position shift using phase multiplication in Fourier domain.
+    """Apply position shift using phase multiplication in Fourier
+    domain.
 
-    Implements MATLAB: Hs = exp(-1j*2*pi.*(FX.*xlocation(tt)/imSize+FY.*ylocation(tt)/imSize))
+    Implements MATLAB:
+        Hs = exp(-1j*2*pi.*(FX.*xlocation(tt)/imSize +
+                            FY.*ylocation(tt)/imSize))
 
     Parameters
     ----------
@@ -829,9 +839,11 @@ def _compute_sensor_intensity(
     pixel_mask: Float[Array, " H W"],
     magnification: scalar_integer,
 ) -> Float[Array, " H W"]:
-    """Compute sensor plane intensity with pixel response mask and downsampling.
+    """Compute sensor plane intensity with pixel response mask and
+    downsampling.
 
-    Implements the MATLAB: conv2(pixelMask.*abs(sensorPlane).^2, ones(mag,mag))
+    Implements the MATLAB:
+        conv2(pixelMask.*abs(sensorPlane).^2, ones(mag,mag))
 
     Parameters
     ----------

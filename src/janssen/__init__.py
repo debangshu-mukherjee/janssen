@@ -20,8 +20,10 @@ lenses
 
 Key Features
 ------------
-- JAX-compatible: All functions support jit, grad, vmap, and other JAX transformations
-- Automatic differentiation: Full support for gradient-based optimization
+- JAX-compatible:
+    All functions support jit, grad, vmap, and other JAX transformations
+- Automatic differentiation:
+    Full support for gradient-based optimization
 - Complex-valued optimization: Wirtinger calculus for complex parameters
 - Multi-modal support: Handles both single and multi-modal probes
 - Parallel processing: Device mesh support for distributed computing

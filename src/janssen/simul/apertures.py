@@ -126,11 +126,17 @@ def circular_aperture(
     """
     ny: int = incoming.field.shape[0]
     nx: int = incoming.field.shape[1]
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    x0: Float[Array, " "]
+    y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
-    r: Float[Array, " H W"] = jnp.sqrt((xx - x0) ** 2 + (yy - y0) ** 2)
+    r: Float[Array, " H W"] = jnp.sqrt(((xx - x0) ** 2) + ((yy - y0) ** 2))
     inside: Bool[Array, " H W"] = r <= (diameter / 2.0)
-    t = jnp.clip(jnp.asarray(transmittivity, dtype=float), 0.0, 1.0)
+    t: Float[Array, " "] = jnp.clip(
+        jnp.asarray(transmittivity, dtype=float), 0.0, 1.0
+    )
     transmission: Float[Array, " H W"] = inside.astype(float) * t
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * transmission,
@@ -181,14 +187,20 @@ def rectangular_aperture(
     """
     ny: int = incoming.field.shape[0]
     nx: int = incoming.field.shape[1]
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    x0: Float[Array, " "]
+    y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
-    hx = width / 2.0
-    hy = height / 2.0
+    hx: Float[Array, " "] = width / 2.0
+    hy: Float[Array, " "] = height / 2.0
     inside_x: Bool[Array, " H W"] = ((x0 - hx) <= xx) & ((x0 + hx) >= xx)
     inside_y: Bool[Array, " H W"] = ((y0 - hy) <= yy) & ((y0 + hy) >= yy)
     inside: Bool[Array, " H W"] = inside_x & inside_y
-    t = jnp.clip(jnp.asarray(transmittivity, dtype=float), 0.0, 1.0)
+    t: Float[Array, " "] = jnp.clip(
+        jnp.asarray(transmittivity, dtype=float), 0.0, 1.0
+    )
     transmission: Float[Array, " H W"] = inside.astype(float) * t
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * transmission,
@@ -237,13 +249,19 @@ def annular_aperture(
     """
     ny: int = incoming.field.shape[0]
     nx: int = incoming.field.shape[1]
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    x0: Float[Array, " "]
+    y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
     r: Float[Array, " H W"] = jnp.sqrt((xx - x0) ** 2 + (yy - y0) ** 2)
-    r_in = inner_diameter / 2.0
-    r_out = outer_diameter / 2.0
+    r_in: Float[Array, " "] = inner_diameter / 2.0
+    r_out: Float[Array, " "] = outer_diameter / 2.0
     ring: Bool[Array, " H W"] = (r > r_in) & (r <= r_out)
-    t = jnp.clip(jnp.asarray(transmittivity, dtype=float), 0.0, 1.0)
+    t: Float[Array, " "] = jnp.clip(
+        jnp.asarray(transmittivity, dtype=float), 0.0, 1.0
+    )
     transmission: Float[Array, " H W"] = ring.astype(float) * t
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * transmission,
@@ -273,7 +291,7 @@ def variable_transmission_aperture(
 
     Returns
     -------
-    apertured : OpticalWavefront
+    transmitted : OpticalWavefront
         Wavefront after applying the transmission.
 
     Examples
@@ -295,10 +313,10 @@ def variable_transmission_aperture(
     - Transmission values are clipped to [0, 1].
     - This function is fully JAX-compatible and uses jax.lax.cond.
     """
-    trans = jnp.asarray(transmission, dtype=float)
+    trans: Float[Array, " ..."] = jnp.asarray(transmission, dtype=float)
 
     def apply_scalar_transmission() -> OpticalWavefront:
-        t = jnp.clip(trans, 0.0, 1.0)
+        t: Float[Array, " H W"] = jnp.clip(trans, 0.0, 1.0)
         return make_optical_wavefront(
             field=incoming.field * t,
             wavelength=incoming.wavelength,
@@ -307,7 +325,7 @@ def variable_transmission_aperture(
         )
 
     def apply_array_transmission() -> OpticalWavefront:
-        tmap = jnp.clip(trans, 0.0, 1.0)
+        tmap: Float[Array, " H W"] = jnp.clip(trans, 0.0, 1.0)
         return make_optical_wavefront(
             field=incoming.field * tmap,
             wavelength=incoming.wavelength,
@@ -315,9 +333,10 @@ def variable_transmission_aperture(
             z_position=incoming.z_position,
         )
 
-    return jax.lax.cond(
+    transmitted: OpticalWavefront = jax.lax.cond(
         trans.ndim == 0, apply_scalar_transmission, apply_array_transmission
     )
+    return transmitted
 
 
 @jaxtyped(typechecker=beartype)
@@ -358,9 +377,13 @@ def gaussian_apodizer(
     """
     ny: int = incoming.field.shape[0]
     nx: int = incoming.field.shape[1]
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    x0: Float[Array, " "]
+    y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
-    r2: Float[Array, " H W"] = (xx - x0) ** 2 + (yy - y0) ** 2
+    r2: Float[Array, " H W"] = ((xx - x0) ** 2) + ((yy - y0) ** 2)
     gauss: Float[Array, " H W"] = jnp.exp(-r2 / (2.0 * sigma**2))
     tmap: Float[Array, " H W"] = jnp.clip(
         gauss * peak_transmittivity, 0.0, 1.0
@@ -495,8 +518,8 @@ def gaussian_apodizer_elliptical(
     yc: Float[Array, " ny nx"] = yy - y0
     ct: Float[Array, " "] = jnp.cos(theta)
     st: Float[Array, " "] = jnp.sin(theta)
-    xp: Float[Array, " ny nx"] = ((ct * xc) + (st * yc))
-    yp: Float[Array, " ny nx"] = ((ct * yc) - (st * xc))
+    xp: Float[Array, " ny nx"] = (ct * xc) + (st * yc)
+    yp: Float[Array, " ny nx"] = (ct * yc) - (st * xc)
     arg: Float[Array, " ny nx"] = ((xp / sigma_x) ** 2) + ((yp / sigma_y) ** 2)
     gauss: Float[Array, " ny nx"] = jnp.exp(-0.5 * arg)
     tmap: Float[Array, " ny nx"] = jnp.clip(
@@ -562,17 +585,25 @@ def supergaussian_apodizer_elliptical(
     """
     ny: int = incoming.field.shape[0]
     nx: int = incoming.field.shape[1]
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    x0: Float[Array, " "]
+    y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
-    xc = xx - x0
-    yc = yy - y0
-    ct = jnp.cos(theta)
-    st = jnp.sin(theta)
-    xp = ct * xc + st * yc
-    yp = -st * xc + ct * yc
-    base = (xp / sigma_x) ** 2 + (yp / sigma_y) ** 2
-    super_gauss = jnp.exp(-(base**m))
-    tmap = jnp.clip(super_gauss * peak_transmittivity, 0.0, 1.0)
+    xc: Float[Array, " ny nx"] = xx - x0
+    yc: Float[Array, " ny nx"] = yy - y0
+    ct: Float[Array, " "] = jnp.cos(theta)
+    st: Float[Array, " "] = jnp.sin(theta)
+    xp: Float[Array, " ny nx"] = (ct * xc) + (st * yc)
+    yp: Float[Array, " ny nx"] = (ct * yc) - (st * xc)
+    base: Float[Array, " ny nx"] = ((xp / sigma_x) ** 2) + (
+        (yp / sigma_y) ** 2
+    )
+    super_gauss: Float[Array, " ny nx"] = jnp.exp(-(base**m))
+    tmap: Float[Array, " ny nx"] = jnp.clip(
+        super_gauss * peak_transmittivity, 0.0, 1.0
+    )
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * tmap,
         wavelength=incoming.wavelength,

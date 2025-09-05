@@ -2,7 +2,8 @@
 
 Extended Summary
 ----------------
-Factory functions for creating data structures with runtime type checking.
+Factory functions for creating data structures with runtime type
+checking.
 All runtime validations use JAX safe conditional statements.
 
 Routine Listings
@@ -27,7 +28,8 @@ make_ptychography_params : function
 Notes
 -----
 Always use these factory functions instead of directly instantiating the
-NamedTuple classes to ensure proper runtime type checking of the contents.
+NamedTuple classes to ensure proper runtime type checking of the
+contents.
 """
 
 import jax
@@ -351,21 +353,25 @@ def make_optical_wavefront(
     z_position: scalar_float,
     polarization: Optional[scalar_bool] = False,
 ) -> OpticalWavefront:
-    """JAX-safe factory function for OpticalWavefront with data validation.
+    """JAX-safe factory function for OpticalWavefront with data
+    validation.
 
     Parameters
     ----------
     field : Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
-       Complex amplitude of the optical field. Should be 2D for scalar fields
+       Complex amplitude of the optical field. Should be 2D for scalar
+       fields
        or 3D with last dimension 2 for polarized fields.
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters
     dx : scalar_float
         Spatial sampling interval (grid spacing) in meters
     z_position : scalar_float
-        Axial position of the wavefront in the propagation direction in meters.
+        Axial position of the wavefront in the propagation direction in
+        meters.
     polarization : scalar_bool, optional
-        Whether the field is polarized (True for 3D field, False for 2D field).
+        Whether the field is polarized (True for 3D field, False for 2D
+        field).
         Default is False.
 
     Returns
@@ -495,11 +501,13 @@ def make_microscope_data(
     wavelength: scalar_float,
     dx: scalar_float,
 ) -> MicroscopeData:
-    """JAX-safe factory function for MicroscopeData with data validation.
+    """JAX-safe factory function for MicroscopeData with data
+    validation.
 
     Parameters
     ----------
-    image_data : Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]]
+    image_data :
+        Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]]
         3D or 4D image data representing the optical field
     positions : Num[Array, " pp 2"]
         Positions of the images during collection
@@ -795,7 +803,8 @@ def make_sample_function(
     sample: Complex[Array, " hh ww"],
     dx: scalar_float,
 ) -> SampleFunction:
-    """JAX-safe factory function for SampleFunction with data validation.
+    """JAX-safe factory function for SampleFunction with data
+    validation.
 
     Parameters
     ----------
@@ -880,17 +889,20 @@ def make_optimizer_state(
     v: Optional[Union[Float[Array, " ..."], scalar_float]] = 0.0,
     step: Optional[scalar_integer] = 0,
 ) -> OptimizerState:
-    """JAX-safe factory function for OptimizerState with data validation.
+    """JAX-safe factory function for OptimizerState with data
+    validation.
 
     Parameters
     ----------
     shape : Tuple
         Shape of the parameters to be optimized
     m : Optional[Complex[Array, "..."]], optional
-        First moment estimate. If None, initialized to zeros with given shape.
+        First moment estimate. If None, initialized to zeros with given
+        shape.
         Default is 1j.
     v : Optional[Float[Array, "..."]], optional
-        Second moment estimate. If None, initialized to zeros with given shape.
+        Second moment estimate. If None, initialized to zeros with given
+        shape.
         Default is 0.0.
     step : Optional[scalar_integer], optional
         Step count. Default is 0.
@@ -903,7 +915,8 @@ def make_optimizer_state(
     Raises
     ------
     ValueError
-        If arrays have incompatible shapes with the given shape parameter
+        If arrays have incompatible shapes with the given shape
+        parameter
 
     Notes
     -----

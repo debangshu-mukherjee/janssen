@@ -13,7 +13,8 @@ prism_phase_ramp : function
 beam_splitter : function
     Splits a field into transmitted and reflected arms with given (t, r)
 mirror_reflection : function
-    Applies mirror reflection(s): coordinate flip(s), optional conjugation,
+    Applies mirror reflection(s):
+        coordinate flip(s), optional conjugation,
     π phase
 phase_grating_sine : function
     Sinusoidal phase grating
@@ -26,11 +27,14 @@ apply_phase_mask : function
 apply_phase_mask_fn : function
     Builds a phase mask from a callable f(xx, yy) and applies it.
 polarizer_jones
-    Linear polarizer at angle theta (Jones matrix) for 2-component fields.
+    Linear polarizer at angle theta (Jones matrix) for 2-component
+    fields.
 waveplate_jones : function
-    Waveplate (retarder) with retardance delta and fast axis angle theta.
+    Waveplate (retarder) with retardance delta and fast axis angle
+    theta.
 nd_filter : function
-    Neutral density filter with optical density (OD) or direct transmittance.
+    Neutral density filter with optical density (OD) or direct
+    transmittance.
 quarter_waveplate : function
     Quarter-waveplate with fast axis angle theta.
 half_waveplate : function
@@ -142,7 +146,8 @@ def prism_phase_ramp(
     use_small_angle: Optional[bool] = True,
 ) -> OpticalWavefront:
     """
-    Apply a linear phase ramp to simulate a prism-induced beam deviation.
+    Apply a linear phase ramp to simulate a prism-induced beam
+    deviation.
 
     Parameters
     ----------
@@ -151,11 +156,13 @@ def prism_phase_ramp(
     deflect_x : scalar_float, optional
         Deflection along +x.
         If `use_small_angle` is True, interpreted as angle (rad).
-        Otherwise interpreted as spatial frequency kx [rad/m], by default 0.0.
+        Otherwise interpreted as spatial frequency kx [rad/m], by
+        default 0.0.
     deflect_y : scalar_float, optional
         Deflection along +y (angle or ky), by default 0.0.
     use_small_angle : bool, optional
-        If True, convert small angles to kx, ky via k*sin(angle) ~ k*angle.
+        If True, convert small angles to kx, ky via k*sin(angle) ~
+        k*angle.
         Default True.
 
     Returns
@@ -213,7 +220,8 @@ def beam_splitter(
         Complex reflection amplitude.
         Default 1j * jnp.sqrt(0.5) for 50/50 convention.
     normalize : bool, optional
-        If True, scale (t, r) so that |t|^2 + |r|^2 = 1, by default True.
+        If True, scale (t, r) so that |t|^2 + |r|^2 = 1, by default
+        True.
 
     Returns
     -------
@@ -272,7 +280,8 @@ def mirror_reflection(
     conjugate: Optional[bool] = True,
 ) -> OpticalWavefront:
     """
-    Mirror reflection: coordinate flips with optional π-phase and conjugation.
+    Mirror reflection:
+        coordinate flips with optional π-phase and conjugation.
 
     Parameters
     ----------
@@ -283,7 +292,8 @@ def mirror_reflection(
     flip_y : bool, optional
         Flip along y-axis (rows), by default False.
     add_pi_phase : bool, optional
-        Multiply by exp(i*pi) = -1 to simulate phase inversion on reflection.
+        Multiply by exp(i*pi) = -1 to simulate phase inversion on
+        reflection.
         Default True.
     conjugate : bool, optional
         Conjugate the complex field, useful when reversing propagation
@@ -554,7 +564,8 @@ def polarizer_jones(
     """
     Linear polarizer at angle `theta` (radians, CCW from x-axis).
 
-    Applied to a 2-component Jones field (ex, ey) stored in the last dimension.
+    Applied to a 2-component Jones field (ex, ey) stored in the last
+    dimension.
 
     Parameters
     ----------
@@ -597,7 +608,8 @@ def waveplate_jones(
     theta: scalar_float = 0.0,
 ) -> OpticalWavefront:
     """
-    Waveplate/retarder with retardance `delta` and fast-axis angle `theta`.
+    Waveplate/retarder with retardance `delta` and fast-axis angle
+    `theta`.
 
     Special cases: quarter-wave (delta=π/2), half-wave (delta=π).
 
@@ -777,7 +789,8 @@ def phase_grating_blazed_elliptical(
     period_y : scalar_float
         Blaze period along y' in meters (after rotation by `theta`).
     theta : scalar_float, optional
-        Grating orientation angle in radians (CCW from x), by default 0.0.
+        Grating orientation angle in radians (CCW from x), by default
+        0.0.
     depth : scalar_float, optional
         Peak-to-peak phase depth in radians, by default 2π.
     two_dim : bool, optional

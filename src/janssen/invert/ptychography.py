@@ -2,9 +2,12 @@
 
 Extended Summary
 ----------------
-High-level ptychography reconstruction algorithms that combine optimization
-strategies with forward models. Provides complete reconstruction pipelines
-for recovering complex-valued sample functions from intensity measurements.
+High-level ptychography reconstruction algorithms that combine
+optimization
+strategies with forward models. Provides complete reconstruction
+pipelines
+for recovering complex-valued sample functions from intensity
+measurements.
 
 Routine Listings
 ----------------
@@ -16,7 +19,8 @@ simple_microscope_ptychography : function
 Notes
 -----
 These functions provide complete reconstruction pipelines that can be
-directly applied to experimental data. All functions support JAX transformations
+directly applied to experimental data. All functions support JAX
+transformations
 and automatic differentiation for gradient-based optimization.
 """
 
@@ -113,13 +117,15 @@ def simple_microscope_ptychography(
 ]:
     """Solve the optical ptychography inverse problem.
 
-    Here experimental diffraction patterns are used to reconstruct a sample,
+    Here experimental diffraction patterns are used to reconstruct a
+    sample,
     lightwave, and optical system parameters.
 
     Parameters
     ----------
     experimental_data : MicroscopeData
-        The experimental diffraction patterns collected at different positions.
+        The experimental diffraction patterns collected at different
+        positions.
     guess_sample : SampleFunction
         Initial guess for the sample properties.
     guess_lightwave : OpticalWavefront
@@ -141,11 +147,13 @@ def simple_microscope_ptychography(
         Name of the optimizer to use. Default is "adam".
     zoom_factor_bounds : Tuple[scalar_float, scalar_float], optional
         Lower and upper bounds for zoom factor optimization.
-    aperture_diameter_bounds : Tuple[scalar_float, scalar_float], optional
+    aperture_diameter_bounds :
+        Tuple[scalar_float, scalar_float], optional
         Lower and upper bounds for aperture diameter optimization.
     travel_distance_bounds : Tuple[scalar_float, scalar_float], optional
         Lower and upper bounds for travel distance optimization.
-    aperture_center_bounds : Tuple[Float[Array, " 2"], Float[Array, " 2"]], optional
+    aperture_center_bounds :
+        Tuple[Float[Array, " 2"], Float[Array, " 2"]], optional
         Lower and upper bounds for aperture center optimization.
 
     Returns

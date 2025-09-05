@@ -40,6 +40,7 @@ dependencies = [
     "jupyterlab>=4.4.5",
     "jupyter>=1.1.1",
     "ipykernel>=6.29.5",
+    "black[jupyter]>=25.1.0",
 ]
 
 [tool.setuptools]

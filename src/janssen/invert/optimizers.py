@@ -3,9 +3,12 @@ Complex-valued optimizers with Wirtinger derivatives for ptychography.
 
 Extended Summary
 ----------------
-This module implements complex-valued optimization algorithms including Adam,
-Adagrad, and RMSprop using Wirtinger calculus. It also provides learning rate
-schedulers for training optimization. All functions are JAX-compatible and
+This module implements complex-valued optimization algorithms including
+Adam,
+Adagrad, and RMSprop using Wirtinger calculus. It also provides learning
+rate
+schedulers for training optimization. All functions are JAX-compatible
+and
 support automatic differentiation.
 
 Routine Listings
@@ -45,9 +48,12 @@ rmsprop_update : function, updater
 
 Notes
 -----
-All optimizers use Wirtinger calculus for proper handling of complex-valued
-parameters. The Wirtinger derivative is defined as ∂f/∂z = ½(∂f/∂x - i∂f/∂y).
-All functions are designed to work with JAX transformations including jit,
+All optimizers use Wirtinger calculus for proper handling of
+complex-valued
+parameters. The Wirtinger derivative is defined as ∂f/∂z = ½(∂f/∂x -
+i∂f/∂y).
+All functions are designed to work with JAX transformations including
+jit,
 grad, and vmap.
 """
 
@@ -143,8 +149,10 @@ def create_cosine_scheduler(
 def create_step_scheduler(step_size: int, gamma: float = 0.1) -> SchedulerFn:
     """Create a step decay scheduler.
 
-    This creates a step decay scheduler that reduces learning rate by gamma
-    every step_size steps. This scheduler implements a step-wise learning
+    This creates a step decay scheduler that reduces learning rate by
+    gamma
+    every step_size steps. This scheduler implements a step-wise
+    learning
     rate decay where the
     learning rate is multiplied by gamma every step_size steps.
 
@@ -192,7 +200,8 @@ def create_warmup_cosine_scheduler(
 ) -> SchedulerFn:
     """Create a scheduler with linear warmup followed by cosine decay.
 
-    This scheduler combines a linear warmup phase with a cosine annealing
+    This scheduler combines a linear warmup phase with a cosine
+    annealing
     decay. During warmup, the learning rate increases linearly from 0 to
     the initial value. After warmup, it follows a cosine decay schedule.
 
@@ -259,7 +268,8 @@ def init_scheduler_state(initial_lr: float) -> LRSchedulerState:
     Returns
     -------
     state : LRSchedulerState
-        Initialized scheduler state with step=0 and learning_rate=initial_lr
+        Initialized scheduler state with step=0 and
+        learning_rate=initial_lr
     """
     return LRSchedulerState(
         step=0, learning_rate=initial_lr, initial_lr=initial_lr
@@ -290,12 +300,14 @@ def wirtinger_grad(
 ]:
     r"""Compute the Wirtinger gradient of a complex-valued function.
 
-    This function returns a new function that computes the Wirtinger gradient
+    This function returns a new function that computes the Wirtinger
+    gradient
     of the input function f with respect to the specified argument(s).
     This is based on the formula for Wirtinger derivative:
 
     .. math::
-        \frac{\partial f}{\partial z} = \frac{1}{2} \left( \frac{\partial f}
+        \frac{\partial f}{\partial z} = \frac{1}{2} \left(
+        \frac{\partial f}
         {\partial x} - i \frac{\partial f}{\partial y} \right)
 
 
@@ -304,13 +316,17 @@ def wirtinger_grad(
     func2diff : Callable[..., Float[Array, " ..."]]
         A complex-valued function to differentiate.
     argnums : Union[int, Sequence[int]], optional
-        Specifies which argument(s) to compute the gradient with respect to.
+        Specifies which argument(s) to compute the gradient with respect
+        to.
         Can be an int or a sequence of ints. Default is 0.
 
     Returns
     -------
-    grad_f : Callable[..., Complex[Array, " ..."] | Tuple[Complex[Array, " ..."], ...]]
-        A function that computes the Wirtinger gradient of f with respect to
+    grad_f :
+        Callable[..., Complex[Array, " ..."] | Tuple[Complex[Array, "
+        ..."], ...]]
+        A function that computes the Wirtinger gradient of f with
+        respect to
         the specified argument(s).
     """
 
@@ -381,7 +397,8 @@ def complex_adam(
     grads : Complex[Array, " ..."]
         Complex-valued gradients computed using Wirtinger derivatives
     state : Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]
-        Optimizer state containing (first moment, second moment, timestep)
+        Optimizer state containing (first moment, second moment,
+        timestep)
     learning_rate : float, optional
         Learning rate for parameter updates.
         Default is 0.001.
@@ -399,7 +416,8 @@ def complex_adam(
     -------
     new_params : Complex[Array, " ..."]
         Updated complex-valued parameters
-    new_state : Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]
+    new_state :
+        Tuple[Complex[Array, " ..."], Complex[Array, " ..."], int]
         Updated optimizer state
 
     Notes
@@ -408,7 +426,8 @@ def complex_adam(
     - Increment timestep counter
     - Update first moment estimate: m = β₁ * m + (1 - β₁) * grads
     - Update second moment estimate: v = β₂ * v + (1 - β₂) * |grads|²
-    - Compute bias-corrected moments: m̂ = m / (1 - β₁^t), v̂ = v / (1 - β₂^t)
+    - Compute bias-corrected moments: m̂ = m / (1 - β₁^t), v̂ = v / (1 -
+    β₂^t)
     - Calculate parameter update: update = lr * m̂ / (√v̂ + ε)
     - Apply update: new_params = params - update
     - Return updated parameters and state
@@ -434,7 +453,8 @@ def complex_adagrad(
 ) -> Tuple[Complex[Array, " ..."], Complex[Array, " ..."]]:
     """Complex-valued Adagrad optimizer based on Wirtinger derivatives.
 
-    This function performs one step of the Adagrad optimization algorithm
+    This function performs one step of the Adagrad optimization
+    algorithm
     for complex-valued parameters using Wirtinger calculus.
 
     Parameters
@@ -485,7 +505,8 @@ def complex_rmsprop(
 ) -> Tuple[Complex[Array, " ..."], Complex[Array, " ..."]]:
     r"""Complex-valued RMSprop optimizer based on Wirtinger derivatives.
 
-    This function performs one step of the RMSprop optimization algorithm
+    This function performs one step of the RMSprop optimization
+    algorithm
     for complex-valued parameters using Wirtinger calculus.
 
     Parameters
@@ -524,7 +545,8 @@ def complex_rmsprop(
         lr_{adaptive} = \frac{lr}{\sqrt{v} + \epsilon}
     - Apply update:
     .. math::
-        \text{new\_params} = \text{params} - lr_{adaptive} \cdot \text{grads}
+        \text{new\_params} = \text{params} - lr_{adaptive} \cdot
+        \text{grads}
     - Return updated parameters and moving average
     """
     moving_avg = state
@@ -565,7 +587,8 @@ def init_adagrad(shape: Tuple) -> OptimizerState:
     Returns
     -------
     state : OptimizerState
-        Initialized Adagrad optimizer state with zero accumulated gradients
+        Initialized Adagrad optimizer state with zero accumulated
+        gradients
     """
     return make_optimizer_state(shape)
 
@@ -597,7 +620,8 @@ def adam_update(
     beta2: float = 0.999,
     eps: float = 1e-8,
 ) -> Tuple[Complex[Array, " ..."], OptimizerState]:
-    """Update parameters using Adam optimizer with Wirtinger derivatives.
+    """Update parameters using Adam optimizer with Wirtinger
+    derivatives.
 
     Parameters
     ----------
@@ -651,7 +675,8 @@ def adagrad_update(
     learning_rate: float = 0.01,
     eps: float = 1e-8,
 ) -> Tuple[Complex[Array, " ..."], OptimizerState]:
-    """Update parameters using Adagrad optimizer with Wirtinger derivatives.
+    """Update parameters using Adagrad optimizer with Wirtinger
+    derivatives.
 
     Parameters
     ----------
@@ -698,7 +723,8 @@ def rmsprop_update(
     decay_rate: float = 0.9,
     eps: float = 1e-8,
 ) -> Tuple[Complex[Array, " ..."], OptimizerState]:
-    """Update parameters using RMSprop optimizer with Wirtinger derivatives.
+    """Update parameters using RMSprop optimizer with Wirtinger
+    derivatives.
 
     Parameters
     ----------

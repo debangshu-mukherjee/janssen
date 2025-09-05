@@ -14,18 +14,21 @@ angular_spectrum_prop : function
 fresnel_prop : function
     Propagates a complex optical field using the Fresnel approximation
 fraunhofer_prop : function
-    Propagates a complex optical field using the Fraunhofer approximation
+    Propagates a complex optical field using the Fraunhofer
+    approximation
 digital_zoom : function
     Zooms an optical wavefront by a specified factor
 optical_zoom : function
-    Modifies the calibration of an optical wavefront without changing its field
+    Modifies the calibration of an optical wavefront without changing
+    its field
 lens_propagation : function
     Propagates an optical wavefront through a lens
 
 Notes
 -----
 All propagation methods are implemented using FFT-based algorithms for
-efficiency. The choice of propagation method depends on the Fresnel number
+efficiency. The choice of propagation method depends on the Fresnel
+number
 and the specific requirements of the simulation.
 """
 
@@ -316,7 +319,8 @@ def digital_zoom(
     wavefront : OpticalWavefront
         Incoming optical wavefront.
     zoom_factor : scalar_numeric
-        Zoom factor (greater than 1 to zoom in, less than 1 to zoom out).
+        Zoom factor (greater than 1 to zoom in, less than 1 to zoom
+        out).
 
     Returns
     -------
@@ -334,16 +338,20 @@ def digital_zoom(
         on the image
     - Use scipy.ndimage.map_coordinates with bilinear interpolation
         to sample the field
-    - Return the zoomed field with adjusted pixel size (dx / zoom_factor)
+    - Return the zoomed field with adjusted pixel size (dx /
+    zoom_factor)
 
     For zoom out (zoom_factor < 1.0):
     - Calculate the shrink fraction (zoom_factor) to determine the
         final image size
-    - Create a coordinate mapping from the full image to the shrunken region
-    - Use scipy.ndimage.map_coordinates to interpolate the original field
+    - Create a coordinate mapping from the full image to the shrunken
+    region
+    - Use scipy.ndimage.map_coordinates to interpolate the original
+    field
     - Apply a mask to zero out regions outside the shrunken
         area (padding effect)
-    - Return the zoomed field with adjusted pixel size (dx / zoom_factor)
+    - Return the zoomed field with adjusted pixel size (dx /
+    zoom_factor)
     """
     epsilon: Float[Array, " "] = 1e-10
     zoom_factor: Float[Array, " "] = jnp.maximum(zoom_factor, epsilon)
@@ -464,14 +472,16 @@ def optical_zoom(
     wavefront: OpticalWavefront,
     zoom_factor: scalar_numeric,
 ) -> OpticalWavefront:
-    """Modify the calibration of an optical wavefront without changing field.
+    """Modify the calibration of an optical wavefront without changing
+    field.
 
     Parameters
     ----------
     wavefront : OpticalWavefront
         Incoming optical wavefront.
     zoom_factor : scalar_numeric
-        Zoom factor (greater than 1 to zoom in, less than 1 to zoom out).
+        Zoom factor (greater than 1 to zoom in, less than 1 to zoom
+        out).
 
     Returns
     -------
@@ -494,7 +504,8 @@ def lens_propagation(
 ) -> OpticalWavefront:
     """Propagate an optical wavefront through a lens.
 
-    The lens is modeled as a thin lens with a given focal length and diameter.
+    The lens is modeled as a thin lens with a given focal length and
+    diameter.
 
     Parameters
     ----------
@@ -516,7 +527,8 @@ def lens_propagation(
         shape and pixel size.
     - Calculate the phase profile and transmission function of the lens.
     - Apply the phase screen to the incoming wavefront's field.
-    - Return the new optical wavefront with the updated field, wavelength,
+    - Return the new optical wavefront with the updated field,
+    wavelength,
         and pixel size.
     """
     hh: int

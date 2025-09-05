@@ -2,8 +2,10 @@
 
 Extended Summary
 ----------------
-Physical modeling of various optical lens types including spherical lenses,
-plano lenses, and meniscus lenses. Provides functions for calculating lens
+Physical modeling of various optical lens types including spherical
+lenses,
+plano lenses, and meniscus lenses. Provides functions for calculating
+lens
 properties and propagating optical fields through lens elements.
 
 Routine Listings
@@ -47,8 +49,6 @@ from janssen.utils import (
     scalar_float,
     scalar_numeric,
 )
-
-# Removed circular import - add_phase_screen functionality is now inline
 
 jax.config.update("jax_enable_x64", True)
 
@@ -243,7 +243,6 @@ def propagate_through_lens(
     - Add phase profile.
     - Return modified field.
     """
-    # Apply phase screen inline to avoid circular import
     output_field: Complex[Array, " hh ww"] = (
         field * transmission * jnp.exp(1j * phase_profile)
     )

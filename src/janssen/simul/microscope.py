@@ -11,7 +11,8 @@ Routine Listings
 lens_propagation : function
     Propagates an optical wavefront through a lens
 linear_interaction : function
-    Propagates an optical wavefront through a sample using linear interaction
+    Propagates an optical wavefront through a sample using linear
+    interaction
 simple_diffractogram : function
     Calculates the diffractogram of a sample using a simple model
 simple_microscope : function
@@ -20,7 +21,8 @@ simple_microscope : function
 Notes
 -----
 These functions provide complete forward models for optical microscopy
-and are designed for use in inverse problems and ptychography reconstruction.
+and are designed for use in inverse problems and ptychography
+reconstruction.
 """
 
 import jax
@@ -62,14 +64,16 @@ def linear_interaction(
     Parameters
     ----------
     sample : SampleFunction
-        The sample function representing the optical properties of the sample
+        The sample function representing the optical properties of the
+        sample
     light : OpticalWavefront
         The incoming optical wavefront
 
     Returns
     -------
     OpticalWavefront
-        The propagated optical wavefront after passing through the sample
+        The propagated optical wavefront after passing through the
+        sample
     """
     new_field: Complex[Array, " H W"] = sample.sample * light.field
     interacted: OpticalWavefront = make_optical_wavefront(
@@ -102,7 +106,8 @@ def simple_diffractogram(
     Parameters
     ----------
     sample_cut : SampleFunction
-        The sample function representing the optical properties of the sample
+        The sample function representing the optical properties of the
+        sample
     lightwave : OpticalWavefront
         The incoming optical wavefront
     zoom_factor : scalar_float
@@ -125,10 +130,12 @@ def simple_diffractogram(
     -----
     Algorithm:
 
-    - Propagate the lightwave through the sample using linear interaction
+    - Propagate the lightwave through the sample using linear
+    interaction
     - Apply optical zoom to the wavefront
     - Apply a circular aperture to the zoomed wavefront
-    - Propagate the wavefront to the camera plane using Fraunhofer propagation
+    - Propagate the wavefront to the camera plane using Fraunhofer
+    propagation
     - Scale the pixel size of the camera image
     - Calculate the field intensity of the camera image
     - Create a diffractogram from the camera image
@@ -179,7 +186,8 @@ def simple_microscope(
     Parameters
     ----------
     sample : SampleFunction
-        The sample function representing the optical properties of the sample
+        The sample function representing the optical properties of the
+        sample
     positions : Num[Array, " n 2"]
         The positions in the sample plane where the diffractograms are
         calculated.
@@ -199,7 +207,8 @@ def simple_microscope(
     Returns
     -------
     MicroscopeData
-        The calculated diffractograms of the sample at the specified positions
+        The calculated diffractograms of the sample at the specified
+        positions
 
     Notes
     -----
@@ -207,7 +216,8 @@ def simple_microscope(
 
     - Get the size of the lightwave field
     - Calculate the pixel positions in the sample plane
-    - For each position, cut out the sample and calculate the diffractogram
+    - For each position, cut out the sample and calculate the
+    diffractogram
     - Combine the diffractograms into a single MicroscopeData object
     - Return the MicroscopeData object
     """
