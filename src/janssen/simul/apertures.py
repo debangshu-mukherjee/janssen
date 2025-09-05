@@ -9,18 +9,23 @@ apodization functions commonly used in optical systems.
 Routine Listings
 ----------------
 circular_aperture : function
-    Applies a circular aperture (optionally offset) with uniform transmittivity
+    Applies a circular aperture (optionally offset) with uniform
+    transmittivity
 rectangular_aperture : function
-    Applies an axis-aligned rectangular aperture with uniform transmittivity
+    Applies an axis-aligned rectangular aperture with uniform
+    transmittivity
 annular_aperture : function
-    Applies a concentric ring (donut) aperture between inner/outer diameters
+    Applies a concentric ring (donut) aperture between inner/outer
+    diameters
 variable_transmission_aperture : function
-    Applies an arbitrary transmission mask (array or callable), including
-    common apodizers such as Gaussian or super-Gaussian
+    Applies an arbitrary transmission mask (array or callable),
+    including common apodizers such as Gaussian or super-Gaussian
 gaussian_apodizer : function
-    Applies a Gaussian apodizer (smooth transmission mask) to the wavefront
+    Applies a Gaussian apodizer (smooth transmission mask) to the
+    wavefront
 supergaussian_apodizer : function
-    Applies a super-Gaussian apodizer (smooth transmission mask) to wavefront
+    Applies a super-Gaussian apodizer (smooth transmission mask) to
+    wavefront
 gaussian_apodizer_elliptical : function
     Applies an elliptical Gaussian apodizer to the wavefront
 supergaussian_apodizer_elliptical : function
@@ -28,9 +33,9 @@ supergaussian_apodizer_elliptical : function
 
 Notes
 -----
-All aperture functions are compatible with JAX transformations and support
-automatic differentiation. The apertures can be combined to create complex
-pupil functions for optical systems.
+All aperture functions are compatible with JAX transformations and
+support automatic differentiation. The apertures can be combined to
+create complex pupil functions for optical systems.
 """
 
 import jax
@@ -90,7 +95,8 @@ def circular_aperture(
     """
     Apply a circular aperture to the incoming wavefront.
 
-    The aperture is defined by its physical diameter and (optional) center.
+    The aperture is defined by its physical diameter and (optional)
+    center.
 
     Parameters
     ----------
@@ -99,9 +105,11 @@ def circular_aperture(
     diameter : scalar_float
         Aperture diameter in meters.
     center : Optional[Float[Array, " 2"]], optional
-        Physical center [x0, y0] of the aperture in meters, by default [0, 0].
+        Physical center [x0, y0] of the aperture in meters, by default
+        [0, 0].
     transmittivity : Optional[scalar_float], optional
-        Uniform transmittivity inside the aperture (0..1), by default 1.0.
+        Uniform transmittivity inside the aperture (0..1), by default
+        1.0.
 
     Returns
     -------
@@ -142,7 +150,8 @@ def rectangular_aperture(
     transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
-    Apply an axis-aligned rectangular aperture to the incoming wavefront.
+    Apply an axis-aligned rectangular aperture to the incoming
+    wavefront.
 
     Parameters
     ----------
@@ -155,7 +164,8 @@ def rectangular_aperture(
     center : Optional[Float[Array, " 2"]], optional
         Rectangle center [x0, y0] in meters, by default [0, 0].
     transmittivity : Optional[scalar_float], optional
-        Uniform transmittivity inside the rectangle (0..1), by default 1.0.
+        Uniform transmittivity inside the rectangle (0..1), by default
+        1.0.
 
     Returns
     -------
@@ -250,15 +260,16 @@ def variable_transmission_aperture(
     transmission: Union[scalar_float, Float[Array, " ..."]],
 ) -> OpticalWavefront:
     """
-    Apply an arbitrary (spatially varying) transmission to the wavefront.
+    Apply an arbitrary (spatially varying) transmission to the
+    wavefront.
 
     Parameters
     ----------
     incoming : OpticalWavefront
         Input wavefront PyTree.
     transmission : Union[scalar_float, Float[Array, " H W"]]
-        Precomputed transmission map (0..1) with shape "H W", or a scalar
-        attenuation factor for uniform transmission.
+        Precomputed transmission map (0..1) with shape "H W", or a
+        scalar attenuation factor for uniform transmission.
 
     Returns
     -------
@@ -269,7 +280,7 @@ def variable_transmission_aperture(
     --------
     Uniform attenuation::
 
-        >>> wf2 = variable_transmission_aperture(wf, 0.5)  # 50% transmission
+        >>> wf2 = variable_transmission_aperture(wf, 0.5)  # 50% trans
 
     Spatially varying transmission::
 
@@ -279,7 +290,8 @@ def variable_transmission_aperture(
     Notes
     -----
     - For scalar transmission: applies uniform attenuation.
-    - For array transmission: applies spatially varying transmission map.
+    - For array transmission: applies spatially varying transmission
+      map.
     - Transmission values are clipped to [0, 1].
     - This function is fully JAX-compatible and uses jax.lax.cond.
     """
@@ -316,7 +328,8 @@ def gaussian_apodizer(
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
-    Apply a Gaussian apodizer (smooth transmission mask) to the wavefront.
+    Apply a Gaussian apodizer (smooth transmission mask) to the
+    wavefront.
 
     Parameters
     ----------
@@ -325,7 +338,8 @@ def gaussian_apodizer(
     sigma : scalar_float
         Gaussian width parameter in meters.
     center : Optional[Float[Array, " 2"]], optional
-        Physical center [x0, y0] of the Gaussian in meters, by default [0, 0].
+        Physical center [x0, y0] of the Gaussian in meters, by default
+        [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
         Maximum transmission at the Gaussian center, by default 1.0.
 
@@ -436,11 +450,14 @@ def gaussian_apodizer_elliptical(
     incoming : OpticalWavefront
         Input optical wavefront.
     sigma_x : scalar_float
-        Gaussian width along the x'-axis (meters) after rotation by `theta`.
+        Gaussian width along the x'-axis (meters) after rotation by
+        `theta`.
     sigma_y : scalar_float
-        Gaussian width along the y'-axis (meters) after rotation by `theta`.
+        Gaussian width along the y'-axis (meters) after rotation by
+        `theta`.
     theta : Optional[scalar_float], optional
-        Rotation angle in radians (counter-clockwise), by default 0.0.
+        Rotation angle in radians (counter-clockwise), by default
+        0.0.
     center : Optional[Float[Array, " 2"]], optional
         Physical center [x0, y0] in meters, by default [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
@@ -450,6 +467,13 @@ def gaussian_apodizer_elliptical(
     -------
     apertured : OpticalWavefront
         Wavefront after applying elliptical Gaussian apodization.
+
+    See Also
+    --------
+    gaussian_apodizer : Apply a Gaussian apodizer (smooth transmission
+        mask) to the wavefront.
+    supergaussian_apodizer : Apply a super-Gaussian apodizer (smooth
+        transmission mask) to the wavefront.
 
     Notes
     -----
@@ -461,17 +485,23 @@ def gaussian_apodizer_elliptical(
     """
     ny: int = incoming.field.shape[0]
     nx: int = incoming.field.shape[1]
+    xx: Float[Array, " ny nx"]
+    yy: Float[Array, " ny nx"]
     xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    x0: Float[Array, " "]
+    y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
-    xc = xx - x0
-    yc = yy - y0
-    ct = jnp.cos(theta)
-    st = jnp.sin(theta)
-    xp = ct * xc + st * yc
-    yp = -st * xc + ct * yc
-    arg = (xp / sigma_x) ** 2 + (yp / sigma_y) ** 2
-    gauss = jnp.exp(-0.5 * arg)
-    tmap = jnp.clip(gauss * peak_transmittivity, 0.0, 1.0)
+    xc: Float[Array, " ny nx"] = xx - x0
+    yc: Float[Array, " ny nx"] = yy - y0
+    ct: Float[Array, " "] = jnp.cos(theta)
+    st: Float[Array, " "] = jnp.sin(theta)
+    xp: Float[Array, " ny nx"] = ((ct * xc) + (st * yc))
+    yp: Float[Array, " ny nx"] = ((ct * yc) - (st * xc))
+    arg: Float[Array, " ny nx"] = ((xp / sigma_x) ** 2) + ((yp / sigma_y) ** 2)
+    gauss: Float[Array, " ny nx"] = jnp.exp(-0.5 * arg)
+    tmap: Float[Array, " ny nx"] = jnp.clip(
+        gauss * peak_transmittivity, 0.0, 1.0
+    )
     apertured: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * tmap,
         wavelength=incoming.wavelength,
@@ -492,9 +522,11 @@ def supergaussian_apodizer_elliptical(
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
-    Apply an elliptical super-Gaussian apodizer with optional rotation.
+    Apply an elliptical super-Gaussian apodizer with optional
+    rotation.
 
-    Transmission profile: exp( - ( (x'/sigma_x)^2 + (y'/sigma_y)^2 )^m ).
+    Transmission profile:
+    exp( - ( (x'/sigma_x)^2 + (y'/sigma_y)^2 )^m ).
 
     Parameters
     ----------
@@ -508,7 +540,8 @@ def supergaussian_apodizer_elliptical(
         Super-Gaussian order
         (m=1 → Gaussian; m>1 → flatter top, sharper edges).
     theta : Optional[scalar_float], optional
-        Rotation angle in radians (counter-clockwise), by default 0.0.
+        Rotation angle in radians (counter-clockwise), by default
+        0.0.
     center : Optional[Float[Array, " 2"]], optional
         Physical center [x0, y0] in meters, by default [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
