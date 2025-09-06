@@ -144,7 +144,6 @@ def fresnel_prop(
     ----------
     incoming : OpticalWavefront
         PyTree with the following parameters:
-
         field : Complex[Array, " hh ww"]
             Input complex field
         wavelength : Float[Array, " "]
