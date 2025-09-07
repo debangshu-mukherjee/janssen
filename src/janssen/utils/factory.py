@@ -48,7 +48,6 @@ from .types import (
     OptimizerState,
     PtychographyParams,
     SampleFunction,
-    scalar_bool,
     scalar_complex,
     scalar_float,
     scalar_integer,
@@ -351,7 +350,6 @@ def make_optical_wavefront(
     wavelength: scalar_float,
     dx: scalar_float,
     z_position: scalar_float,
-    polarization: Optional[scalar_bool] = False,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data
     validation.
@@ -360,8 +358,8 @@ def make_optical_wavefront(
     ----------
     field : Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]]
        Complex amplitude of the optical field. Should be 2D for scalar
-       fields
-       or 3D with last dimension 2 for polarized fields.
+       fields or 3D with last dimension 2 for polarized fields.
+       Polarization is automatically detected from field dimensions.
     wavelength : scalar_float
         Wavelength of the optical wavefront in meters
     dx : scalar_float
@@ -369,10 +367,6 @@ def make_optical_wavefront(
     z_position : scalar_float
         Axial position of the wavefront in the propagation direction in
         meters.
-    polarization : scalar_bool, optional
-        Whether the field is polarized (True for 3D field, False for 2D
-        field).
-        Default is False.
 
     Returns
     -------
@@ -389,8 +383,10 @@ def make_optical_wavefront(
     Algorithm:
 
     - Convert inputs to JAX arrays
+    - Auto-detect polarization based on field dimensions (3D with last
+      dimension 2 means polarized)
     - Validate field array:
-        - Check it's 2D
+        - Check it's 2D or 3D with last dimension 2
         - Ensure all values are finite
     - Validate parameters:
         - Check wavelength is positive
@@ -402,7 +398,10 @@ def make_optical_wavefront(
     wavelength: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     z_position: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
-    polarization: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
+
+    polarization: Bool[Array, " "] = jnp.asarray(
+        field.ndim == 3 and field.shape[-1] == 2, dtype=jnp.bool_
+    )
 
     def validate_and_create() -> OpticalWavefront:
         def check_field_dimensions() -> (
@@ -800,7 +799,7 @@ def make_diffractogram(
 
 @jaxtyped(typechecker=beartype)
 def make_sample_function(
-    sample: Complex[Array, " hh ww"],
+    sample: Num[Array, " hh ww"],
     dx: scalar_float,
 ) -> SampleFunction:
     """JAX-safe factory function for SampleFunction with data
@@ -808,8 +807,8 @@ def make_sample_function(
 
     Parameters
     ----------
-    sample : Complex[Array, " hh ww"]
-        The sample function
+    sample : Num[Array, " hh ww"]
+        The sample function. Will be converted to complex if real.
     dx : scalar_float
         Spatial sampling interval (grid spacing) in meters
 
@@ -922,39 +921,18 @@ def make_optimizer_state(
     -----
     Algorithm:
 
-    - If m is None, initialize with complex zeros of given shape
-    - If v is None, initialize with real zeros of given shape
-    - If step is None, initialize to 0
     - Convert all inputs to JAX arrays with appropriate dtypes
+    - Always broadcast m and v to the target shape (if already the
+      right shape, broadcast_to is a no-op)
     - Validate arrays have compatible shapes
     - Create and return OptimizerState instance
     """
-    sentinel_m = 1j
-    sentinel_v = 0.0
-
     m_input = jnp.asarray(m, dtype=jnp.complex128)
     v_input = jnp.asarray(v, dtype=jnp.float64)
     step_input = jnp.asarray(step, dtype=jnp.int32)
 
-    m_array = lax.cond(
-        jnp.all(m_input == sentinel_m),
-        lambda: jnp.zeros(shape, dtype=jnp.complex128),
-        lambda: lax.cond(
-            m_input.ndim == 0,
-            lambda: jnp.broadcast_to(m_input, shape),
-            lambda: m_input,
-        ),
-    )
-
-    v_array = lax.cond(
-        jnp.logical_and(jnp.all(v_input == sentinel_v), v_input.ndim == 0),
-        lambda: jnp.zeros(shape, dtype=jnp.float64),
-        lambda: lax.cond(
-            v_input.ndim == 0,
-            lambda: jnp.broadcast_to(v_input, shape),
-            lambda: v_input,
-        ),
-    )
+    m_array = jnp.broadcast_to(m_input, shape).astype(jnp.complex128)
+    v_array = jnp.broadcast_to(v_input, shape).astype(jnp.float64)
 
     step_array = step_input
 
@@ -1038,9 +1016,9 @@ def make_ptychography_params(
     -----
     This function performs runtime validation to ensure all parameters
     are properly formatted and within valid ranges before creating the
-    PtychographyParams PyTree.
+    PtychographyParams PyTree. All scalar inputs are converted to JAX
+    arrays.
     """
-    # Convert scalars to JAX arrays
     zoom_factor_array = jnp.asarray(zoom_factor, dtype=jnp.float64)
     aperture_diameter_array = jnp.asarray(aperture_diameter, dtype=jnp.float64)
     travel_distance_array = jnp.asarray(travel_distance, dtype=jnp.float64)
@@ -1141,7 +1119,6 @@ def make_ptychography_params(
                 ),
             )
 
-        # Run all validation checks
         check_positive_zoom()
         check_positive_aperture()
         check_positive_distance()

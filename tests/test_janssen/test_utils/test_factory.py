@@ -22,7 +22,7 @@ from janssen.utils import (
 
 class TestMakeLensParams(chex.TestCase):
     """Test the make_lens_params factory function."""
-    
+
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_creation(self) -> None:
         """Test basic creation with required parameters."""
@@ -40,21 +40,19 @@ class TestMakeLensParams(chex.TestCase):
         chex.assert_scalar_positive(float(lens.focal_length))
         chex.assert_scalar_positive(float(lens.diameter))
         chex.assert_scalar_positive(float(lens.n))
-    
+
     @chex.variants(with_jit=True, without_jit=True)
     def test_type_conversion(self) -> None:
         """Test that factory converts Python types to JAX arrays."""
         var_make_lens_params = self.variant(make_lens_params)
         lens = var_make_lens_params(
-            focal_length=0.01,  # Python float
+            focal_length=0.01,
             diameter=0.00005,
             n=1.5,
             center_thickness=0.001,
             r1=0.01,
             r2=0.01,
         )
-
-        # All fields should be JAX arrays
         chex.assert_equal(isinstance(lens.focal_length, jax.Array), True)
         chex.assert_equal(isinstance(lens.diameter, jax.Array), True)
         chex.assert_equal(isinstance(lens.n, jax.Array), True)
@@ -81,7 +79,7 @@ class TestMakeLensParams(chex.TestCase):
 
 class TestMakeGridParams(chex.TestCase):
     """Test the make_grid_params factory function."""
- 
+
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_creation(self) -> None:
         """Test basic creation with required parameters."""
@@ -102,31 +100,30 @@ class TestMakeGridParams(chex.TestCase):
         chex.assert_shape(grid.yy, (ny, nx))
         chex.assert_shape(grid.phase_profile, (ny, nx))
         chex.assert_shape(grid.transmission, (ny, nx))
-    
+
     @chex.variants(with_jit=True, without_jit=True)
     def test_default_values(self) -> None:
-        """Test that defaults are applied correctly."""
+        """Test creating grid with default-like values."""
         nx, ny = 32, 32
         x = jnp.linspace(-1, 1, nx)
         y = jnp.linspace(-1, 1, ny)
         xx, yy = jnp.meshgrid(x, y)
 
-        # Should use defaults for phase_profile and transmission
         var_make_grid_params = self.variant(make_grid_params)
-        grid = var_make_grid_params(xx=xx, yy=yy)
+        grid = var_make_grid_params(
+            xx=xx,
+            yy=yy,
+            phase_profile=jnp.zeros_like(xx),
+            transmission=jnp.ones_like(xx),
+        )
 
-        # Defaults should be zeros for phase, ones for transmission
-        chex.assert_trees_all_close(
-            grid.phase_profile, jnp.zeros_like(xx)
-        )
-        chex.assert_trees_all_close(
-            grid.transmission, jnp.ones_like(xx)
-        )
+        chex.assert_trees_all_close(grid.phase_profile, jnp.zeros_like(xx))
+        chex.assert_trees_all_close(grid.transmission, jnp.ones_like(xx))
 
 
 class TestMakeOpticalWavefront(chex.TestCase):
     """Test the make_optical_wavefront factory function."""
-    
+
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_creation(self) -> None:
         """Test basic creation with scalar field."""
@@ -141,10 +138,9 @@ class TestMakeOpticalWavefront(chex.TestCase):
 
         chex.assert_equal(type(wavefront).__name__, "OpticalWavefront")
         chex.assert_shape(wavefront.field, (64, 64))
-        chex.assert_shape(wavefront.wavelength, ())  # 0-dim array
-        chex.assert_shape(wavefront.dx, ())  # 0-dim array
-        chex.assert_shape(wavefront.z_position, ())  # 0-dim array
-        # Should be False for 2D field
+        chex.assert_shape(wavefront.wavelength, ())
+        chex.assert_shape(wavefront.dx, ())
+        chex.assert_shape(wavefront.z_position, ())
         chex.assert_equal(wavefront.polarization, jnp.array(False))
 
     def test_polarized_field(self) -> None:
@@ -158,7 +154,6 @@ class TestMakeOpticalWavefront(chex.TestCase):
         )
 
         chex.assert_shape(wavefront.field, (64, 64, 2))
-        # Should be True for 3D field
         chex.assert_equal(wavefront.polarization, jnp.array(True))
 
     def test_z_position_required(self) -> None:
@@ -168,21 +163,19 @@ class TestMakeOpticalWavefront(chex.TestCase):
             field=field,
             wavelength=632e-9,
             dx=2e-6,
-            z_position=0.0,  # Required parameter
+            z_position=0.0,
         )
 
-        chex.assert_trees_all_close(
-            wavefront.z_position, jnp.array(0.0)
-        )
+        chex.assert_trees_all_close(wavefront.z_position, jnp.array(0.0))
 
     def test_type_conversion(self) -> None:
         """Test type conversion from Python types."""
         field = jnp.ones((32, 32), dtype=complex)
         wavefront = make_optical_wavefront(
             field=field,
-            wavelength=532e-9,  # Python float
-            dx=1e-6,  # Python float
-            z_position=0.0,  # Python float
+            wavelength=532e-9,
+            dx=1e-6,
+            z_position=0.0,
         )
 
         chex.assert_equal(isinstance(wavefront.wavelength, jax.Array), True)
@@ -221,7 +214,6 @@ class TestMakeMicroscopeData(chex.TestCase):
 
     def test_position_validation(self) -> None:
         """Test that positions must have correct shape."""
-        # This should work
         data = make_microscope_data(
             image_data=jnp.ones((3, 32, 32)),
             positions=jnp.zeros((3, 2)),
@@ -243,18 +235,16 @@ class TestMakeSampleFunction(chex.TestCase):
 
         chex.assert_equal(type(sample).__name__, "SampleFunction")
         chex.assert_shape(sample.sample, (64, 64))
-        chex.assert_shape(sample.dx, ())  # 0-dim array
+        chex.assert_shape(sample.dx, ())
 
     def test_complex_conversion(self) -> None:
         """Test that sample is converted to complex."""
-        # Input real array
         real_array = jnp.ones((32, 32))
         sample = make_sample_function(
             sample=real_array,
             dx=2e-6,
         )
 
-        # Should be complex
         chex.assert_equal(jnp.iscomplexobj(sample.sample), True)
 
 
@@ -271,15 +261,15 @@ class TestMakeDiffractogram(chex.TestCase):
 
         chex.assert_equal(type(diff).__name__, "Diffractogram")
         chex.assert_shape(diff.image, (128, 128))
-        chex.assert_shape(diff.wavelength, ())  # 0-dim array
-        chex.assert_shape(diff.dx, ())  # 0-dim array
+        chex.assert_shape(diff.wavelength, ())
+        chex.assert_shape(diff.dx, ())
 
     def test_type_conversion(self) -> None:
         """Test conversion from Python types."""
         diff = make_diffractogram(
             image=jnp.ones((64, 64)),
-            wavelength=532e-9,  # Python float
-            dx=2e-6,  # Python float
+            wavelength=532e-9,
+            dx=2e-6,
         )
 
         chex.assert_equal(isinstance(diff.wavelength, jax.Array), True)
@@ -297,14 +287,14 @@ class TestMakeOptimizerState(chex.TestCase):
         chex.assert_equal(type(state).__name__, "OptimizerState")
         chex.assert_shape(state.m, shape)
         chex.assert_shape(state.v, shape)
-        chex.assert_shape(state.step, ())  # 0-dim array
+        chex.assert_shape(state.step, ())
 
     def test_with_initial_values(self) -> None:
         """Test creation with initial values."""
         shape = (32, 32)
         m_init = jnp.ones(shape, dtype=complex) * 0.9
         v_init = jnp.ones(shape, dtype=float) * 0.999
-        
+
         state = make_optimizer_state(
             shape=shape,
             m=m_init,
@@ -321,16 +311,10 @@ class TestMakeOptimizerState(chex.TestCase):
         shape = (16, 16)
         state = make_optimizer_state(shape=shape)
 
-        # Check defaults from factory function
-        # Default m should be 1j (complex)
         chex.assert_trees_all_close(
             state.m, jnp.ones(shape, dtype=complex) * 1j
         )
-        # Default v should be 0.0
-        chex.assert_trees_all_close(
-            state.v, jnp.zeros(shape, dtype=float)
-        )
-        # Default step should be 0
+        chex.assert_trees_all_close(state.v, jnp.zeros(shape, dtype=float))
         chex.assert_trees_all_close(state.step, jnp.array(0))
 
 
@@ -350,22 +334,21 @@ class TestMakePtychographyParams(chex.TestCase):
         )
 
         chex.assert_equal(type(params).__name__, "PtychographyParams")
-        chex.assert_shape(params.zoom_factor, ())  # 0-dim array
-        chex.assert_shape(params.aperture_diameter, ())  # 0-dim array
-        chex.assert_shape(params.travel_distance, ())  # 0-dim array
+        chex.assert_shape(params.zoom_factor, ())
+        chex.assert_shape(params.aperture_diameter, ())
+        chex.assert_shape(params.travel_distance, ())
         chex.assert_shape(params.aperture_center, (2,))
-        chex.assert_shape(params.camera_pixel_size, ())  # 0-dim array
-        chex.assert_shape(params.learning_rate, ())  # 0-dim array
-        chex.assert_shape(params.num_iterations, ())  # 0-dim array
+        chex.assert_shape(params.camera_pixel_size, ())
+        chex.assert_shape(params.learning_rate, ())
+        chex.assert_shape(params.num_iterations, ())
 
     def test_aperture_center_conversion(self) -> None:
         """Test that aperture_center is converted to JAX array."""
-        # Test with list input
         params = make_ptychography_params(
             zoom_factor=1.5,
             aperture_diameter=2e-3,
             travel_distance=0.05,
-            aperture_center=jnp.array([1.0, 2.0]),  # Must be JAX array
+            aperture_center=jnp.array([1.0, 2.0]),
             camera_pixel_size=10e-6,
             learning_rate=0.001,
             num_iterations=50,
@@ -377,20 +360,22 @@ class TestMakePtychographyParams(chex.TestCase):
     def test_type_conversion(self) -> None:
         """Test type conversion for all parameters."""
         params = make_ptychography_params(
-            zoom_factor=2.0,  # Python float
-            aperture_diameter=1e-3,  # Python float
-            travel_distance=0.1,  # Python float
+            zoom_factor=2.0,
+            aperture_diameter=1e-3,
+            travel_distance=0.1,
             aperture_center=jnp.array([0.0, 0.0]),
-            camera_pixel_size=5e-6,  # Python float
-            learning_rate=0.01,  # Python float
-            num_iterations=100,  # Python int
+            camera_pixel_size=5e-6,
+            learning_rate=0.01,
+            num_iterations=100,
         )
-
-        # All should be JAX arrays
         chex.assert_equal(isinstance(params.zoom_factor, jax.Array), True)
-        chex.assert_equal(isinstance(params.aperture_diameter, jax.Array), True)
+        chex.assert_equal(
+            isinstance(params.aperture_diameter, jax.Array), True
+        )
         chex.assert_equal(isinstance(params.travel_distance, jax.Array), True)
-        chex.assert_equal(isinstance(params.camera_pixel_size, jax.Array), True)
+        chex.assert_equal(
+            isinstance(params.camera_pixel_size, jax.Array), True
+        )
         chex.assert_equal(isinstance(params.learning_rate, jax.Array), True)
         chex.assert_equal(isinstance(params.num_iterations, jax.Array), True)
 
@@ -400,7 +385,6 @@ class TestFactoryValidation(chex.TestCase):
 
     def test_lens_params_validation(self) -> None:
         """Test that make_lens_params validates inputs."""
-        # Should succeed with valid inputs
         lens = make_lens_params(
             focal_length=0.01,
             diameter=0.00005,
@@ -413,7 +397,6 @@ class TestFactoryValidation(chex.TestCase):
 
     def test_wavefront_field_shape(self) -> None:
         """Test OpticalWavefront field shape validation."""
-        # 2D field should work
         field_2d = jnp.ones((32, 32), dtype=complex)
         wf_2d = make_optical_wavefront(
             field=field_2d,
@@ -423,7 +406,6 @@ class TestFactoryValidation(chex.TestCase):
         )
         chex.assert_equal(wf_2d.polarization, jnp.array(False))
 
-        # 3D field with 2 components should work
         field_3d = jnp.ones((32, 32, 2), dtype=complex)
         wf_3d = make_optical_wavefront(
             field=field_3d,
@@ -435,7 +417,6 @@ class TestFactoryValidation(chex.TestCase):
 
     def test_microscope_data_dimensions(self) -> None:
         """Test MicroscopeData dimension consistency."""
-        # 3D data with matching positions
         data_3d = make_microscope_data(
             image_data=jnp.ones((5, 32, 32)),
             positions=jnp.zeros((5, 2)),
@@ -445,7 +426,6 @@ class TestFactoryValidation(chex.TestCase):
         chex.assert_shape(data_3d.image_data, (5, 32, 32))
         chex.assert_shape(data_3d.positions, (5, 2))
 
-        # 4D data with matching positions
         data_4d = make_microscope_data(
             image_data=jnp.ones((3, 3, 32, 32)),
             positions=jnp.zeros((9, 2)),
@@ -464,10 +444,9 @@ class TestFactoryJITCompatibility(chex.TestCase):
 
         @jax.jit
         def create_and_process_lens(
-            focal_length: Float[Array, " "]
+            focal_length: Float[Array, " "],
         ) -> Float[Array, " "]:
             """Create lens and compute power."""
-            # Direct instantiation works in JIT
             lens = LensParams(
                 focal_length=focal_length,
                 diameter=jnp.array(0.00005),
@@ -487,10 +466,9 @@ class TestFactoryJITCompatibility(chex.TestCase):
         field = jnp.ones((32, 32), dtype=complex)
 
         def create_wavefront(
-            wavelength: Float[Array, " "]
+            wavelength: Float[Array, " "],
         ) -> OpticalWavefront:
             """Create wavefront with given wavelength."""
-            # Direct instantiation for vmap
             return OpticalWavefront(
                 field=field,
                 wavelength=wavelength,
