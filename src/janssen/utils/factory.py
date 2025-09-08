@@ -394,13 +394,16 @@ def make_optical_wavefront(
         - Check z_position is finite
     - Create and return OpticalWavefront instance
     """
+    non_polar_dim: int = 2
+    polar_dim: int = 3
     field: Complex[Array, " hh ww"] = jnp.asarray(field, dtype=jnp.complex128)
     wavelength: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     z_position: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
 
     polarization: Bool[Array, " "] = jnp.asarray(
-        field.ndim == 3 and field.shape[-1] == 2, dtype=jnp.bool_
+        field.ndim == polar_dim and field.shape[-1] == non_polar_dim,
+        dtype=jnp.bool_,
     )
 
     def validate_and_create() -> OpticalWavefront:
