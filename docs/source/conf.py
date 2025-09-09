@@ -1,8 +1,8 @@
 import os
 import sys
+import tomllib
 from datetime import datetime
 
-import tomllib
 from sphinx.application import Sphinx
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"

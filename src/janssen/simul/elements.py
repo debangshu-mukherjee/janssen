@@ -42,8 +42,6 @@ half_waveplate : function
 phase_grating_blazed_elliptical : function
     Elliptical blazed phase grating with period_x, period_y, theta,
     depth, and two_dim
-_xy_grids : function, internal
-    Build centered (x, y) grids.
 _rotate_coords : function, internal
     Rotate coordinates by an angle theta.
 
@@ -68,39 +66,10 @@ from janssen.utils import (
     scalar_float,
 )
 
+from .apertures import _arrayed_grids
 from .helper import add_phase_screen
 
 jax.config.update("jax_enable_x64", True)
-
-
-def _xy_grids(
-    nx: int, ny: int, dx: float
-) -> Tuple[Float[Array, " ny nx"], Float[Array, " ny nx"]]:
-    """
-    Build centered (x, y) grids.
-
-    Parameters
-    ----------
-    nx : int
-        Number of pixels along x.
-    ny : int
-        Number of pixels along y.
-    dx : float
-        Pixel size in meters.
-
-    Returns
-    -------
-    xx : Float[Array, " ny nx"]
-        Grid of x coordinates.
-    yy : Float[Array, " ny nx"]
-        Grid of y coordinates.
-    """
-    x: Float[Array, " nx"] = jnp.arange(-nx // 2, nx // 2) * dx
-    y: Float[Array, " ny"] = jnp.arange(-ny // 2, ny // 2) * dx
-    xx: Float[Array, " ny nx"]
-    yy: Float[Array, " ny nx"]
-    xx, yy = jnp.meshgrid(x, y)
-    return (xx, yy)
 
 
 def _rotate_coords(
@@ -176,12 +145,10 @@ def prism_phase_ramp(
     - Compute kx, ky from deflections.
     - Phase = kx*xx + ky*yy; multiply by exp(i*phase).
     """
-    ny: int
-    nx: int
-    ny, nx = incoming.field.shape[:2]
-    xx: Num[Array, " ny nx"]
-    yy: Num[Array, " ny nx"]
-    xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     k: scalar_float = (2.0 * jnp.pi) / incoming.wavelength
     kx: scalar_float
     ky: scalar_float
@@ -359,17 +326,15 @@ def phase_grating_sine(
     OpticalWavefront
         Field after phase modulation.
     """
-    ny: int
-    nx: int
-    ny, nx = incoming.field.shape[:2]
-    xx: Float[Array, " ny nx"]
-    yy: Float[Array, " ny nx"]
-    xx, yy = _xy_grids(nx, ny, float(incoming.dx))
-    uu: Num[Array, " ny nx"]
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    uu: Num[Array, " hh ww"]
     uu, _ = _rotate_coords(xx, yy, theta)
-    phase: Float[Array, " ny nx"]
+    phase: Float[Array, " hh ww"]
     phase = depth * jnp.sin(2.0 * jnp.pi * uu / period)
-    field_out: Complex[Array, " ny nx"] = add_phase_screen(
+    field_out: Complex[Array, " hh ww"] = add_phase_screen(
         incoming.field, phase
     )
     return make_optical_wavefront(
@@ -418,21 +383,19 @@ def amplitude_grating_binary(
     - Map u modulo period → binary mask via duty cycle.
     - Apply amplitude levels to field.
     """
-    ny: int
-    nx: int
-    ny, nx = incoming.field.shape[:2]
-    xx: Float[Array, " ny nx"]
-    yy: Float[Array, " ny nx"]
-    xx, yy = _xy_grids(nx, ny, float(incoming.dx))
-    uu: Num[Array, " ny nx"]
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    uu: Num[Array, " hh ww"]
     uu, _ = _rotate_coords(xx, yy, theta)
     duty: Float[Array, " "] = jnp.clip(duty_cycle, 0.0, 1.0)
-    frac: Num[Array, " ny nx"] = (uu / period) - jnp.floor(uu / period)
-    mask_high: Bool[Array, " ny nx"] = frac < duty
-    tmap: Float[Array, " ny nx"] = jnp.where(
+    frac: Num[Array, " hh ww"] = (uu / period) - jnp.floor(uu / period)
+    mask_high: Bool[Array, " hh ww"] = frac < duty
+    tmap: Float[Array, " hh ww"] = jnp.where(
         mask_high, trans_high, trans_low
     ).astype(jnp.float64)
-    field_out: Complex[Array, " ny nx"] = incoming.field * tmap
+    field_out: Complex[Array, " hh ww"] = incoming.field * tmap
     return make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
@@ -474,8 +437,8 @@ def phase_grating_sawtooth(
         (kept at [0, depth)).
     - Apply phase with exp(i*phase).
     """
-    ny, nx = incoming.field.shape[:2]
-    xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    arr_zeros = jnp.zeros_like(incoming.field)
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     uu, _ = _rotate_coords(xx, yy, theta)
 
     frac = (uu / period) - jnp.floor(uu / period)  # [0,1)
@@ -544,8 +507,8 @@ def apply_phase_mask_fn(
     OpticalWavefront
         Field with added phase.
     """
-    ny, nx = incoming.field.shape[:2]
-    xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    arr_zeros = jnp.zeros_like(incoming.field)
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     phase_map = phase_fn(xx, yy)
     field_out = add_phase_screen(incoming.field, phase_map)
     return make_optical_wavefront(
@@ -817,8 +780,8 @@ def phase_grating_blazed_elliptical(
         phase = depth * fu
     - Multiply by exp(i * phase) and return.
     """
-    ny, nx = incoming.field.shape[:2]
-    xx, yy = _xy_grids(nx, ny, float(incoming.dx))
+    arr_zeros = jnp.zeros_like(incoming.field)
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     uu, vv = _rotate_coords(xx, yy, theta)
     eps = 1e-30
     px = jnp.where(jnp.abs(period_x) < eps, eps, period_x)
