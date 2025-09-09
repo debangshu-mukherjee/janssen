@@ -155,10 +155,10 @@ def circular_aperture(
     - Multiply by transmittivity (clipped to [0, 1]).
     - Apply to the complex field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
@@ -215,10 +215,10 @@ def rectangular_aperture(
     - Multiply by transmittivity (clipped).
     - Apply to the complex field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
@@ -276,10 +276,10 @@ def annular_aperture(
     - Create mask for inner_radius < r <= outer_radius.
     - Multiply by transmittivity (clipped), apply, and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
@@ -403,10 +403,10 @@ def gaussian_apodizer(
     - Scale by peak transmittivity, clip to [0,1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
@@ -463,10 +463,10 @@ def supergaussian_apodizer(
     - Scale by peak transmittivity, clip to [0,1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0, y0 = center[0], center[1]
     r2: Float[Array, " hh ww"] = (xx - x0) ** 2 + (yy - y0) ** 2
     super_gauss: Float[Array, " hh ww"] = jnp.exp(-((r2 / (sigma**2)) ** m))
@@ -534,10 +534,10 @@ def gaussian_apodizer_elliptical(
     - Scale by `peak_transmittivity`, clip to [0, 1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
@@ -610,10 +610,10 @@ def supergaussian_apodizer_elliptical(
     - Scale by `peak_transmittivity`, clip to [0, 1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
     x0, y0 = center[0], center[1]
