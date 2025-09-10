@@ -155,7 +155,9 @@ def circular_aperture(
     - Multiply by transmittivity (clipped to [0, 1]).
     - Apply to the complex field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
@@ -215,7 +217,9 @@ def rectangular_aperture(
     - Multiply by transmittivity (clipped).
     - Apply to the complex field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
@@ -276,7 +280,9 @@ def annular_aperture(
     - Create mask for inner_radius < r <= outer_radius.
     - Multiply by transmittivity (clipped), apply, and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
@@ -403,7 +409,9 @@ def gaussian_apodizer(
     - Scale by peak transmittivity, clip to [0,1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
@@ -463,7 +471,9 @@ def supergaussian_apodizer(
     - Scale by peak transmittivity, clip to [0,1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
@@ -534,7 +544,9 @@ def gaussian_apodizer_elliptical(
     - Scale by `peak_transmittivity`, clip to [0, 1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
@@ -610,7 +622,9 @@ def supergaussian_apodizer_elliptical(
     - Scale by `peak_transmittivity`, clip to [0, 1].
     - Multiply with incoming field and return.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field, dtype=float)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=float
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
