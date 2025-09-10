@@ -145,7 +145,9 @@ def prism_phase_ramp(
     - Compute kx, ky from deflections.
     - Phase = kx*xx + ky*yy; multiply by exp(i*phase).
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=jnp.float64
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
@@ -326,7 +328,9 @@ def phase_grating_sine(
     OpticalWavefront
         Field after phase modulation.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=jnp.float64
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
@@ -383,7 +387,9 @@ def amplitude_grating_binary(
     - Map u modulo period → binary mask via duty cycle.
     - Apply amplitude levels to field.
     """
-    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(incoming.field)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=jnp.float64
+    )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
@@ -437,7 +443,7 @@ def phase_grating_sawtooth(
         (kept at [0, depth)).
     - Apply phase with exp(i*phase).
     """
-    arr_zeros = jnp.zeros_like(incoming.field)
+    arr_zeros = jnp.zeros_like(incoming.field, dtype=jnp.float64)
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     uu, _ = _rotate_coords(xx, yy, theta)
 
@@ -507,7 +513,7 @@ def apply_phase_mask_fn(
     OpticalWavefront
         Field with added phase.
     """
-    arr_zeros = jnp.zeros_like(incoming.field)
+    arr_zeros = jnp.zeros_like(incoming.field, dtype=jnp.float64)
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     phase_map = phase_fn(xx, yy)
     field_out = add_phase_screen(incoming.field, phase_map)
@@ -780,7 +786,7 @@ def phase_grating_blazed_elliptical(
         phase = depth * fu
     - Multiply by exp(i * phase) and return.
     """
-    arr_zeros = jnp.zeros_like(incoming.field)
+    arr_zeros = jnp.zeros_like(incoming.field, dtype=jnp.float64)
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
     uu, vv = _rotate_coords(xx, yy, theta)
     eps = 1e-30

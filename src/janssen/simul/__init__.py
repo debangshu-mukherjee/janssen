@@ -18,6 +18,8 @@ microscope
     Microscopy simulation pipelines
 helper
     Helper functions for optical propagation
+zernike
+    Zernike polynomial functions for optical aberration modeling
 
 Routine Listings
 ----------------
@@ -81,6 +83,30 @@ simple_diffractogram : function
     Generate diffraction pattern
 simple_microscope : function
     Simple microscope forward model
+zernike_polynomial : function
+    Generate a single Zernike polynomial
+zernike_radial : function
+    Radial component of Zernike polynomial
+factorial : function
+    JAX-compatible factorial computation
+noll_to_nm : function
+    Convert Noll index to (n, m) indices
+nm_to_noll : function
+    Convert (n, m) indices to Noll index
+generate_aberration : function
+    Generate aberration phase map from Zernike coefficients
+defocus : function
+    Generate defocus aberration (Z4)
+astigmatism : function
+    Generate astigmatism aberration (Z5, Z6)
+coma : function
+    Generate coma aberration (Z7, Z8)
+spherical_aberration : function
+    Generate spherical aberration (Z11)
+trefoil : function
+    Generate trefoil aberration (Z9, Z10)
+apply_aberration : function
+    Apply aberration to optical wavefront
 
 Notes
 -----
@@ -127,6 +153,20 @@ from .microscope import (
     simple_diffractogram,
     simple_microscope,
 )
+from .zernike import (
+    apply_aberration,
+    astigmatism,
+    coma,
+    defocus,
+    factorial,
+    generate_aberration,
+    nm_to_noll,
+    noll_to_nm,
+    spherical_aberration,
+    trefoil,
+    zernike_polynomial,
+    zernike_radial,
+)
 
 __all__: list[str] = [
     "annular_aperture",
@@ -162,4 +202,16 @@ __all__: list[str] = [
     "lens_propagation",
     "simple_diffractogram",
     "simple_microscope",
+    "zernike_polynomial",
+    "zernike_radial",
+    "factorial",
+    "noll_to_nm",
+    "nm_to_noll",
+    "generate_aberration",
+    "defocus",
+    "astigmatism",
+    "coma",
+    "spherical_aberration",
+    "trefoil",
+    "apply_aberration",
 ]

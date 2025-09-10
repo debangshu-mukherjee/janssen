@@ -42,6 +42,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_lens_thickness_profile_double_convex(self) -> None:
+        """Test thickness profile for double convex lens.
+
+        Note:
+            Double convex lens with r1=r2=10mm, center thickness=1mm,
+            diameter=5mm.
+            - Center should have maximum thickness equal to center_thickness
+            - Thickness decreases towards edges (thinner at mid-radius)
+            - Zero thickness outside lens diameter
+        """
         var_lens_thickness_profile = self.variant(lens_thickness_profile)
         r1 = 0.01
         r2 = 0.01
@@ -74,6 +83,13 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_lens_thickness_profile_plano(self) -> None:
+        """Test thickness profile for plano-convex lens.
+
+        Note:
+            Plano-convex lens with r1=10mm, r2=infinity (flat surface).
+            One side is curved, other side is flat, creating
+            non-zero thickness gradient from center to edge.
+        """
         var_lens_thickness_profile = self.variant(lens_thickness_profile)
         r1 = 0.01
         r2 = jnp.inf
@@ -102,6 +118,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
     def test_lens_focal_length(
         self, n: float, r1: float, r2: float, expected_f: float
     ) -> None:
+        """Test focal length calculation using lensmaker's equation.
+
+        Note:
+            Testing various lens configurations:
+            - Double convex with equal/different radii
+            - Double concave (negative radii)
+            - Plano lenses (one infinite radius)
+            Verifies f = 1/((n-1)(1/r1 - 1/r2)) for finite radii.
+        """
         var_lens_focal_length = self.variant(lens_focal_length)
         f = var_lens_focal_length(n, r1, r2)
         special_r1 = 0.1
@@ -118,6 +143,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_create_lens_phase(self) -> None:
+        """Test lens phase profile and transmission mask creation.
+
+        Note:
+            Creates phase delay profile based on lens thickness and refractive
+            index.
+            - Phase profile should be positive at center (optical path delay)
+            - Transmission mask is binary: 1 inside diameter, 0 outside
+            - Center has full transmission, corners are blocked
+        """
         var_create_lens_phase = self.variant(create_lens_phase)
         phase_profile, transmission = var_create_lens_phase(
             self.xx, self.yy, self.default_params, self.wavelength
@@ -138,6 +172,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_propagate_through_lens(self) -> None:
+        """Test field propagation through lens.
+
+        Note:
+            Applies lens phase and transmission to input field.
+            - Output maintains input field shape
+            - Phase is modified according to lens profile
+            - Amplitude is modified by transmission mask
+            - Corners (outside diameter) should have zero amplitude
+        """
         var_propagate_through_lens = self.variant(propagate_through_lens)
         var_create_lens_phase = self.variant(create_lens_phase)
         phase_profile, transmission = var_create_lens_phase(
@@ -176,6 +219,14 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         center_thickness: float,
         r_ratio: float,
     ) -> None:
+        """Test double convex lens parameter generation.
+
+        Note:
+            Creates lens with two convex surfaces (positive radii).
+            Testing different r2/r1 ratios (0.5, 1.0, 2.0) to verify
+            correct radius calculation for desired focal length.
+            Both radii should be positive for converging lens.
+        """
         var_double_convex_lens = self.variant(double_convex_lens)
         params = var_double_convex_lens(
             focal_length, diameter, n, center_thickness, r_ratio
@@ -202,6 +253,13 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         center_thickness: float,
         r_ratio: float,
     ) -> None:
+        """Test double concave lens parameter generation.
+
+        Note:
+            Creates lens with two concave surfaces (negative radii).
+            Used for diverging lenses with negative focal length.
+            Both radii should be negative.
+        """
         var_double_concave_lens = self.variant(double_concave_lens)
         params = var_double_concave_lens(
             focal_length, diameter, n, center_thickness, r_ratio
@@ -219,6 +277,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         ("convex_second", False),
     )
     def test_plano_convex_lens(self, convex_first: bool) -> None:
+        """Test plano-convex lens parameter generation.
+
+        Note:
+            One surface is flat (infinite radius), other is convex.
+            Testing both orientations:
+            - convex_first=True: curved surface first, flat second
+            - convex_first=False: flat first, curved second
+            Convex surface should have positive radius.
+        """
         var_plano_convex_lens = self.variant(plano_convex_lens)
         focal_length = 0.01
         diameter = 0.005
@@ -244,6 +311,13 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         ("concave_second", False),
     )
     def test_plano_concave_lens(self, concave_first: bool) -> None:
+        """Test plano-concave lens parameter generation.
+
+        Note:
+            One surface is flat (infinite radius), other is concave.
+            Testing both orientations for diverging lens.
+            Concave surface should have negative radius.
+        """
         var_plano_concave_lens = self.variant(plano_concave_lens)
         focal_length = 0.01
         diameter = 0.005
@@ -271,6 +345,14 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         ("large_ratio_concave_first", 2.0, False),
     )
     def test_meniscus_lens(self, r_ratio: float, convex_first: bool) -> None:
+        """Test meniscus lens parameter generation.
+
+        Note:
+            Meniscus lens has one convex and one concave surface.
+            - convex_first=True: r1 positive, r2 negative
+            - convex_first=False: r1 negative, r2 positive
+            Testing different r_ratio values (0.5, 2.0) for curvature balance.
+        """
         var_meniscus_lens = self.variant(meniscus_lens)
         focal_length = 0.01
         diameter = 0.005
@@ -291,6 +373,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
             chex.assert_scalar_positive(float(params.r2))
 
     def test_jax_transformations_on_thickness_profile(self) -> None:
+        """Test JAX transformations on lens thickness profile.
+
+        Note:
+            Verifies that lens functions work with JAX transformations:
+            - JIT compilation produces identical results
+            - Gradient computation works (for optimization)
+            - Gradients are finite and have correct shape
+        """
+
         @jax.jit
         def jitted_thickness(
             r: Array, r1: float, r2: float, ct: float, d: float
@@ -315,6 +406,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         chex.assert_shape(grad, ())
 
     def test_jax_transformations_on_lens_creation(self) -> None:
+        """Test JAX transformations on lens creation functions.
+
+        Note:
+            Tests JIT compilation and vmap on lens parameter creation.
+            - JIT produces identical lens parameters
+            - vmap over focal lengths creates batch of lenses
+            - Each lens in batch has different parameters
+        """
+
         @jax.jit
         def create_lens(focal_length: float) -> LensParams:
             return double_convex_lens(focal_length, 0.005, 1.5, 0.001, 1.0)
@@ -333,6 +433,12 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
         )
 
     def test_field_dtype_preservation(self) -> None:
+        """Test that field dtype is preserved through propagation.
+
+        Note:
+            Complex128 input should produce complex128 output.
+            Important for maintaining numerical precision in simulations.
+        """
         complex_field = jnp.ones((self.ny, self.nx), dtype=jnp.complex128)
         phase_profile, transmission = create_lens_phase(
             self.xx, self.yy, self.default_params, self.wavelength
@@ -350,6 +456,15 @@ class TestLensElements(chex.TestCase, parameterized.TestCase):
     def test_propagate_edge_cases(
         self, input_field: Complex[Array, "128 128"]
     ) -> None:
+        """Test propagation with edge case input fields.
+
+        Note:
+            Testing special input cases:
+            - Zero field (no light)
+            - Complex uniform field (1+1j)
+            - Pure phase field (exp(1j))
+            All should maintain shape and complex dtype.
+        """
         phase_profile, transmission = create_lens_phase(
             self.xx, self.yy, self.default_params, self.wavelength
         )
