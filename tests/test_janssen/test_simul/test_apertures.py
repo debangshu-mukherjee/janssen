@@ -27,7 +27,12 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_grid_dimensions(self) -> None:
-        """Test that grids have correct dimensions."""
+        """Test that grids have correct dimensions.
+
+        Note:
+            Creating test grids with height=32 and width=64 to verify
+            that _arrayed_grids preserves input dimensions.
+        """
         hh, ww = 32, 64
         dx = 1e-6
         x0 = jnp.zeros((hh, ww))
@@ -39,7 +44,12 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_grid_centering(self) -> None:
-        """Test that grids are properly centered."""
+        """Test that grids are properly centered.
+
+        Note:
+            Verifying that the grid center is at (0, 0) within
+            tolerance of half the grid spacing.
+        """
         hh, ww = 64, 64
         dx = 1e-6
         x0 = jnp.zeros((hh, ww))
@@ -53,7 +63,12 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_grid_spacing(self) -> None:
-        """Test that grid spacing is correct."""
+        """Test that grid spacing is correct.
+
+        Note:
+            Calculate spacing between adjacent grid points in x and y
+            directions to verify they match the specified dx.
+        """
         hh, ww = 32, 32
         dx = 2e-6
         x0 = jnp.zeros((hh, ww))
@@ -67,7 +82,12 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_scalar_dx(self) -> None:
-        """Test that scalar dx works correctly."""
+        """Test that scalar dx works correctly.
+
+        Note:
+            When dx is a scalar, it should be applied equally to both
+            x and y grid spacing.
+        """
         hh, ww = 32, 32
         dx = 2e-6
         x0 = jnp.zeros((hh, ww))
@@ -81,7 +101,12 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_array_dx(self) -> None:
-        """Test that 2-element array dx works correctly."""
+        """Test that 2-element array dx works correctly.
+
+        Note:
+            Testing dx as [dx_val, dy_val] array to allow different
+            spacing in x and y directions.
+        """
         hh, ww = 32, 32
         dx_val = 2e-6
         dy_val = 3e-6
@@ -97,7 +122,13 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_matches_meshgrid(self) -> None:
-        """Test that _arrayed_grids produces same output as meshgrid."""
+        """Test that _arrayed_grids produces same output as meshgrid.
+
+        Note:
+            Compare _arrayed_grids output with standard JAX meshgrid
+            to ensure consistency with expected grid generation.
+            Creating reference meshgrid with centered coordinates.
+        """
         hh, ww = 16, 24
         dx = 1.5e-6
         x0 = jnp.zeros((hh, ww))
@@ -112,7 +143,12 @@ class TestArrayedGrids(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_different_dx_dy_meshgrid(self) -> None:
-        """Test that _arrayed_grids with [dx, dy] matches expected meshgrid."""
+        """Test that _arrayed_grids with [dx, dy] matches expected meshgrid.
+
+        Note:
+            Verifying that different x and y spacing values produce
+            the expected non-uniform grid.
+        """
         hh, ww = 20, 30
         dx_val = 2e-6
         dy_val = 3e-6
@@ -149,7 +185,14 @@ class TestCircularAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_circular_aperture(self) -> None:
-        """Test basic circular aperture application."""
+        """Test basic circular aperture application.
+
+        Note:
+            Apply a 50 micron diameter circular aperture and verify:
+            1. Output maintains input wavefront properties
+            2. Center of aperture has full transmission
+            3. Corners are blocked (zero transmission)
+        """
         var_circular_aperture = self.variant(circular_aperture)
         diameter = 50e-6
         result = var_circular_aperture(self.test_wavefront, diameter)
@@ -176,7 +219,13 @@ class TestCircularAperture(chex.TestCase, parameterized.TestCase):
     def test_circular_aperture_sizes(
         self, diameter: float, transmittivity: float
     ) -> None:
-        """Test circular aperture with various sizes and transmittivities."""
+        """Test circular aperture with various sizes and transmittivities.
+
+        Note:
+            Testing different aperture diameters (10-100μm) and
+            transmittivity values (0.3-1.0) to verify correct scaling
+            and attenuation behavior.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         result = var_circular_aperture(
             self.test_wavefront, diameter, transmittivity=transmittivity
@@ -193,7 +242,13 @@ class TestCircularAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_circular_aperture_offset(self) -> None:
-        """Test circular aperture with offset center."""
+        """Test circular aperture with offset center.
+
+        Note:
+            Testing aperture with center offset by (10μm, -5μm)
+            to verify correct spatial positioning. Calculating indices
+            for offset center and verifying transmission.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         diameter = 30e-6
         center = jnp.array([10e-6, -5e-6])
@@ -210,7 +265,13 @@ class TestCircularAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_transmittivity_clipping(self) -> None:
-        """Test that transmittivity is clipped to [0, 1]."""
+        """Test that transmittivity is clipped to [0, 1].
+
+        Note:
+            Transmittivity values outside [0, 1] should be clipped.
+            Testing with values 2.0 (should clip to 1.0) and -0.5
+            (should clip to 0.0).
+        """
         diameter = 50e-6
         var_circular_aperture = self.variant(circular_aperture)
         result_high = var_circular_aperture(
@@ -245,7 +306,12 @@ class TestRectangularAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_rectangular_aperture(self) -> None:
-        """Test basic rectangular aperture."""
+        """Test basic rectangular aperture.
+
+        Note:
+            Testing 40μm × 60μm rectangular aperture.
+            Center should have full transmission, corners should be blocked.
+        """
         var_rectangular = self.variant(rectangular_aperture)
         width = 40e-6
         height = 60e-6
@@ -280,7 +346,12 @@ class TestRectangularAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_rectangular_aperture_offset(self) -> None:
-        """Test rectangular aperture with offset center."""
+        """Test rectangular aperture with offset center.
+
+        Note:
+            Testing 30μm × 40μm rectangle offset by (15μm, -10μm)
+            to verify proper spatial positioning.
+        """
         var_rectangular = self.variant(rectangular_aperture)
         width = 30e-6
         height = 40e-6
@@ -318,7 +389,13 @@ class TestAnnularAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_annular_aperture(self) -> None:
-        """Test basic annular aperture."""
+        """Test basic annular aperture.
+
+        Note:
+            Testing annular aperture with 20μm inner and 60μm outer diameter.
+            Center should be blocked, ring region should transmit,
+            corners should be blocked.
+        """
         var_annular = self.variant(annular_aperture)
         inner_diameter = 20e-6
         outer_diameter = 60e-6
@@ -381,7 +458,12 @@ class TestVariableTransmissionAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_scalar_transmission(self) -> None:
-        """Test with scalar transmission value."""
+        """Test with scalar transmission value.
+
+        Note:
+            Scalar transmission value (0.5) should be applied
+            uniformly across the entire field.
+        """
         var_transmission = self.variant(variable_transmission_aperture)
         transmission = 0.5
         result = var_transmission(self.test_wavefront, transmission)
@@ -393,7 +475,12 @@ class TestVariableTransmissionAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_array_transmission(self) -> None:
-        """Test with array transmission map."""
+        """Test with array transmission map.
+
+        Note:
+            Using a gradient transmission map (increasing from left to right)
+            to verify spatially varying transmission.
+        """
         var_transmission = self.variant(variable_transmission_aperture)
         x = jnp.linspace(0, 1, self.nx)
         y = jnp.linspace(0, 1, self.ny)
@@ -406,7 +493,12 @@ class TestVariableTransmissionAperture(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_transmission_clipping(self) -> None:
-        """Test that transmission values are clipped to [0, 1]."""
+        """Test that transmission values are clipped to [0, 1].
+
+        Note:
+            Transmission map with values outside [0, 1] should be clipped.
+            Testing with 2.0 (clips to 1.0) and -1.0 (clips to 0.0).
+        """
         var_transmission = self.variant(variable_transmission_aperture)
         transmission_map = jnp.ones((self.ny, self.nx)) * 2.0
         transmission_map = transmission_map.at[0, 0].set(-1.0)
@@ -438,7 +530,14 @@ class TestGaussianApodizer(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_basic_gaussian_apodizer(self) -> None:
-        """Test basic Gaussian apodizer."""
+        """Test basic Gaussian apodizer.
+
+        Note:
+            Gaussian apodizer with σ=20μm:
+            - Center should have peak transmission (1.0)
+            - Edges should have lower transmission than center
+            - At 1σ distance, transmission should be exp(-0.5) ≈ 0.606
+        """
         var_gaussian = self.variant(gaussian_apodizer)
         sigma = 20e-6
         result = var_gaussian(self.test_wavefront, sigma)
@@ -476,7 +575,12 @@ class TestGaussianApodizer(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_gaussian_offset(self) -> None:
-        """Test Gaussian apodizer with offset center."""
+        """Test Gaussian apodizer with offset center.
+
+        Note:
+            Gaussian with σ=25μm offset by (10μm, -5μm).
+            Should create asymmetric transmission pattern.
+        """
         var_gaussian = self.variant(gaussian_apodizer)
         sigma = 25e-6
         center = jnp.array([10e-6, -5e-6])
@@ -515,6 +619,7 @@ class TestSuperGaussianApodizer(chex.TestCase, parameterized.TestCase):
         self, sigma: float, m: int, peak_transmittivity: float
     ) -> None:
         """Test super-Gaussian with various orders."""
+        gaussian_order = m
         var_supergaussian = self.variant(supergaussian_apodizer)
         result = var_supergaussian(
             self.test_wavefront,
@@ -534,14 +639,19 @@ class TestSuperGaussianApodizer(chex.TestCase, parameterized.TestCase):
                     self.nx // 2 + near_center_idx,
                 ]
             )
-            if m >= 4:
+            if m >= gaussian_order:
                 chex.assert_trees_all_close(
                     near_val, peak_transmittivity, rtol=0.2
                 )
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_supergaussian_vs_gaussian(self) -> None:
-        """Test that super-Gaussian with m=1 has expected behavior."""
+        """Test that super-Gaussian with m=1 has expected behavior.
+
+        Note:
+            Super-Gaussian with m=1 should behave like regular Gaussian.
+            Center at 1.0, smooth falloff to edges.
+        """
         var_supergaussian = self.variant(supergaussian_apodizer)
         sigma = 25e-6
         super_result = var_supergaussian(self.test_wavefront, sigma, m=1)
@@ -571,7 +681,12 @@ class TestEllipticalApodizers(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_elliptical_gaussian_basic(self) -> None:
-        """Test basic elliptical Gaussian apodizer."""
+        """Test basic elliptical Gaussian apodizer.
+
+        Note:
+            Elliptical Gaussian with σx=30μm (wider), σy=20μm (narrower).
+            Should see slower falloff in x direction than y direction.
+        """
         var_elliptical = self.variant(gaussian_apodizer_elliptical)
         sigma_x = 30e-6
         sigma_y = 20e-6
@@ -607,7 +722,12 @@ class TestEllipticalApodizers(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_elliptical_supergaussian(self) -> None:
-        """Test elliptical super-Gaussian apodizer."""
+        """Test elliptical super-Gaussian apodizer.
+
+        Note:
+            Elliptical super-Gaussian with m=4 creates a flatter top
+            with steeper edges than regular Gaussian.
+        """
         var_elliptical_super = self.variant(supergaussian_apodizer_elliptical)
         sigma_x = 30e-6
         sigma_y = 20e-6
@@ -622,7 +742,12 @@ class TestEllipticalApodizers(chex.TestCase, parameterized.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_circular_from_elliptical(self) -> None:
-        """Test that equal sigmas give circular profile."""
+        """Test that equal sigmas give circular profile.
+
+        Note:
+            When σx = σy, elliptical Gaussian should match
+            circular Gaussian exactly.
+        """
         var_circular = self.variant(gaussian_apodizer)
         var_elliptical = self.variant(gaussian_apodizer_elliptical)
         sigma = 25e-6
@@ -655,7 +780,12 @@ class TestJAXTransformations(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_jit_compilation(self) -> None:
-        """Test JIT compilation of aperture functions."""
+        """Test JIT compilation of aperture functions.
+
+        Note:
+            Verify that aperture functions work correctly with JAX JIT
+            compilation by comparing JIT-compiled vs normal execution results.
+        """
         var_circular_aperture = self.variant(circular_aperture)
 
         @jax.jit
@@ -668,7 +798,12 @@ class TestJAXTransformations(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_gradient_computation(self) -> None:
-        """Test gradient computation through apertures."""
+        """Test gradient computation through apertures.
+
+        Note:
+            Aperture functions should be differentiable for optimization.
+            Computing gradient of total power with respect to aperture diameter.
+        """
         var_circular_aperture = self.variant(circular_aperture)
 
         def loss_fn(diameter: Float[Array, " "]) -> Float[Array, " "]:
@@ -682,7 +817,13 @@ class TestJAXTransformations(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_vmap_apertures(self) -> None:
-        """Test vmapping over aperture parameters."""
+        """Test vmapping over aperture parameters.
+
+        Note:
+            Test vectorized mapping (vmap) over multiple aperture sizes
+            simultaneously: 20μm, 40μm, 60μm diameters.
+            Larger apertures should transmit more total power.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         diameters = jnp.array([20e-6, 40e-6, 60e-6])
 
@@ -701,7 +842,13 @@ class TestJAXTransformations(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_composed_apertures(self) -> None:
-        """Test composing multiple aperture functions."""
+        """Test composing multiple aperture functions.
+
+        Note:
+            Applying circular aperture, then Gaussian apodizer,
+            then uniform attenuation in sequence.
+            Final center transmission should be 0.9.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         var_gaussian_apodizer = self.variant(gaussian_apodizer)
         var_variable_transmission = self.variant(
@@ -719,7 +866,12 @@ class TestJAXTransformations(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_grad_through_composition(self) -> None:
-        """Test gradient computation through composed apertures."""
+        """Test gradient computation through composed apertures.
+
+        Note:
+            Computing gradients through a composition of circular
+            aperture and Gaussian apodizer with respect to both parameters.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         var_gaussian_apodizer = self.variant(gaussian_apodizer)
 
@@ -759,7 +911,12 @@ class TestEdgeCases(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_zero_diameter_aperture(self) -> None:
-        """Test aperture with zero diameter."""
+        """Test aperture with zero diameter.
+
+        Note:
+            Edge case: zero diameter aperture should block all light.
+            Allow tolerance up to 1.0 for numerical stability.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         result = var_circular_aperture(self.test_wavefront, 0.0)
         total_transmission = jnp.sum(jnp.abs(result.field))
@@ -767,7 +924,12 @@ class TestEdgeCases(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_very_large_aperture(self) -> None:
-        """Test aperture much larger than field."""
+        """Test aperture much larger than field.
+
+        Note:
+            Edge case: 1 meter diameter aperture (much larger than field)
+            should transmit everything without blocking any light.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         result = var_circular_aperture(self.test_wavefront, 1.0)  # 1 meter
         chex.assert_trees_all_close(
@@ -776,7 +938,12 @@ class TestEdgeCases(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_annular_inverted_diameters(self) -> None:
-        """Test annular aperture with inner > outer."""
+        """Test annular aperture with inner > outer.
+
+        Note:
+            Edge case: when inner diameter > outer diameter,
+            no light should be transmitted (all blocked).
+        """
         var_annular_aperture = self.variant(annular_aperture)
         result = var_annular_aperture(self.test_wavefront, 60e-6, 20e-6)
         chex.assert_trees_all_close(
@@ -785,7 +952,12 @@ class TestEdgeCases(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_zero_sigma_gaussian(self) -> None:
-        """Test Gaussian with zero or very small sigma."""
+        """Test Gaussian with zero or very small sigma.
+
+        Note:
+            Edge case: very small σ (1nm) creates sharp peak at center
+            with rapid falloff to neighboring pixels.
+        """
         var_gaussian_apodizer = self.variant(gaussian_apodizer)
         result = var_gaussian_apodizer(self.test_wavefront, 1e-9)
         center_val = jnp.abs(result.field[self.ny // 2, self.nx // 2])
@@ -795,7 +967,13 @@ class TestEdgeCases(chex.TestCase):
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_complex_field_preservation(self) -> None:
-        """Test that phase information is preserved."""
+        """Test that phase information is preserved.
+
+        Note:
+            Critical test: apertures should only affect amplitude,
+            not phase. Create a field with varying phase and verify
+            phase is unchanged after aperture application.
+        """
         var_circular_aperture = self.variant(circular_aperture)
         phase = jnp.linspace(0, 2 * jnp.pi, self.nx * self.ny).reshape(
             self.ny, self.nx
