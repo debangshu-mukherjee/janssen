@@ -58,13 +58,14 @@ References
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from beartype.typing import Tuple, Union
+from beartype.typing import Tuple
 from jaxtyping import Array, Float, Int, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
     make_optical_wavefront,
     scalar_float,
+    scalar_integer,
 )
 
 from .helper import add_phase_screen
@@ -92,7 +93,7 @@ def factorial(n: Int[Array, ""]) -> Int[Array, ""]:
 
 
 @jaxtyped(typechecker=beartype)
-def noll_to_nm(j: int) -> Tuple[int, int]:
+def noll_to_nm(j: scalar_integer) -> Tuple[int, int]:
     """Convert Noll index to (n, m) indices.
 
     Parameters
@@ -112,32 +113,16 @@ def noll_to_nm(j: int) -> Tuple[int, int]:
     Uses the standard Noll ordering where j=1 corresponds to piston (n=0, m=0).
     This implementation uses JAX-compatible operations for JIT compilation.
     """
-    if j < 1:
-        raise ValueError("Noll index must be >= 1")
-
-    # Find radial order n
     n = int(jnp.ceil((-3 + jnp.sqrt(9 + 8 * j)) / 2))
-
-    # Number of terms with radial order less than n
     n_prev = n * (n - 1) // 2
-
-    # Position within the n group (0-based)
     p = j - n_prev - 1
-
-    # Determine m based on position and parity using JAX-compatible operations
-    # For even n
     m_even_p_even = 2 * ((p + 1) // 2)
     m_even_p_odd = -2 * ((p + 1) // 2)
     m_even = jnp.where(p % 2 == 0, m_even_p_even, m_even_p_odd)
-    
-    # For odd n
     m_odd_p_even = -2 * ((p + 2) // 2) + 1
     m_odd_p_odd = 2 * ((p + 2) // 2) - 1
     m_odd = jnp.where(p % 2 == 0, m_odd_p_even, m_odd_p_odd)
-    
-    # Select based on n parity
     m = jnp.where(n % 2 == 0, m_even, m_odd)
-
     return n, int(m)
 
 
@@ -156,31 +141,28 @@ def nm_to_noll(n: int, m: int) -> int:
     -------
     int
         Noll index (starting from 1)
-    
+
     Notes
     -----
     This implementation uses JAX-compatible operations for JIT compilation.
+    Calculates j_base as the number of terms with radial order less than n.
+    Position within the n group is computed differently for even and odd n values.
+    For even n: positive m maps to m-1, negative m to -m-1, zero m to 0.
+    For odd n: positive m maps to m, negative m to -m-1.
     """
-    if abs(m) > n or (n - abs(m)) % 2 != 0:
-        raise ValueError(f"Invalid (n, m) = ({n}, {m})")
-
-    # Number of terms with radial order less than n
     j_base = n * (n - 1) // 2
 
-    # Position within the n group using JAX-compatible operations
-    # For even n
     p_even_m_pos = m - 1
     p_even_m_neg = -m - 1
     p_even_m_zero = 0
-    p_even = jnp.where(m > 0, p_even_m_pos, 
-                       jnp.where(m < 0, p_even_m_neg, p_even_m_zero))
-    
-    # For odd n (m=0 should not occur for odd n)
+    p_even = jnp.where(
+        m > 0, p_even_m_pos, jnp.where(m < 0, p_even_m_neg, p_even_m_zero)
+    )
+
     p_odd_m_pos = m
     p_odd_m_neg = -m - 1
     p_odd = jnp.where(m > 0, p_odd_m_pos, p_odd_m_neg)
-    
-    # Select based on n parity
+
     p = jnp.where(n % 2 == 0, p_even, p_odd)
 
     return int(j_base + p + 1)
@@ -207,11 +189,15 @@ def zernike_radial(
     -------
     Float[Array, " *batch"]
         Radial polynomial R_n^|m|(rho)
+    
+    Notes
+    -----
+    Uses JAX-compatible validation that returns zeros for invalid (n,m) combinations
+    where n-|m| is odd. Computes the radial polynomial using the standard formula
+    with factorials for valid combinations.
     """
     m_abs = abs(m)
-
-    if (n - m_abs) % 2 != 0:
-        return jnp.zeros_like(rho)
+    valid = (n - m_abs) % 2 == 0
 
     result = jnp.zeros_like(rho)
     for s in range((n - m_abs) // 2 + 1):
@@ -225,7 +211,7 @@ def zernike_radial(
         coeff = sign * num / denom
         result = result + coeff * (rho ** (n - 2 * s))
 
-    return result
+    return jnp.where(valid, result, jnp.zeros_like(rho))
 
 
 @jaxtyped(typechecker=beartype)
@@ -260,43 +246,196 @@ def zernike_polynomial(
     -----
     The polynomial is zero outside the unit circle (rho > 1).
     Normalization follows the convention where RMS over unit circle = 1.
+    Angular part uses cosine for m>0, sine for m<0, and 1 for m=0.
+    Normalization factor is sqrt(n+1) for m=0 and sqrt(2*(n+1)) for m≠0.
     """
-    # Radial part
     R = zernike_radial(rho, n, abs(m))
 
-    # Angular part (JAX-compatible)
     angular_cos = jnp.cos(abs(m) * theta)
     angular_sin = jnp.sin(abs(m) * theta)
     angular_ones = jnp.ones_like(theta)
-    
-    # Select angular function based on m
-    angular = jnp.where(m > 0, angular_cos,
-                        jnp.where(m < 0, angular_sin, angular_ones))
 
-    # Normalization factor (JAX-compatible)
+    angular = jnp.where(
+        m > 0, angular_cos, jnp.where(m < 0, angular_sin, angular_ones)
+    )
+
     norm_m0 = jnp.sqrt(n + 1)
     norm_m_nonzero = jnp.sqrt(2 * (n + 1))
     norm = jnp.where(
-        normalize,
-        jnp.where(m == 0, norm_m0, norm_m_nonzero),
-        1.0
+        normalize, jnp.where(m == 0, norm_m0, norm_m_nonzero), 1.0
     )
 
-    # Mask for unit circle
     mask = rho <= 1.0
 
     return norm * R * angular * mask
 
 
 @jaxtyped(typechecker=beartype)
-def generate_aberration(
+def zernike_even(
+    rho: Float[Array, " *batch"],
+    theta: Float[Array, " *batch"],
+    n: int,
+    m: int,
+    normalize: bool = True,
+) -> Float[Array, " *batch"]:
+    """Generate even (cosine) Zernike polynomial.
+
+    Parameters
+    ----------
+    rho : Float[Array, " *batch"]
+        Normalized radial coordinate (0 to 1)
+    theta : Float[Array, " *batch"]
+        Azimuthal angle in radians
+    n : int
+        Radial order (n >= 0)
+    m : int
+        Azimuthal frequency (|m| <= n, n-|m| must be even)
+    normalize : bool, optional
+        Whether to normalize for unit RMS over unit circle, by default True
+
+    Returns
+    -------
+    Float[Array, " *batch"]
+        Even Zernike polynomial using cosine for angular part
+
+    Notes
+    -----
+    This function always uses cosine for the angular component,
+    suitable for symmetric aberrations.
+    Angular part uses cos(|m|*theta) for m≠0, and 1 for m=0.
+    Normalization factor is sqrt(n+1) for m=0 and sqrt(2*(n+1)) for m≠0.
+    Returns zero outside the unit circle (rho > 1).
+    """
+    R = zernike_radial(rho, n, abs(m))
+
+    angular = jnp.where(m != 0, jnp.cos(abs(m) * theta), jnp.ones_like(theta))
+
+    norm_m0 = jnp.sqrt(n + 1)
+    norm_m_nonzero = jnp.sqrt(2 * (n + 1))
+    norm = jnp.where(
+        normalize, jnp.where(m == 0, norm_m0, norm_m_nonzero), 1.0
+    )
+
+    mask = rho <= 1.0
+
+    return norm * R * angular * mask
+
+
+@jaxtyped(typechecker=beartype)
+def zernike_odd(
+    rho: Float[Array, " *batch"],
+    theta: Float[Array, " *batch"],
+    n: int,
+    m: int,
+    normalize: bool = True,
+) -> Float[Array, " *batch"]:
+    """Generate odd (sine) Zernike polynomial.
+
+    Parameters
+    ----------
+    rho : Float[Array, " *batch"]
+        Normalized radial coordinate (0 to 1)
+    theta : Float[Array, " *batch"]
+        Azimuthal angle in radians
+    n : int
+        Radial order (n >= 0)
+    m : int
+        Azimuthal frequency (|m| <= n, n-|m| must be even, m != 0)
+    normalize : bool, optional
+        Whether to normalize for unit RMS over unit circle, by default True
+
+    Returns
+    -------
+    Float[Array, " *batch"]
+        Odd Zernike polynomial using sine for angular part
+
+    Notes
+    -----
+    This function always uses sine for the angular component,
+    suitable for antisymmetric aberrations. Returns zero if m=0.
+    Angular part uses sin(|m|*theta) for all m values.
+    Normalization factor is sqrt(2*(n+1)) when normalize=True.
+    Returns zero outside the unit circle (rho > 1) and for m=0.
+    """
+    is_m_zero = m == 0
+
+    R = zernike_radial(rho, n, abs(m))
+
+    angular = jnp.sin(abs(m) * theta)
+
+    norm = jnp.where(normalize, jnp.sqrt(2 * (n + 1)), 1.0)
+
+    mask = rho <= 1.0
+
+    return jnp.where(is_m_zero, jnp.zeros_like(rho), norm * R * angular * mask)
+
+
+@jaxtyped(typechecker=beartype)
+def generate_aberration_nm(
+    xx: Float[Array, " H W"],
+    yy: Float[Array, " H W"],
+    n_indices: Int[Array, " N"],
+    m_indices: Int[Array, " N"],
+    coefficients: Float[Array, " N"],
+    pupil_radius: scalar_float,
+) -> Float[Array, " H W"]:
+    """Generate aberration from (n,m) indices and coefficients (JAX-compatible).
+
+    Parameters
+    ----------
+    xx : Float[Array, " H W"]
+        X coordinate grid in meters
+    yy : Float[Array, " H W"]
+        Y coordinate grid in meters
+    n_indices : Int[Array, " N"]
+        Array of radial orders
+    m_indices : Int[Array, " N"]
+        Array of azimuthal frequencies
+    coefficients : Float[Array, " N"]
+        Zernike coefficients in waves
+    pupil_radius : scalar_float
+        Pupil radius in meters
+
+    Returns
+    -------
+    Float[Array, " H W"]
+        Phase aberration map in radians
+
+    Notes
+    -----
+    This version is fully JAX-compatible and can be JIT-compiled.
+    Uses jax.lax.scan for efficient accumulation.
+    Converts Cartesian coordinates to polar coordinates normalized by pupil radius.
+    Each Zernike contribution is accumulated using scan for efficiency.
+    The n and m values must be concrete integers for zernike_polynomial.
+    Final phase is converted from waves to radians.
+    """
+    rho = jnp.sqrt(xx**2 + yy**2) / pupil_radius
+    theta = jnp.arctan2(yy, xx)
+
+    def scan_fn(phase_acc, inputs):
+        n, m, coeff = inputs
+        Z = zernike_polynomial(rho, theta, int(n), int(m), normalize=True)
+        phase_acc = phase_acc + coeff * Z
+        return phase_acc, None
+
+    phase, _ = jax.lax.scan(
+        scan_fn,
+        jnp.zeros_like(xx),
+        (n_indices, m_indices, coefficients),
+    )
+
+    return 2 * jnp.pi * phase
+
+
+@jaxtyped(typechecker=beartype)
+def generate_aberration_noll(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
     coefficients: Float[Array, " N"],
     pupil_radius: scalar_float,
-    indexing: str = "noll",
 ) -> Float[Array, " H W"]:
-    """Generate aberration phase map from Zernike coefficients.
+    """Generate aberration from Noll-indexed coefficients.
 
     Parameters
     ----------
@@ -305,48 +444,35 @@ def generate_aberration(
     yy : Float[Array, " H W"]
         Y coordinate grid in meters
     coefficients : Float[Array, " N"]
-        Zernike coefficients in waves. Can be:
-        - Array indexed by Noll index (starting from j=1)
-        - Dict mapping Noll indices to coefficients
+        Zernike coefficients in waves, indexed by Noll index.
+        Element 0 corresponds to j=1 (piston), element 1 to j=2, etc.
     pupil_radius : scalar_float
         Pupil radius in meters
-    indexing : str, optional
-        Indexing convention ("noll" or "ansi"), by default "noll"
 
     Returns
     -------
     Float[Array, " H W"]
         Phase aberration map in radians
+
+    Notes
+    -----
+    Converts Noll indices to (n,m) pairs and calls generate_aberration_nm.
+    The conversion happens at compile time with concrete indices.
+    Pre-computes all (n,m) pairs for the given number of coefficients.
     """
-    # Convert to polar coordinates
-    rho = jnp.sqrt(xx**2 + yy**2) / pupil_radius
-    theta = jnp.arctan2(yy, xx)
+    n_list = []
+    m_list = []
+    for j in range(1, len(coefficients) + 1):
+        n, m = noll_to_nm(j)
+        n_list.append(n)
+        m_list.append(m)
 
-    # Initialize phase map
-    phase = jnp.zeros_like(xx)
+    n_indices = jnp.array(n_list, dtype=jnp.int32)
+    m_indices = jnp.array(m_list, dtype=jnp.int32)
 
-    # Handle different coefficient formats
-    if isinstance(coefficients, dict):
-        coeff_items = coefficients.items()
-    else:
-        # Assume array indexed by Noll index
-        coeff_items = enumerate(coefficients, start=1)
-
-    # Sum contributions from each Zernike term
-    for j, coeff in coeff_items:
-        if abs(coeff) < 1e-10:  # Skip negligible coefficients
-            continue
-
-        if indexing == "noll":
-            n, m = noll_to_nm(int(j))
-        else:
-            raise NotImplementedError(f"Indexing {indexing} not yet supported")
-
-        Z = zernike_polynomial(rho, theta, n, m, normalize=True)
-        phase = phase + coeff * Z
-
-    # Convert from waves to radians
-    return 2 * jnp.pi * phase
+    return generate_aberration_nm(
+        xx, yy, n_indices, m_indices, coefficients, pupil_radius
+    )
 
 
 @jaxtyped(typechecker=beartype)
@@ -374,7 +500,9 @@ def defocus(
     Float[Array, " H W"]
         Defocus phase map in radians
     """
-    return generate_aberration(xx, yy, {4: amplitude}, pupil_radius)
+    coefficients = jnp.zeros(4)
+    coefficients = coefficients.at[3].set(amplitude)
+    return generate_aberration_noll(xx, yy, coefficients, pupil_radius)
 
 
 @jaxtyped(typechecker=beartype)
@@ -405,9 +533,10 @@ def astigmatism(
     Float[Array, " H W"]
         Astigmatism phase map in radians
     """
-    return generate_aberration(
-        xx, yy, {5: amplitude_45, 6: amplitude_0}, pupil_radius
-    )
+    coefficients = jnp.zeros(6)
+    coefficients = coefficients.at[4].set(amplitude_45)
+    coefficients = coefficients.at[5].set(amplitude_0)
+    return generate_aberration_noll(xx, yy, coefficients, pupil_radius)
 
 
 @jaxtyped(typechecker=beartype)
@@ -438,9 +567,10 @@ def coma(
     Float[Array, " H W"]
         Coma phase map in radians
     """
-    return generate_aberration(
-        xx, yy, {7: amplitude_y, 8: amplitude_x}, pupil_radius
-    )
+    coefficients = jnp.zeros(8)
+    coefficients = coefficients.at[6].set(amplitude_y)
+    coefficients = coefficients.at[7].set(amplitude_x)
+    return generate_aberration_noll(xx, yy, coefficients, pupil_radius)
 
 
 @jaxtyped(typechecker=beartype)
@@ -468,7 +598,9 @@ def spherical_aberration(
     Float[Array, " H W"]
         Spherical aberration phase map in radians
     """
-    return generate_aberration(xx, yy, {11: amplitude}, pupil_radius)
+    coefficients = jnp.zeros(11)
+    coefficients = coefficients.at[10].set(amplitude)
+    return generate_aberration_noll(xx, yy, coefficients, pupil_radius)
 
 
 @jaxtyped(typechecker=beartype)
@@ -496,20 +628,31 @@ def trefoil(
 
     Returns
     -------
-    Float[Array, " H W"]
+    trefoil_wavefront : Float[Array, " H W"]
         Trefoil phase map in radians
+
+    Notes
+    -----
+    This function generates a trefoil aberration phase map in radians.
+    The trefoil aberration is a combination of two Zernike polynomials:
+    Z9 and Z10.
+    The Z9 polynomial is the vertical trefoil aberration and the Z10 polynomial
+    is the oblique trefoil aberration.
     """
-    return generate_aberration(
-        xx, yy, {9: amplitude_30, 10: amplitude_0}, pupil_radius
+    coefficients = jnp.zeros(10)
+    coefficients = coefficients.at[8].set(amplitude_30)
+    coefficients = coefficients.at[9].set(amplitude_0)
+    trefoil_wavefront: Float[Array, " H W"] = generate_aberration_noll(
+        xx, yy, coefficients, pupil_radius
     )
+    return trefoil_wavefront
 
 
 @jaxtyped(typechecker=beartype)
 def apply_aberration(
     incoming: OpticalWavefront,
-    coefficients: Union[Float[Array, " N"], dict],
+    coefficients: Float[Array, " N"],
     pupil_radius: scalar_float,
-    indexing: str = "noll",
 ) -> OpticalWavefront:
     """Apply Zernike aberrations to an optical wavefront.
 
@@ -517,30 +660,22 @@ def apply_aberration(
     ----------
     incoming : OpticalWavefront
         Input wavefront
-    coefficients : Union[Float[Array, " N"], dict]
-        Zernike coefficients in waves
+    coefficients : Float[Array, " N"]
+        Noll-indexed Zernike coefficients in waves (index i = Noll index i+1)
     pupil_radius : scalar_float
         Pupil radius in meters
-    indexing : str, optional
-        Indexing convention ("noll" or "ansi"), by default "noll"
 
     Returns
     -------
     OpticalWavefront
         Aberrated wavefront
     """
-    # Create coordinate grids
     h, w = incoming.field.shape[:2]
     x = jnp.arange(-w // 2, w // 2) * incoming.dx
     y = jnp.arange(-h // 2, h // 2) * incoming.dx
     xx, yy = jnp.meshgrid(x, y)
-
-    # Generate aberration phase map
-    phase = generate_aberration(xx, yy, coefficients, pupil_radius, indexing)
-
-    # Apply to field
+    phase = generate_aberration_noll(xx, yy, coefficients, pupil_radius)
     field_out = add_phase_screen(incoming.field, phase)
-
     return make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,

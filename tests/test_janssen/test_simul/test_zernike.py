@@ -10,7 +10,8 @@ from janssen.simul.zernike import (
     coma,
     defocus,
     factorial,
-    generate_aberration,
+    generate_aberration_nm,
+    generate_aberration_noll,
     nm_to_noll,
     noll_to_nm,
     spherical_aberration,
@@ -174,14 +175,52 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
                 chex.assert_trees_all_close(integral_cross, 0.0, atol=0.1)
 
     @chex.variants(with_jit=True, without_jit=True)
-    def test_generate_aberration(self) -> None:
-        """Test aberration generation from coefficients."""
-        var_generate_aberration = self.variant(generate_aberration)
+    def test_generate_aberration_noll(self) -> None:
+        """Test Noll-indexed aberration generation."""
+        var_generate_aberration_noll = self.variant(generate_aberration_noll)
 
-        # Test with single coefficient
-        coeffs = {4: 0.5}  # 0.5 waves of defocus
-        phase = var_generate_aberration(
+        # Test with defocus (Noll index 4) and spherical (Noll index 11)
+        # Create coefficients array where index i corresponds to Noll index i+1
+        coeffs = jnp.zeros(11)  # Support up to Noll index 11
+        coeffs = coeffs.at[3].set(0.5)  # Noll 4 (defocus) = 0.5 waves
+        coeffs = coeffs.at[10].set(0.1)  # Noll 11 (spherical) = 0.1 waves
+
+        phase = var_generate_aberration_noll(
             self.xx, self.yy, coeffs, self.pupil_radius
+        )
+
+        # Check that phase is real
+        chex.assert_trees_all_equal(jnp.isrealobj(phase), True)
+
+        # Check shape
+        chex.assert_shape(phase, self.xx.shape)
+
+        # Check that phase is zero outside pupil
+        outside_mask = self.rho > 1.0
+        if jnp.any(outside_mask):
+            chex.assert_trees_all_close(
+                jnp.max(jnp.abs(phase[outside_mask])), 0.0, atol=1e-10
+            )
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_generate_aberration_nm(self) -> None:
+        """Test (n,m) indexed aberration generation."""
+        var_generate_aberration_nm = self.variant(generate_aberration_nm)
+
+        # Test with defocus (n=2, m=0) and astigmatism (n=2, m=2)
+        n_indices = jnp.array([2, 2])
+        m_indices = jnp.array([0, 2])
+        coefficients = jnp.array(
+            [0.5, 0.3]
+        )  # 0.5 waves defocus, 0.3 waves astig
+
+        phase = var_generate_aberration_nm(
+            self.xx,
+            self.yy,
+            n_indices,
+            m_indices,
+            coefficients,
+            self.pupil_radius,
         )
 
         # Check that phase is real
@@ -275,7 +314,11 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
         """Test applying aberration to wavefront."""
         var_apply_aberration = self.variant(apply_aberration)
 
-        coeffs = {4: 0.25, 11: 0.1}  # Defocus and spherical
+        # Defocus (Noll 4) and spherical (Noll 11)
+        coeffs = jnp.zeros(11)
+        coeffs = coeffs.at[3].set(0.25)  # Noll 4 (defocus) = 0.25 waves
+        coeffs = coeffs.at[10].set(0.1)  # Noll 11 (spherical) = 0.1 waves
+
         output = var_apply_aberration(
             self.wavefront, coeffs, self.pupil_radius
         )
