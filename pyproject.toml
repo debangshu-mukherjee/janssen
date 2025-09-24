@@ -1,6 +1,6 @@
 [project]
 name = "janssen"
-version = "2025.09.03"
+version = "2025.09.04"
 description = "Modular Optical Microscopy with JAX"
 authors = [{name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov"}]
 license = {file = "LICENSE.md"}
