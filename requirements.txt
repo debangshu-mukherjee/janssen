@@ -41,7 +41,7 @@ beautifulsoup4==4.13.5
     #   furo
     #   nbconvert
     #   pydata-sphinx-theme
-black==25.1.0
+black==25.9.0
     # via janssen (pyproject.toml)
 bleach==6.2.0
     # via nbconvert
@@ -441,7 +441,7 @@ pytest==8.4.2
     #   janssen (pyproject.toml)
     #   pytest-cov
     #   pytest-xdist
-pytest-cov==6.2.1
+pytest-cov==7.0.0
     # via janssen (pyproject.toml)
 pytest-xdist==3.8.0
     # via janssen (pyproject.toml)
@@ -496,7 +496,7 @@ rpds-py==0.27.1
     # via
     #   jsonschema
     #   referencing
-ruff==0.12.12
+ruff==0.13.1
     # via janssen (pyproject.toml)
 scipy==1.16.1
     # via
