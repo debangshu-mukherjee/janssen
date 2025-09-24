@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: update-tutorials-index
+        name: Update Tutorials Index
+        entry: python docs/update_tutorials_index.py
+        language: python
+        files: '^tutorials/.*\.ipynb$'
+        pass_filenames: false
+        description: "Automatically update tutorials/index.rst when notebooks are added/modified"

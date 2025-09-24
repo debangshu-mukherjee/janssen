@@ -25,7 +25,14 @@ jobs:
       
     - name: Install dependencies
       run: uv sync --extra docs
-      
+
+    - name: Update tutorials index
+      run: |
+        echo "Updating tutorials index..."
+        uv run python docs/update_tutorials_index.py
+        echo "Updated index contents:"
+        cat tutorials/index.rst
+
     - name: Debug - Check environment
       run: |
         echo "Current directory:"
