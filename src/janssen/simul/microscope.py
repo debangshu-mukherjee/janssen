@@ -12,7 +12,10 @@ lens_propagation : function
     Propagates an optical wavefront through a lens
 linear_interaction : function
     Propagates an optical wavefront through a sample using linear
-    interaction
+    interaction.
+diffractogram_noscale : function
+    Calculates the diffractogram of a sample using a simple model
+    without scaling the pixel size of the camera image.
 simple_diffractogram : function
     Calculates the diffractogram of a sample using a simple model
 simple_microscope : function
@@ -83,6 +86,68 @@ def linear_interaction(
         z_position=light.z_position,
     )
     return interacted
+
+@jaxtyped(typechecker=beartype)
+def diffractogram_noscale(
+    sample_cut: SampleFunction,
+    lightwave: OpticalWavefront,
+    zoom_factor: scalar_float,
+    aperture_diameter: scalar_float,
+    travel_distance: scalar_float,
+    aperture_center: Optional[Float[Array, " 2"]] = None,
+) -> OpticalWavefront:
+    """Calculate the diffractogram of a sample using a simple model.
+
+    The lightwave interacts with the sample linearly, and is then
+    zoomed optically. Following this it interacts with a circular
+    aperture before propagating to the camera plane.
+    The camera image is then scaled to the pixel size of the camera.
+    The diffractogram is created from the camera image.
+
+    Parameters
+    ----------
+    sample_cut : SampleFunction
+        The sample function representing the optical properties of the
+        sample
+    lightwave : OpticalWavefront
+        The incoming optical wavefront
+    zoom_factor : scalar_float
+        The zoom factor for the optical system
+    aperture_diameter : scalar_float
+        The diameter of the aperture in meters
+    travel_distance : scalar_float
+        The distance traveled by the light in meters
+    camera_pixel_size : scalar_float
+        The pixel size of the camera in meters
+    aperture_center : Optional[Float[Array, " 2"]], optional
+        The center of the aperture in pixels
+
+    Returns
+    -------
+    at_camera : OpticalWavefront
+        The calculated optical wavefront at the camera plane.
+
+    Notes
+    -----
+    Algorithm:
+
+    - Propagate the lightwave through the sample using linear interaction
+    - Apply optical zoom to the wavefront
+    - Apply a circular aperture to the zoomed wavefront
+    - Propagate the wavefront to the camera plane using Fraunhofer propagation
+    """
+    at_sample_plane: OpticalWavefront = linear_interaction(
+        sample=sample_cut,
+        light=lightwave,
+    )
+    zoomed_wave: OpticalWavefront = optical_zoom(at_sample_plane, zoom_factor)
+    after_aperture: OpticalWavefront = circular_aperture(
+        zoomed_wave, aperture_diameter, aperture_center
+    )
+    at_camera: OpticalWavefront = fraunhofer_prop(
+        after_aperture, travel_distance
+    )
+    return at_camera
 
 
 @jaxtyped(typechecker=beartype)

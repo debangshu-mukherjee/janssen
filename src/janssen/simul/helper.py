@@ -212,7 +212,7 @@ def scale_pixel(
     new_fov_h: scalar_float = hh * new_dx
     new_fov_w: scalar_float = ww * new_dx
 
-    def smaller_pixel_size(
+    def _smaller_pixel_size(
         field: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
         """
@@ -245,7 +245,7 @@ def scale_pixel(
         )
         return resized
 
-    def larger_pixel_size(
+    def _larger_pixel_size(
         field: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
         """
@@ -259,7 +259,7 @@ def scale_pixel(
         field.
         So here the order is resize then pad.
         """
-        data_minimia_h: Float[Array, " "] = jnp.min(jnp.abs(field))
+        data_minima_h: Float[Array, " "] = jnp.min(jnp.abs(field))
         new_h: Int[Array, " "] = jnp.floor(current_fov_h / new_dx).astype(int)
         new_w: Int[Array, " "] = jnp.floor(current_fov_w / new_dx).astype(int)
         resized: Complex[Array, " H W"] = jax.image.resize(
@@ -276,11 +276,11 @@ def scale_pixel(
             resized,
             ((pad_h_0, pad_h_1), (pad_w_0, pad_w_1)),
             mode="constant",
-            constant_values=data_minimia_h,
+            constant_values=data_minima_h,
         )
 
     resized_field = jax.lax.cond(
-        scale > 1.0, larger_pixel_size, smaller_pixel_size, field
+        scale > 1.0, _larger_pixel_size, _smaller_pixel_size, field
     )
     scaled_wavefront: OpticalWavefront = make_optical_wavefront(
         field=resized_field,

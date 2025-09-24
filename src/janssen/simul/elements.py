@@ -14,8 +14,7 @@ beam_splitter : function
     Splits a field into transmitted and reflected arms with given (t, r)
 mirror_reflection : function
     Applies mirror reflection(s):
-        coordinate flip(s), optional conjugation,
-    π phase
+    coordinate flip(s), optional conjugation, π phase
 phase_grating_sine : function
     Sinusoidal phase grating
 amplitude_grating_binary : function

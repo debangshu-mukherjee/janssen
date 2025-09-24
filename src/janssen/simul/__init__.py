@@ -3,10 +3,9 @@
 Extended Summary
 ----------------
 Comprehensive optical simulation framework for modeling light
-propagation
-through various optical elements. All components are differentiable and
-optimized for JAX transformations, enabling gradient-based optimization
-of optical systems.
+propagation through various optical elements. All components are 
+differentiable and optimized for JAX transformations, enabling gradient-based 
+optimization of optical systems.
 
 Submodules
 ----------
@@ -149,6 +148,7 @@ from .helper import (
     scale_pixel,
 )
 from .microscope import (
+    diffractogram_noscale,
     linear_interaction,
     simple_diffractogram,
     simple_microscope,
@@ -159,7 +159,8 @@ from .zernike import (
     coma,
     defocus,
     factorial,
-    generate_aberration,
+    generate_aberration_nm,
+    generate_aberration_noll,
     nm_to_noll,
     noll_to_nm,
     spherical_aberration,
@@ -200,6 +201,7 @@ __all__: list[str] = [
     "simple_diffractogram",
     "simple_microscope",
     "lens_propagation",
+    "diffractogram_noscale",
     "simple_diffractogram",
     "simple_microscope",
     "zernike_polynomial",
@@ -207,7 +209,8 @@ __all__: list[str] = [
     "factorial",
     "noll_to_nm",
     "nm_to_noll",
-    "generate_aberration",
+    "generate_aberration_nm",
+    "generate_aberration_noll",
     "defocus",
     "astigmatism",
     "coma",

@@ -11,8 +11,7 @@ Routine Listings
 ----------------
 create_loss_function : function
     Creates a JIT-compatible loss function for comparing model output
-    with
-    experimental data.
+    with experimental data.
 mae_loss : function
     Mean Absolute Error loss function (internal)
 mse_loss : function
