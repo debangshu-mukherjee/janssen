@@ -1,0 +1,62 @@
+version: 2
+updates:
+  # Enable version updates for Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+    reviewers:
+      - "qz7"
+    groups:
+      documentation:
+        patterns:
+          - "sphinx*"
+          - "nbsphinx"
+          - "myst-parser"
+          - "furo"
+          - "pydata-sphinx-theme"
+          - "pandoc"
+      testing:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "black"
+          - "isort"
+      jupyter:
+        patterns:
+          - "jupyter*"
+          - "jupyterlab*"
+          - "ipykernel"
+          - "ipywidgets"
+          - "nbconvert"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+    reviewers:
+      - "qz7"
