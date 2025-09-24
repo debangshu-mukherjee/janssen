@@ -64,6 +64,7 @@ docs = [
     "sphinxcontrib-napoleon>=0.7",
     "pydoclint>=0.7.3",
     "interrogate>=1.7.0",
+    "pandoc>=2.4",
 ]
 test = [
     "pytest>=8.3.5",

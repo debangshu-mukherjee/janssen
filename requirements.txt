@@ -373,6 +373,8 @@ packaging==25.0
     #   pytest
     #   sphinx
     #   twine
+pandoc==2.4
+    # via janssen (pyproject.toml)
 pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.5
@@ -391,6 +393,10 @@ pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
+plumbum==1.9.0
+    # via pandoc
+ply==3.11
+    # via pandoc
 pockets==0.9.1
     # via sphinxcontrib-napoleon
 prometheus-client==0.22.1
