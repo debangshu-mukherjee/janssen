@@ -434,7 +434,7 @@ pygments==2.19.2
     #   readme-renderer
     #   rich
     #   sphinx
-pyparsing==3.2.3
+pyparsing==3.2.5
     # via matplotlib
 pytest==8.4.2
     # via
