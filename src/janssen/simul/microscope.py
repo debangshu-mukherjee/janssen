@@ -87,6 +87,7 @@ def linear_interaction(
     )
     return interacted
 
+
 @jaxtyped(typechecker=beartype)
 def diffractogram_noscale(
     sample_cut: SampleFunction,

@@ -3,8 +3,8 @@
 Extended Summary
 ----------------
 Comprehensive optical simulation framework for modeling light
-propagation through various optical elements. All components are 
-differentiable and optimized for JAX transformations, enabling gradient-based 
+propagation through various optical elements. All components are
+differentiable and optimized for JAX transformations, enabling gradient-based
 optimization of optical systems.
 
 Submodules

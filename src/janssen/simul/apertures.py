@@ -120,7 +120,7 @@ def _arrayed_grids(
 def circular_aperture(
     incoming: OpticalWavefront,
     diameter: scalar_float,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -135,7 +135,7 @@ def circular_aperture(
         Input wavefront PyTree.
     diameter : scalar_float
         Aperture diameter in meters.
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Physical center [x0, y0] of the aperture in meters, by default
         [0, 0].
     transmittivity : Optional[scalar_float], optional
@@ -155,6 +155,9 @@ def circular_aperture(
     - Multiply by transmittivity (clipped to [0, 1]).
     - Apply to the complex field and return.
     """
+    center_array: Float[Array, " 2"] = jnp.atleast_2d(
+        jnp.asarray(center, dtype=jnp.float64)
+    ).ravel()[:2]
     arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
         incoming.field, dtype=float
     )
@@ -163,7 +166,7 @@ def circular_aperture(
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
-    x0, y0 = center[0], center[1]
+    x0, y0 = center_array[0], center_array[1]
     r: Float[Array, " hh ww"] = jnp.sqrt(((xx - x0) ** 2) + ((yy - y0) ** 2))
     inside: Bool[Array, " hh ww"] = r <= (diameter / 2.0)
     t: Float[Array, " "] = jnp.clip(
@@ -184,7 +187,7 @@ def rectangular_aperture(
     incoming: OpticalWavefront,
     width: scalar_float,
     height: scalar_float,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -199,7 +202,7 @@ def rectangular_aperture(
         Rectangle width along x in meters.
     height : scalar_float
         Rectangle height along y in meters.
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Rectangle center [x0, y0] in meters, by default [0, 0].
     transmittivity : Optional[scalar_float], optional
         Uniform transmittivity inside the rectangle (0..1), by default
@@ -217,6 +220,9 @@ def rectangular_aperture(
     - Multiply by transmittivity (clipped).
     - Apply to the complex field and return.
     """
+    center_array: Float[Array, " 2"] = jnp.atleast_2d(
+        jnp.asarray(center, dtype=jnp.float64)
+    ).ravel()[:2]
     arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
         incoming.field, dtype=float
     )
@@ -225,7 +231,7 @@ def rectangular_aperture(
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
-    x0, y0 = center[0], center[1]
+    x0, y0 = center_array[0], center_array[1]
     hx: Float[Array, " "] = width / 2.0
     hy: Float[Array, " "] = height / 2.0
     inside_x: Bool[Array, " hh ww"] = ((x0 - hx) <= xx) & ((x0 + hx) >= xx)
@@ -249,7 +255,7 @@ def annular_aperture(
     incoming: OpticalWavefront,
     inner_diameter: scalar_float,
     outer_diameter: scalar_float,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -263,7 +269,7 @@ def annular_aperture(
         Inner blocked diameter in meters.
     outer_diameter : scalar_float
         Outer clear aperture diameter in meters.
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Ring center [x0, y0] in meters, by default [0, 0].
     transmittivity : Optional[scalar_float], optional
         Uniform transmittivity in the ring (0..1), by default 1.0.
@@ -280,6 +286,9 @@ def annular_aperture(
     - Create mask for inner_radius < r <= outer_radius.
     - Multiply by transmittivity (clipped), apply, and return.
     """
+    center_array: Float[Array, " 2"] = jnp.atleast_2d(
+        jnp.asarray(center, dtype=jnp.float64)
+    ).ravel()[:2]
     arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
         incoming.field, dtype=float
     )
@@ -288,7 +297,7 @@ def annular_aperture(
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
-    x0, y0 = center[0], center[1]
+    x0, y0 = center_array[0], center_array[1]
     r: Float[Array, " hh ww"] = jnp.sqrt((xx - x0) ** 2 + (yy - y0) ** 2)
     r_in: Float[Array, " "] = inner_diameter / 2.0
     r_out: Float[Array, " "] = outer_diameter / 2.0
@@ -377,7 +386,7 @@ def variable_transmission_aperture(
 def gaussian_apodizer(
     incoming: OpticalWavefront,
     sigma: scalar_float,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -390,7 +399,7 @@ def gaussian_apodizer(
         Input optical wavefront.
     sigma : scalar_float
         Gaussian width parameter in meters.
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Physical center [x0, y0] of the Gaussian in meters, by default
         [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
@@ -409,6 +418,9 @@ def gaussian_apodizer(
     - Scale by peak transmittivity, clip to [0,1].
     - Multiply with incoming field and return.
     """
+    center_array: Float[Array, " 2"] = jnp.atleast_2d(
+        jnp.asarray(center, dtype=jnp.float64)
+    ).ravel()[:2]
     arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
         incoming.field, dtype=float
     )
@@ -417,7 +429,7 @@ def gaussian_apodizer(
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
-    x0, y0 = center[0], center[1]
+    x0, y0 = center_array[0], center_array[1]
     r2: Float[Array, " hh ww"] = ((xx - x0) ** 2) + ((yy - y0) ** 2)
     gauss: Float[Array, " hh ww"] = jnp.exp(-r2 / (2.0 * sigma**2))
     tmap: Float[Array, " hh ww"] = jnp.clip(
@@ -437,7 +449,7 @@ def supergaussian_apodizer(
     incoming: OpticalWavefront,
     sigma: scalar_float,
     m: scalar_numeric,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -453,7 +465,7 @@ def supergaussian_apodizer(
         Width parameter in meters (sets the roll-off scale).
     m : scalar_numeric
         Super-Gaussian order (m=1 → Gaussian, m>1 → flatter top).
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Physical center [x0, y0] of the profile, by default [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
         Maximum transmission at the center, by default 1.0.
@@ -498,7 +510,7 @@ def gaussian_apodizer_elliptical(
     sigma_x: scalar_float,
     sigma_y: scalar_float,
     theta: Optional[scalar_float] = 0.0,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -519,7 +531,7 @@ def gaussian_apodizer_elliptical(
     theta : Optional[scalar_float], optional
         Rotation angle in radians (counter-clockwise), by default
         0.0.
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Physical center [x0, y0] in meters, by default [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
         Maximum transmission at the center, by default 1.0.
@@ -544,6 +556,9 @@ def gaussian_apodizer_elliptical(
     - Scale by `peak_transmittivity`, clip to [0, 1].
     - Multiply with incoming field and return.
     """
+    center_array: Float[Array, " 2"] = jnp.atleast_2d(
+        jnp.asarray(center, dtype=jnp.float64)
+    ).ravel()[:2]
     arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
         incoming.field, dtype=float
     )
@@ -552,7 +567,7 @@ def gaussian_apodizer_elliptical(
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
-    x0, y0 = center[0], center[1]
+    x0, y0 = center_array[0], center_array[1]
     xc: Float[Array, " hh ww"] = xx - x0
     yc: Float[Array, " hh ww"] = yy - y0
     ct: Float[Array, " "] = jnp.cos(theta)
@@ -580,7 +595,7 @@ def supergaussian_apodizer_elliptical(
     sigma_y: scalar_float,
     m: scalar_numeric,
     theta: Optional[scalar_float] = 0.0,
-    center: Optional[Float[Array, " 2"]] = jnp.zeros(2),
+    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
     peak_transmittivity: Optional[scalar_float] = 1.0,
 ) -> OpticalWavefront:
     """
@@ -604,7 +619,7 @@ def supergaussian_apodizer_elliptical(
     theta : Optional[scalar_float], optional
         Rotation angle in radians (counter-clockwise), by default
         0.0.
-    center : Optional[Float[Array, " 2"]], optional
+    center : Float[Array, " 2"], optional
         Physical center [x0, y0] in meters, by default [0, 0].
     peak_transmittivity : Optional[scalar_float], optional
         Maximum transmission at the center, by default 1.0.
@@ -622,6 +637,9 @@ def supergaussian_apodizer_elliptical(
     - Scale by `peak_transmittivity`, clip to [0, 1].
     - Multiply with incoming field and return.
     """
+    center_array: Float[Array, " 2"] = jnp.atleast_2d(
+        jnp.asarray(center, dtype=jnp.float64)
+    ).ravel()[:2]
     arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
         incoming.field, dtype=float
     )
@@ -630,7 +648,7 @@ def supergaussian_apodizer_elliptical(
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     x0: Float[Array, " "]
     y0: Float[Array, " "]
-    x0, y0 = center[0], center[1]
+    x0, y0 = center_array[0], center_array[1]
     xc: Float[Array, " hh ww"] = xx - x0
     yc: Float[Array, " hh ww"] = yy - y0
     ct: Float[Array, " "] = jnp.cos(theta)

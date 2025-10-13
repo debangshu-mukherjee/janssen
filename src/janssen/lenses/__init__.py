@@ -4,7 +4,7 @@ Extended Summary
 ----------------
 Comprehensive lens modeling and optical propagation algorithms for
 simulating light propagation through various optical elements. Includes
-implementations of common lens types and propagation methods based on 
+implementations of common lens types and propagation methods based on
 wave optics.
 
 Submodules

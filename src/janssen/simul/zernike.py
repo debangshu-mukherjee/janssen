@@ -218,10 +218,9 @@ def zernike_radial(
     """
     m_abs: int = abs(m)
     valid: bool = (n - m_abs) % 2 == 0
-    
+
     def scan_fn(
-        carry: Float[Array, " *batch"],
-        s: Int[Array, " "]
+        carry: Float[Array, " *batch"], s: Int[Array, " "]
     ) -> Tuple[Float[Array, " *batch"], None]:
         sign: Float[Array, " "] = (-1.0) ** s
         num: Int[Array, " "] = factorial(jnp.array(n - s))
@@ -237,7 +236,7 @@ def zernike_radial(
         power_term: Float[Array, " *batch"] = rho ** (n - 2 * s)
         updated_result: Float[Array, " *batch"] = carry + coeff * power_term
         return updated_result, None
-    
+
     initial_result: Float[Array, " *batch"] = jnp.zeros_like(rho)
     s_values: Int[Array, " S"] = jnp.arange((n - m_abs) // 2 + 1)
     result: Float[Array, " *batch"]
@@ -410,7 +409,7 @@ def zernike_nm(
     normalize: bool = True,
 ) -> Float[Array, " *batch"]:
     """Generate Zernike polynomial based on (n,m) indices.
-    
+
     Parameters
     ----------
     rho : Float[Array, " *batch"]
@@ -423,12 +422,12 @@ def zernike_nm(
         Azimuthal frequency (|m| <= n, n-|m| must be even)
     normalize : bool, optional
         Whether to normalize for unit RMS over unit circle, by default True
-    
+
     Returns
     -------
     Float[Array, " *batch"]
         Zernike polynomial Z_n^m(rho, theta)
-    
+
     Notes
     -----
     Determines whether to use even (cosine) or odd (sine) Zernike polynomial
@@ -456,7 +455,7 @@ def zernike_noll(
     normalize: bool = True,
 ) -> Float[Array, " *batch"]:
     """Generate Zernike polynomial based on Noll index.
-    
+
     Parameters
     ----------
     rho : Float[Array, " *batch"]
@@ -467,12 +466,12 @@ def zernike_noll(
         Noll index (starting from 1)
     normalize : bool, optional
         Whether to normalize for unit RMS over unit circle, by default True
-    
+
     Returns
     -------
     Float[Array, " *batch"]
         Zernike polynomial for Noll index j
-    
+
     Notes
     -----
     Converts Noll index to (n,m) pair and calls zernike_nm.
@@ -481,9 +480,7 @@ def zernike_noll(
     n: int
     m: int
     n, m = noll_to_nm(j)
-    result: Float[Array, " *batch"] = zernike_nm(
-        rho, theta, n, m, normalize
-    )
+    result: Float[Array, " *batch"] = zernike_nm(rho, theta, n, m, normalize)
     return result
 
 

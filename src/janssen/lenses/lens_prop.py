@@ -619,11 +619,11 @@ def correct_propagator(
     total_intensity: Float[Array, " "] = jnp.sum(field_intensity)
 
     # Create coordinate arrays
-    y_coords: Float[Array, " hh"] = (jnp.arange(ny) - ny/2) * incoming.dx
-    x_coords: Float[Array, " ww"] = (jnp.arange(nx) - nx/2) * incoming.dx
+    y_coords: Float[Array, " hh"] = (jnp.arange(ny) - ny / 2) * incoming.dx
+    x_coords: Float[Array, " ww"] = (jnp.arange(nx) - nx / 2) * incoming.dx
     y_mesh: Float[Array, " hh ww"]
     x_mesh: Float[Array, " hh ww"]
-    y_mesh, x_mesh = jnp.meshgrid(y_coords, x_coords, indexing='ij')
+    y_mesh, x_mesh = jnp.meshgrid(y_coords, x_coords, indexing="ij")
 
     # Calculate RMS width as characteristic aperture size
     x_rms: Float[Array, " "] = jnp.sqrt(
@@ -634,18 +634,27 @@ def correct_propagator(
     )
 
     # Use the larger RMS as characteristic aperture size
-    aperture_size: Float[Array, " "] = jnp.maximum(x_rms, y_rms) * 2  # 2*RMS for full width
+    aperture_size: Float[Array, " "] = (
+        jnp.maximum(x_rms, y_rms) * 2
+    )  # 2*RMS for full width
 
     # Account for refractive index in propagation
     path_length: Float[Array, " "] = refractive_index * z_move
 
     # Calculate Fresnel number
-    fresnel_number: Float[Array, " "] = aperture_size**2 / (incoming.wavelength * jnp.abs(path_length))
+    fresnel_number: Float[Array, " "] = aperture_size**2 / (
+        incoming.wavelength * jnp.abs(path_length)
+    )
 
     # Calculate sampling criteria
     # For angular spectrum: need dx << z*λ/L where L is the field size
-    field_size: Float[Array, " "] = jnp.maximum(nx * incoming.dx, ny * incoming.dx)
-    angular_spectrum_valid: Bool[Array, " "] = incoming.dx < 0.5 * jnp.abs(path_length) * incoming.wavelength / field_size
+    field_size: Float[Array, " "] = jnp.maximum(
+        nx * incoming.dx, ny * incoming.dx
+    )
+    angular_spectrum_valid: Bool[Array, " "] = (
+        incoming.dx
+        < 0.5 * jnp.abs(path_length) * incoming.wavelength / field_size
+    )
 
     # Define the three propagator functions with matching signatures
     def use_angular_spectrum() -> OpticalWavefront:
