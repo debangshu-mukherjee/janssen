@@ -557,3 +557,122 @@ def lens_propagation(
         z_position=incoming.z_position,
     )
     return outgoing
+
+
+@jaxtyped(typechecker=beartype)
+def correct_propagator(
+    incoming: OpticalWavefront,
+    z_move: scalar_numeric,
+    refractive_index: Optional[scalar_numeric] = 1.0,
+) -> OpticalWavefront:
+    """Automatically select and apply the most appropriate propagator.
+
+    This function selects the optimal propagation method based on the
+    Fresnel number and sampling criteria. It uses:
+    - Angular spectrum for very short distances or high spatial frequencies
+    - Fresnel propagation for intermediate distances
+    - Fraunhofer propagation for far-field distances
+
+    Parameters
+    ----------
+    incoming : OpticalWavefront
+        PyTree with the following parameters:
+        field : Complex[Array, " hh ww"]
+            Input complex field
+        wavelength : Float[Array, " "]
+            Wavelength of light in meters
+        dx : Float[Array, " "]
+            Grid spacing in meters
+        z_position : Float[Array, " "]
+            Wave front position in meters
+    z_move : scalar_numeric
+        Propagation distance in meters (in free space)
+    refractive_index : Optional[scalar_numeric], optional
+        Index of refraction of the medium. Default is 1.0 (vacuum)
+
+    Returns
+    -------
+    propagated : OpticalWavefront
+        Propagated wave front using the most appropriate method
+
+    Notes
+    -----
+    Selection criteria:
+    1. Calculate the characteristic aperture size from the field
+    2. Compute the Fresnel number F = a²/(λz)
+    3. Check sampling criteria for each method
+    4. Select propagator based on:
+       - F >> 1 and short distance: Angular spectrum (most accurate)
+       - F > 0.1: Fresnel propagation
+       - F < 0.1: Fraunhofer propagation (far-field)
+
+    The angular spectrum method is preferred when applicable as it
+    makes no paraxial approximations.
+    """
+    # Get field dimensions
+    ny: scalar_integer = incoming.field.shape[0]
+    nx: scalar_integer = incoming.field.shape[1]
+
+    # Calculate effective aperture size from field extent
+    # Use the RMS width of the field intensity as characteristic size
+    field_intensity: Float[Array, " hh ww"] = jnp.abs(incoming.field) ** 2
+    total_intensity: Float[Array, " "] = jnp.sum(field_intensity)
+
+    # Create coordinate arrays
+    y_coords: Float[Array, " hh"] = (jnp.arange(ny) - ny/2) * incoming.dx
+    x_coords: Float[Array, " ww"] = (jnp.arange(nx) - nx/2) * incoming.dx
+    y_mesh: Float[Array, " hh ww"]
+    x_mesh: Float[Array, " hh ww"]
+    y_mesh, x_mesh = jnp.meshgrid(y_coords, x_coords, indexing='ij')
+
+    # Calculate RMS width as characteristic aperture size
+    x_rms: Float[Array, " "] = jnp.sqrt(
+        jnp.sum(field_intensity * x_mesh**2) / (total_intensity + 1e-10)
+    )
+    y_rms: Float[Array, " "] = jnp.sqrt(
+        jnp.sum(field_intensity * y_mesh**2) / (total_intensity + 1e-10)
+    )
+
+    # Use the larger RMS as characteristic aperture size
+    aperture_size: Float[Array, " "] = jnp.maximum(x_rms, y_rms) * 2  # 2*RMS for full width
+
+    # Account for refractive index in propagation
+    path_length: Float[Array, " "] = refractive_index * z_move
+
+    # Calculate Fresnel number
+    fresnel_number: Float[Array, " "] = aperture_size**2 / (incoming.wavelength * jnp.abs(path_length))
+
+    # Calculate sampling criteria
+    # For angular spectrum: need dx << z*λ/L where L is the field size
+    field_size: Float[Array, " "] = jnp.maximum(nx * incoming.dx, ny * incoming.dx)
+    angular_spectrum_valid: Bool[Array, " "] = incoming.dx < 0.5 * jnp.abs(path_length) * incoming.wavelength / field_size
+
+    # Define the three propagator functions with matching signatures
+    def use_angular_spectrum() -> OpticalWavefront:
+        return angular_spectrum_prop(incoming, z_move, refractive_index)
+
+    def use_fresnel() -> OpticalWavefront:
+        return fresnel_prop(incoming, z_move, refractive_index)
+
+    def use_fraunhofer() -> OpticalWavefront:
+        return fraunhofer_prop(incoming, z_move, refractive_index)
+
+    # Select propagator based on Fresnel number and validity criteria
+    # Use nested conditionals for proper jax.lax.cond syntax
+    def select_fresnel_or_fraunhofer() -> OpticalWavefront:
+        # If Fresnel number > 0.1, use Fresnel, otherwise Fraunhofer
+        return jax.lax.cond(
+            fresnel_number > 0.1,
+            use_fresnel,
+            use_fraunhofer,
+        )
+
+    # First check if angular spectrum is valid and we're in near field
+    # Angular spectrum is preferred when valid as it's most accurate
+    propagated: OpticalWavefront = jax.lax.cond(
+        (fresnel_number > 1.0) & angular_spectrum_valid,
+        use_angular_spectrum,
+        select_fresnel_or_fraunhofer,
+    )
+
+    return propagated

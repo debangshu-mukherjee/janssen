@@ -13,6 +13,8 @@ utils
     Common utility functions used throughout the code.
 invert
     Inversion algorithms for phase retrieval and ptychography.
+models
+    Models for generating datasets for testing and validation.
 simul
     Differentiable optical simulation toolkit.
 lenses
@@ -37,11 +39,12 @@ CPU and GPU execution. For best performance, use JIT compilation
 and consider using the provided factory functions for data validation.
 """
 
-from . import invert, lenses, simul, utils
+from . import invert, lenses, models, simul, utils
 
 __all__: list[str] = [
     "invert",
     "lenses",
+    "models",
     "simul",
     "utils",
 ]

@@ -3,10 +3,9 @@
 Extended Summary
 ----------------
 Comprehensive lens modeling and optical propagation algorithms for
-simulating
-light propagation through various optical elements. Includes
-implementations
-of common lens types and propagation methods based on wave optics.
+simulating light propagation through various optical elements. Includes
+implementations of common lens types and propagation methods based on 
+wave optics.
 
 Submodules
 ----------
@@ -47,6 +46,8 @@ lens_propagation : function
     General lens-based propagation
 optical_zoom : function
     Optical zoom transformation
+correct_propagator : function
+    Automatically selects the most appropriate propagation method
 
 Notes
 -----
@@ -68,6 +69,7 @@ from .lens_elements import (
 )
 from .lens_prop import (
     angular_spectrum_prop,
+    correct_propagator,
     digital_zoom,
     fraunhofer_prop,
     fresnel_prop,
@@ -86,6 +88,7 @@ __all__: list[str] = [
     "plano_convex_lens",
     "propagate_through_lens",
     "angular_spectrum_prop",
+    "correct_propagator",
     "digital_zoom",
     "fraunhofer_prop",
     "fresnel_prop",
