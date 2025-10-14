@@ -48,8 +48,8 @@ from janssen.utils import (
     scalar_numeric,
 )
 
-from .apertures import circular_aperture
-from .helper import field_intensity, scale_pixel
+from janssen.optics.apertures import circular_aperture
+from janssen.optics.helper import field_intensity, scale_pixel
 
 jax.config.update("jax_enable_x64", True)
 

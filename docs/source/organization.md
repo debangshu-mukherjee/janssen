@@ -2,7 +2,7 @@
 
 ## Overview
 
-Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into five main modules: `utils` for common utilities, `optics` for forward models, `lenses` for lens implementations, `models` for test pattern generation, and `invert` for reconstruction algorithms.
+Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into six main modules: `utils` for common utilities, `optics` for optical elements, `scopes` for microscope forward models, `lenses` for lens implementations, `models` for test pattern generation, and `invert` for reconstruction algorithms.
 
 ## Module Structure
 
@@ -12,7 +12,11 @@ Common utilities and shared data structures used throughout the package.
 
 ### **janssen.optics**
 
-The forward optical simulation module for optical microscopy, providing differentiable implementations of optical elements and propagation.
+Optical elements and transformations for simulating light propagation through various optical components.
+
+### **janssen.scopes**
+
+Microscope forward models for simulating image formation and diffraction patterns in optical microscopy.
 
 ### **janssen.lenses**
 
@@ -57,8 +61,10 @@ src/janssen/
 │   ├── apertures.py      # Aperture functions
 │   ├── elements.py       # Optical elements
 │   ├── helper.py         # Utility functions
-│   ├── microscope.py     # Microscopy simulations
 │   └── zernike.py        # Zernike polynomials
+├── scopes/
+│   ├── __init__.py       # Scopes module exports
+│   └── simple_microscopes.py  # Simple microscope forward models
 ├── models/
 │   ├── __init__.py       # Models module exports
 │   └── usaf_pattern.py   # USAF test pattern generation

@@ -13,8 +13,6 @@ apertures
     Aperture functions for optical microscopy
 elements
     Optical element transformations
-microscope
-    Microscopy simulation pipelines
 helper
     Helper functions for optical propagation
 zernike
@@ -76,12 +74,6 @@ normalize_field : function
     Normalize optical field
 scale_pixel : function
     Scale pixel size in field
-linear_interaction : function
-    Linear light-matter interaction
-simple_diffractogram : function
-    Generate diffraction pattern
-simple_microscope : function
-    Simple microscope forward model
 zernike_polynomial : function
     Generate a single Zernike polynomial
 zernike_radial : function
@@ -147,12 +139,6 @@ from .helper import (
     normalize_field,
     scale_pixel,
 )
-from .microscope import (
-    diffractogram_noscale,
-    linear_interaction,
-    simple_diffractogram,
-    simple_microscope,
-)
 from .zernike import (
     apply_aberration,
     astigmatism,
@@ -197,13 +183,6 @@ __all__: list[str] = [
     "field_intensity",
     "normalize_field",
     "scale_pixel",
-    "linear_interaction",
-    "simple_diffractogram",
-    "simple_microscope",
-    "lens_propagation",
-    "diffractogram_noscale",
-    "simple_diffractogram",
-    "simple_microscope",
     "zernike_polynomial",
     "zernike_radial",
     "factorial",

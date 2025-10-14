@@ -37,6 +37,15 @@ janssen.optics
    :imported-members:
    :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
 
+janssen.scopes
+--------------
+.. automodule:: janssen.scopes
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :imported-members:
+   :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
+
 janssen.utils
 -------------
 .. automodule:: janssen.utils

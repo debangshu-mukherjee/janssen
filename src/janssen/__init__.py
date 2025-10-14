@@ -9,16 +9,18 @@ and JIT-compilable functions.
 
 Submodules
 ----------
-utils
-    Common utility functions used throughout the code.
 invert
     Inversion algorithms for phase retrieval and ptychography.
+lenses
+    Lens implementations and optical calculations.
 models
     Models for generating datasets for testing and validation.
 optics
     Variety of different optical elements.
-lenses
-    Lens implementations and optical calculations.
+scopes
+    Microscope implementations and forward models.
+utils
+    Common utility functions used throughout the code.
 
 Key Features
 ------------
@@ -39,12 +41,13 @@ CPU and GPU execution. For best performance, use JIT compilation
 and consider using the provided factory functions for data validation.
 """
 
-from . import invert, lenses, models, optics, utils
+from . import invert, lenses, models, optics, scopes, utils
 
 __all__: list[str] = [
     "invert",
     "lenses",
     "models",
     "optics",
+    "scopes",
     "utils",
 ]

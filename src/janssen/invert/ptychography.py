@@ -30,7 +30,7 @@ from beartype import beartype
 from beartype.typing import Dict, Optional, Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.optics import simple_microscope
+from janssen.scopes import simple_microscope
 from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
