@@ -8,6 +8,7 @@ __pycache__/
 /src/janssen/lenses/__pycache__/
 /src/janssen/simul/__pycache__/
 /src/janssen/utils/__pycache__/
+/src/janssen/models/__pycache__/
 /data/__pycache__/
 /tests/__pycache__/
 /tests/test_janssen/__pycache__/
@@ -15,6 +16,7 @@ __pycache__/
 /tests/test_janssen/test_lenses/__pycache__/
 /tests/test_janssen/test_simul/__pycache__/
 /tests/test_janssen/test_utils/__pycache__/
+/tests/test_janssen/test_models/__pycache__/
 /data/__pycache__/
 /data/*/__pycache__/
 /data/
