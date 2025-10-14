@@ -17,6 +17,10 @@ Routine Listings
 ----------------
 angular_spectrum_prop : function
     Angular spectrum propagation method (no paraxial approximation).
+compute_optical_path_length : function
+    Compute the optical path length through a material.
+compute_total_transmission : function
+    Compute the total transmission through a material.
 correct_propagator : function
     Automatically selects the most appropriate propagation method.
 digital_zoom : function
@@ -27,6 +31,8 @@ fresnel_prop : function
     Fresnel (near-field) propagation.
 lens_propagation : function
     Propagate optical wavefront through a lens.
+multislice_propagation: function
+    Propagate optical wavefront through a 3D material.
 optical_zoom : function
     Optical zoom transformation.
 
@@ -46,13 +52,21 @@ from .free_space_prop import (
     lens_propagation,
     optical_zoom,
 )
+from .material_prop import (
+    compute_optical_path_length,
+    compute_total_transmission,
+    multislice_propagation,
+)
 
 __all__: list[str] = [
     "angular_spectrum_prop",
+    "compute_optical_path_length",
+    "compute_total_transmission",
     "correct_propagator",
     "digital_zoom",
     "fraunhofer_prop",
     "fresnel_prop",
     "lens_propagation",
+    "multislice_propagation",
     "optical_zoom",
 ]
