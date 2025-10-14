@@ -41,6 +41,7 @@ from janssen.utils import (
 )
 
 
+@jax.jit
 @jaxtyped(typechecker=beartype)
 def create_bar_triplet(
     blank_pattern: Int[Array, " h w"],
@@ -159,6 +160,7 @@ def create_bar_triplet(
     return result
 
 
+@jax.jit
 @jaxtyped(typechecker=beartype)
 def create_element(
     blank_pattern: Int[Array, " buffer_size buffer_size"],

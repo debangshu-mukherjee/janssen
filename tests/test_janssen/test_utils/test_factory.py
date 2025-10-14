@@ -17,6 +17,7 @@ from janssen.utils import (
     make_optimizer_state,
     make_ptychography_params,
     make_sample_function,
+    make_sliced_material_function,
 )
 
 
@@ -248,6 +249,110 @@ class TestMakeSampleFunction(chex.TestCase):
         chex.assert_equal(jnp.iscomplexobj(sample.sample), True)
 
 
+class TestMakeSlicedMaterialFunction(chex.TestCase):
+    """Test the make_sliced_material_function factory function."""
+
+    def test_basic_creation(self) -> None:
+        """Test basic creation with 3D material array."""
+        material = jnp.ones((64, 64, 10), dtype=complex) * (1.5 + 0.01j)
+        sliced_mat = make_sliced_material_function(
+            material=material,
+            dx=1e-6,
+            tz=5e-6,
+        )
+
+        chex.assert_equal(type(sliced_mat).__name__, "SlicedMaterialFunction")
+        chex.assert_shape(sliced_mat.material, (64, 64, 10))
+        chex.assert_shape(sliced_mat.dx, ())
+        chex.assert_shape(sliced_mat.tz, ())
+
+    def test_complex_conversion(self) -> None:
+        """Test that material is converted to complex."""
+        real_array = jnp.ones((32, 32, 5)) * 1.5
+        sliced_mat = make_sliced_material_function(
+            material=real_array,
+            dx=2e-6,
+            tz=3e-6,
+        )
+
+        chex.assert_equal(jnp.iscomplexobj(sliced_mat.material), True)
+        chex.assert_shape(sliced_mat.material, (32, 32, 5))
+
+    def test_refractive_index_properties(self) -> None:
+        """Test material with realistic refractive index values."""
+        # Create material with n=1.5 (real part) and κ=0.01 (imaginary part)
+        n = 1.5
+        kappa = 0.01
+        material = jnp.ones((16, 16, 8), dtype=complex) * (n + 1j * kappa)
+
+        sliced_mat = make_sliced_material_function(
+            material=material,
+            dx=1e-6,
+            tz=2e-6,
+        )
+
+        # Check that real and imaginary parts are preserved
+        chex.assert_trees_all_close(
+            jnp.real(sliced_mat.material[0, 0, 0]),
+            jnp.array(n),
+            atol=1e-6,
+        )
+        chex.assert_trees_all_close(
+            jnp.imag(sliced_mat.material[0, 0, 0]),
+            jnp.array(kappa),
+            atol=1e-6,
+        )
+
+    def test_type_conversion(self) -> None:
+        """Test conversion from Python types."""
+        material = jnp.ones((16, 16, 4), dtype=complex)
+        sliced_mat = make_sliced_material_function(
+            material=material,
+            dx=1.5e-6,
+            tz=2.0e-6,
+        )
+
+        chex.assert_equal(isinstance(sliced_mat.dx, jax.Array), True)
+        chex.assert_equal(isinstance(sliced_mat.tz, jax.Array), True)
+        chex.assert_equal(isinstance(sliced_mat.material, jax.Array), True)
+
+    def test_integer_spacing_parameters(self) -> None:
+        """Test that dx and tz accept integer inputs."""
+        material = jnp.ones((8, 8, 3), dtype=complex) * 1.33
+        sliced_mat = make_sliced_material_function(
+            material=material,
+            dx=1,  # integer instead of 1.0
+            tz=2,  # integer instead of 2.0
+        )
+
+        chex.assert_equal(type(sliced_mat).__name__, "SlicedMaterialFunction")
+        chex.assert_trees_all_close(sliced_mat.dx, jnp.array(1.0))
+        chex.assert_trees_all_close(sliced_mat.tz, jnp.array(2.0))
+
+    def test_varying_refractive_index(self) -> None:
+        """Test material with spatially varying refractive index."""
+        # Create a gradient in the refractive index
+        hh, ww, zz = 32, 32, 6
+        material = jnp.zeros((hh, ww, zz), dtype=complex)
+
+        for z in range(zz):
+            # Each slice has a different refractive index
+            n_slice = 1.0 + 0.1 * z
+            material = material.at[:, :, z].set(n_slice + 0.001j)
+
+        sliced_mat = make_sliced_material_function(
+            material=material,
+            dx=0.5e-6,
+            tz=1e-6,
+        )
+
+        chex.assert_shape(sliced_mat.material, (hh, ww, zz))
+        # Check first and last slice have different values
+        first_slice_val = sliced_mat.material[0, 0, 0]
+        last_slice_val = sliced_mat.material[0, 0, -1]
+        assert jnp.real(first_slice_val) != jnp.real(last_slice_val)
+
+
 class TestMakeDiffractogram(chex.TestCase):
     """Test the make_diffractogram factory function."""
 
@@ -395,6 +500,59 @@ class TestFactoryValidation(chex.TestCase):
         )
         chex.assert_equal(type(lens).__name__, "LensParams")
 
+    def test_lens_params_integer_inputs(self) -> None:
+        """Test that make_lens_params accepts integer inputs."""
+        lens = make_lens_params(
+            focal_length=1,  # integer
+            diameter=0.5,
+            n=2,  # integer
+            center_thickness=1,  # integer
+            r1=1,  # integer
+            r2=1,  # integer
+        )
+        chex.assert_equal(type(lens).__name__, "LensParams")
+        chex.assert_scalar_positive(float(lens.focal_length))
+        chex.assert_trees_all_close(lens.focal_length, jnp.array(1.0))
+        chex.assert_trees_all_close(lens.n, jnp.array(2.0))
+
+    def test_optical_wavefront_integer_params(self) -> None:
+        """Test that make_optical_wavefront accepts integer parameters."""
+        field = jnp.ones((32, 32), dtype=complex)
+        wavefront = make_optical_wavefront(
+            field=field,
+            wavelength=532e-9,
+            dx=1,  # integer instead of 1.0
+            z_position=0,  # integer instead of 0.0
+        )
+        chex.assert_equal(type(wavefront).__name__, "OpticalWavefront")
+        chex.assert_trees_all_close(wavefront.dx, jnp.array(1.0))
+        chex.assert_trees_all_close(wavefront.z_position, jnp.array(0.0))
+
+    def test_sample_function_integer_dx(self) -> None:
+        """Test that make_sample_function accepts integer dx."""
+        sample = make_sample_function(
+            sample=jnp.ones((64, 64), dtype=complex),
+            dx=2,  # integer instead of 2.0
+        )
+        chex.assert_equal(type(sample).__name__, "SampleFunction")
+        chex.assert_trees_all_close(sample.dx, jnp.array(2.0))
+
+    def test_ptychography_params_mixed_types(self) -> None:
+        """Test make_ptychography_params with mixed int/float inputs."""
+        params = make_ptychography_params(
+            zoom_factor=2,  # integer
+            aperture_diameter=1e-3,
+            travel_distance=1,  # integer
+            aperture_center=jnp.array([0.0, 0.0]),
+            camera_pixel_size=5e-6,
+            learning_rate=1,  # integer (unusual but valid)
+            num_iterations=100,
+        )
+        chex.assert_equal(type(params).__name__, "PtychographyParams")
+        chex.assert_trees_all_close(params.zoom_factor, jnp.array(2.0))
+        chex.assert_trees_all_close(params.travel_distance, jnp.array(1.0))
+        chex.assert_trees_all_close(params.learning_rate, jnp.array(1.0))
+
     def test_wavefront_field_shape(self) -> None:
         """Test OpticalWavefront field shape validation."""
         field_2d = jnp.ones((32, 32), dtype=complex)
@@ -434,6 +592,19 @@ class TestFactoryValidation(chex.TestCase):
         )
         chex.assert_shape(data_4d.image_data, (3, 3, 32, 32))
         chex.assert_shape(data_4d.positions, (9, 2))
+
+    def test_sliced_material_function_validation(self) -> None:
+        """Test SlicedMaterialFunction creation and validation."""
+        material = jnp.ones((16, 16, 5), dtype=complex) * (1.5 + 0.01j)
+        sliced_mat = make_sliced_material_function(
+            material=material,
+            dx=1e-6,
+            tz=2e-6,
+        )
+
+        chex.assert_shape(sliced_mat.material, (16, 16, 5))
+        chex.assert_scalar_positive(float(sliced_mat.dx))
+        chex.assert_scalar_positive(float(sliced_mat.tz))
 
 
 class TestFactoryJITCompatibility(chex.TestCase):

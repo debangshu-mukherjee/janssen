@@ -31,6 +31,8 @@ PtychographyParams : PyTree
     PyTree for ptychography reconstruction parameters
 SampleFunction : PyTree
     PyTree for sample representation
+SlicedMaterialFunction : PyTree
+    PyTree for 3D sliced material with complex refractive index
 make_diffractogram : function
     Factory function for Diffractogram creation
 make_grid_params : function
@@ -47,6 +49,8 @@ make_ptychography_params : function
     Factory function for PtychographyParams creation
 make_sample_function : function
     Factory function for SampleFunction creation
+make_sliced_material_function : function
+    Factory function for SlicedMaterialFunction creation
 non_jax_number : TypeAlias
     Type alias for Python numeric types
 scalar_bool : TypeAlias
@@ -76,6 +80,7 @@ from .factory import (
     make_optimizer_state,
     make_ptychography_params,
     make_sample_function,
+    make_sliced_material_function,
 )
 from .types import (
     Diffractogram,
@@ -86,6 +91,7 @@ from .types import (
     OptimizerState,
     PtychographyParams,
     SampleFunction,
+    SlicedMaterialFunction,
     non_jax_number,
     scalar_bool,
     scalar_complex,
@@ -103,6 +109,7 @@ __all__: list[str] = [
     "OptimizerState",
     "PtychographyParams",
     "SampleFunction",
+    "SlicedMaterialFunction",
     "make_diffractogram",
     "make_grid_params",
     "make_lens_params",
@@ -111,6 +118,7 @@ __all__: list[str] = [
     "make_optimizer_state",
     "make_ptychography_params",
     "make_sample_function",
+    "make_sliced_material_function",
     "non_jax_number",
     "scalar_bool",
     "scalar_complex",

@@ -28,6 +28,9 @@ MicroscopeData : PyTree
     A named tuple for storing 3D or 4D microscope image data
 SampleFunction : PyTree
     A named tuple for representing a sample function
+SlicedMaterialFunction : PyTree
+    A named tuple for representing a 3D sliced material with complex 
+    refractive index.
 Diffractogram : PyTree
     A named tuple for storing a single diffraction pattern
 OptimizerState : PyTree
@@ -354,6 +357,67 @@ class SampleFunction(NamedTuple):
         children: Tuple[Complex[Array, " hh ww"], Float[Array, " "]],
     ) -> "SampleFunction":
         """Unflatten the SampleFunction from a tuple of its components."""
+        return cls(*children)
+
+
+@register_pytree_node_class
+class SlicedMaterialFunction(NamedTuple):
+    """PyTree structure for representing a 3D sliced material.
+
+    Attributes
+    ----------
+    material : Complex[Array, " hh ww zz"]
+        Complex refractive index for each slice. The real part represents
+        the refractive index n, and the imaginary part represents the
+        extinction coefficient κ (absorption).
+    dx : Float[Array, " "]
+        Spatial sampling interval (pixel spacing) within each slice in meters.
+    tz : Float[Array, " "]
+        Interslice distance (spacing between slices) in the z-direction in
+        meters.
+
+    Notes
+    -----
+    This structure represents a 3D material where:
+    - material[i, j, k] contains the complex refractive index ñ = n + iκ at
+      pixel (i,j) in slice k
+    - The real part n determines phase delay: φ = (2π/λ) * (n-1) * t
+    - The imaginary part κ determines absorption: A = exp(-4πκt/λ)
+    - dx is the pixel spacing in the x-y plane
+    - tz is the spacing between slices in the z direction
+    """
+
+    material: Complex[Array, " hh ww zz"]
+    dx: Float[Array, " "]
+    tz: Float[Array, " "]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Complex[Array, " hh ww zz"], Float[Array, " "], Float[Array, " "]
+        ],
+        None,
+    ]:
+        """Flatten the SlicedMaterialFunction into tuple of its components."""
+        return (
+            (
+                self.material,
+                self.dx,
+                self.tz,
+            ),
+            None,
+        )
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Complex[Array, " hh ww zz"], Float[Array, " "], Float[Array, " "]
+        ],
+    ) -> "SlicedMaterialFunction":
+        """Unflatten the SlicedMaterialFunction from tuple of components."""
         return cls(*children)
 
 

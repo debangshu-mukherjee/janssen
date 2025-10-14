@@ -20,6 +20,8 @@ make_diffractogram : function
     Creates a Diffractogram instance with runtime type checking
 make_sample_function : function
     Creates a SampleFunction instance with runtime type checking
+make_sliced_material_function : function
+    Creates a SlicedMaterialFunction instance with runtime type checking
 make_optimizer_state : function
     Creates an OptimizerState instance with runtime type checking
 make_ptychography_params : function
@@ -48,9 +50,11 @@ from .types import (
     OptimizerState,
     PtychographyParams,
     SampleFunction,
+    SlicedMaterialFunction,
     scalar_complex,
     scalar_float,
     scalar_integer,
+    scalar_numeric,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -58,29 +62,29 @@ jax.config.update("jax_enable_x64", True)
 
 @jaxtyped(typechecker=beartype)
 def make_lens_params(
-    focal_length: scalar_float,
-    diameter: scalar_float,
-    n: scalar_float,
-    center_thickness: scalar_float,
-    r1: scalar_float,
-    r2: scalar_float,
+    focal_length: scalar_numeric,
+    diameter: scalar_numeric,   
+    n: scalar_numeric,
+    center_thickness: scalar_numeric,
+    r1: scalar_numeric,
+    r2: scalar_numeric,
 ) -> LensParams:
     """JAX-safe factory function for LensParams with data validation.
 
     Parameters
     ----------
-    focal_length : scalar_float
+    focal_length : scalar_numeric
         Focal length of the lens in meters
-    diameter : scalar_float
+    diameter : scalar_numeric
         Diameter of the lens in meters
-    n : scalar_float
+    n : scalar_numeric
         Refractive index of the lens material
-    center_thickness : scalar_float
+    center_thickness : scalar_numeric
         Thickness at the center of the lens in meters
-    r1 : scalar_float
+    r1 : scalar_numeric
         Radius of curvature of the first surface in meters
         (positive for convex)
-    r2 : scalar_float
+    r2 : scalar_numeric
         Radius of curvature of the second surface in meters
         (positive for convex)
 
@@ -347,9 +351,9 @@ def make_grid_params(
 @jaxtyped(typechecker=beartype)
 def make_optical_wavefront(
     field: Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
-    wavelength: scalar_float,
-    dx: scalar_float,
-    z_position: scalar_float,
+    wavelength: scalar_numeric,
+    dx: scalar_numeric,
+    z_position: scalar_numeric,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data
     validation.
@@ -360,11 +364,11 @@ def make_optical_wavefront(
        Complex amplitude of the optical field. Should be 2D for scalar
        fields or 3D with last dimension 2 for polarized fields.
        Polarization is automatically detected from field dimensions.
-    wavelength : scalar_float
+    wavelength : scalar_numeric
         Wavelength of the optical wavefront in meters
-    dx : scalar_float
+    dx : scalar_numeric
         Spatial sampling interval (grid spacing) in meters
-    z_position : scalar_float
+    z_position : scalar_numeric
         Axial position of the wavefront in the propagation direction in
         meters.
 
@@ -500,8 +504,8 @@ def make_optical_wavefront(
 def make_microscope_data(
     image_data: Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]],
     positions: Num[Array, " pp 2"],
-    wavelength: scalar_float,
-    dx: scalar_float,
+    wavelength: scalar_numeric,
+    dx: scalar_numeric,
 ) -> MicroscopeData:
     """JAX-safe factory function for MicroscopeData with data
     validation.
@@ -513,9 +517,9 @@ def make_microscope_data(
         3D or 4D image data representing the optical field
     positions : Num[Array, " pp 2"]
         Positions of the images during collection
-    wavelength : scalar_float
+    wavelength : scalar_numeric
         Wavelength of the optical wavefront in meters
-    dx : scalar_float
+    dx : scalar_numeric
         Spatial sampling interval (grid spacing) in meters
 
     Returns
@@ -696,8 +700,8 @@ def make_microscope_data(
 @jaxtyped(typechecker=beartype)
 def make_diffractogram(
     image: Float[Array, " hh ww"],
-    wavelength: scalar_float,
-    dx: scalar_float,
+    wavelength: scalar_numeric,
+    dx: scalar_numeric,
 ) -> Diffractogram:
     """JAX-safe factory function for Diffractogram with data validation.
 
@@ -705,9 +709,9 @@ def make_diffractogram(
     ----------
     image : Float[Array, " hh ww"]
         Image data
-    wavelength : scalar_float
+    wavelength : scalar_numeric
         Wavelength of the optical wavefront in meters
-    dx : scalar_float
+    dx : scalar_numeric
         Spatial sampling interval (grid spacing) in meters
 
     Returns
@@ -803,7 +807,7 @@ def make_diffractogram(
 @jaxtyped(typechecker=beartype)
 def make_sample_function(
     sample: Num[Array, " hh ww"],
-    dx: scalar_float,
+    dx: scalar_numeric,
 ) -> SampleFunction:
     """JAX-safe factory function for SampleFunction with data
     validation.
@@ -812,7 +816,7 @@ def make_sample_function(
     ----------
     sample : Num[Array, " hh ww"]
         The sample function. Will be converted to complex if real.
-    dx : scalar_float
+    dx : scalar_numeric
         Spatial sampling interval (grid spacing) in meters
 
     Returns
@@ -862,7 +866,7 @@ def make_sample_function(
                 ),
             )
 
-        def check_dx() -> scalar_float:
+        def check_dx() -> Float[Array, " "]:
             return lax.cond(
                 dx > 0,
                 lambda: dx,
@@ -882,6 +886,113 @@ def make_sample_function(
 
     validated_sample_function: SampleFunction = validate_and_create()
     return validated_sample_function
+
+
+@jaxtyped(typechecker=beartype)
+def make_sliced_material_function(
+    material: Num[Array, " hh ww zz"],
+    dx: scalar_numeric,
+    tz: scalar_numeric,
+) -> SlicedMaterialFunction:
+    """JAX-safe validated factory function for SlicedMaterialFunction.
+
+    Parameters
+    ----------
+    material : Num[Array, " hh ww zz"]
+        3D array of complex refractive indices. The real part represents
+        the refractive index n, and the imaginary part represents the
+        extinction coefficient κ (absorption). Will be converted to complex
+        if real.
+    dx : scalar_numeric
+        Spatial sampling interval (pixel spacing) within each slice in meters
+    tz : scalar_numeric
+        Interslice distance (spacing between slices) in the z-direction in 
+        meters.
+
+    Returns
+    -------
+    validated_sliced_material : SlicedMaterialFunction
+        Validated sliced material function instance
+
+    Raises
+    ------
+    ValueError
+        If data is invalid or parameters are out of valid ranges
+
+    Notes
+    -----
+    Algorithm:
+
+    - Convert inputs to JAX arrays
+    - Validate material array:
+        - Check it's 3D
+        - Ensure all values are finite
+    - Validate parameters:
+        - Check dx is positive
+        - Check tz is positive
+    - Create and return SlicedMaterialFunction instance
+    """
+    material_array: Complex[Array, " hh ww zz"] = jnp.asarray(
+        material, dtype=jnp.complex128
+    )
+    dx_array: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
+    tz_array: Float[Array, " "] = jnp.asarray(tz, dtype=jnp.float64)
+    expected_material_dim: int = 3
+
+    def validate_and_create() -> SlicedMaterialFunction:
+        def check_3d_material() -> Complex[Array, " hh ww zz"]:
+            return lax.cond(
+                material_array.ndim == expected_material_dim,
+                lambda: material_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: material_array, lambda: material_array
+                    )
+                ),
+            )
+
+        def check_material_finite() -> Complex[Array, " hh ww zz"]:
+            return lax.cond(
+                jnp.all(jnp.isfinite(material_array)),
+                lambda: material_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: material_array, lambda: material_array
+                    )
+                ),
+            )
+
+        def check_dx() -> Float[Array, " "]:
+            return lax.cond(
+                dx_array > 0,
+                lambda: dx_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx_array, lambda: dx_array)
+                ),
+            )
+
+        def check_tz() -> Float[Array, " "]:
+            return lax.cond(
+                tz_array > 0,
+                lambda: tz_array,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: tz_array, lambda: tz_array)
+                ),
+            )
+
+        check_3d_material()
+        check_material_finite()
+        check_dx()
+        check_tz()
+
+        return SlicedMaterialFunction(
+            material=material_array,
+            dx=dx_array,
+            tz=tz_array,
+        )
+
+    validated_sliced_material: SlicedMaterialFunction = validate_and_create()
+    return validated_sliced_material
 
 
 @jaxtyped(typechecker=beartype)
@@ -983,29 +1094,29 @@ def make_optimizer_state(
 
 @jaxtyped(typechecker=beartype)
 def make_ptychography_params(
-    zoom_factor: scalar_float,
-    aperture_diameter: scalar_float,
-    travel_distance: scalar_float,
+    zoom_factor: scalar_numeric,
+    aperture_diameter: scalar_numeric,
+    travel_distance: scalar_numeric,
     aperture_center: Float[Array, " 2"],
-    camera_pixel_size: scalar_float,
-    learning_rate: scalar_float,
+    camera_pixel_size: scalar_numeric,
+    learning_rate: scalar_numeric,
     num_iterations: scalar_integer,
 ) -> PtychographyParams:
     """Create a PtychographyParams PyTree with validated parameters.
 
     Parameters
     ----------
-    zoom_factor : scalar_float
+    zoom_factor : scalar_numeric
         Optical zoom factor for magnification (must be positive)
-    aperture_diameter : scalar_float
+    aperture_diameter : scalar_numeric
         Diameter of the aperture in meters (must be positive)
-    travel_distance : scalar_float
+    travel_distance : scalar_numeric
         Light propagation distance in meters (must be positive)
     aperture_center : Float[Array, " 2"]
         Center position of the aperture (x, y) in meters
-    camera_pixel_size : scalar_float
+    camera_pixel_size : scalar_numeric
         Camera pixel size in meters (must be positive)
-    learning_rate : scalar_float
+    learning_rate : scalar_numeric
         Learning rate for optimization (must be positive)
     num_iterations : scalar_integer
         Number of optimization iterations (must be positive)
