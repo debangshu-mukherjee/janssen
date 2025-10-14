@@ -45,7 +45,7 @@ from beartype import beartype
 from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.lenses import angular_spectrum_prop
+from janssen.prop import angular_spectrum_prop
 from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,

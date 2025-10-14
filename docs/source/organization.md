@@ -2,7 +2,7 @@
 
 ## Overview
 
-Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into six main modules: `utils` for common utilities, `optics` for optical elements, `scopes` for microscope forward models, `lenses` for lens implementations, `models` for test pattern generation, and `invert` for reconstruction algorithms.
+Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into seven main modules: `utils` for common utilities, `optics` for optical elements, `prop` for propagation algorithms, `scopes` for microscope forward models, `lenses` for lens implementations, `models` for test pattern generation, and `invert` for reconstruction algorithms.
 
 ## Module Structure
 
@@ -18,9 +18,13 @@ Optical elements and transformations for simulating light propagation through va
 
 Microscope forward models for simulating image formation and diffraction patterns in optical microscopy.
 
+### **janssen.prop**
+
+Propagation algorithms for simulating optical field propagation through different media. Includes free-space propagation methods (angular spectrum, Fresnel, Fraunhofer) and material propagation for volumetric optical media.
+
 ### **janssen.lenses**
 
-Dedicated module for lens implementations and optical calculations.
+Lens element definitions and optical calculations for modeling various lens types.
 
 ### **janssen.models**
 
@@ -49,19 +53,23 @@ All functions are designed to be:
 
 The package structure is organized for clarity and maintainability:
 
-```
+```text
 src/janssen/
 ├── __init__.py           # Top-level exports
 ├── utils/
 │   ├── __init__.py       # Utils module exports
 │   ├── types.py          # Shared type definitions
-│   └── decorators.py     # JAX decorators and utilities
+│   └── factory.py        # PyTree factory functions
 ├── optics/
 │   ├── __init__.py       # Optics module exports
 │   ├── apertures.py      # Aperture functions
 │   ├── elements.py       # Optical elements
 │   ├── helper.py         # Utility functions
 │   └── zernike.py        # Zernike polynomials
+├── prop/
+│   ├── __init__.py       # Prop module exports
+│   ├── free_space_prop.py # Free-space propagation algorithms
+│   └── material_prop.py  # Material propagation (in development)
 ├── scopes/
 │   ├── __init__.py       # Scopes module exports
 │   └── simple_microscopes.py  # Simple microscope forward models
@@ -70,8 +78,7 @@ src/janssen/
 │   └── usaf_pattern.py   # USAF test pattern generation
 ├── lenses/
 │   ├── __init__.py       # Lenses module exports
-│   ├── lens_optics.py    # Lens calculations
-│   └── lenses.py         # Lens implementations
+│   └── lens_elements.py  # Lens element definitions
 └── invert/
     ├── __init__.py       # Invert module exports
     ├── engine.py         # Reconstruction engine

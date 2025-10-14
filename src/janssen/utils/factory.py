@@ -63,7 +63,7 @@ jax.config.update("jax_enable_x64", True)
 @jaxtyped(typechecker=beartype)
 def make_lens_params(
     focal_length: scalar_numeric,
-    diameter: scalar_numeric,   
+    diameter: scalar_numeric,
     n: scalar_numeric,
     center_thickness: scalar_numeric,
     r1: scalar_numeric,
@@ -906,7 +906,7 @@ def make_sliced_material_function(
     dx : scalar_numeric
         Spatial sampling interval (pixel spacing) within each slice in meters
     tz : scalar_numeric
-        Interslice distance (spacing between slices) in the z-direction in 
+        Interslice distance (spacing between slices) in the z-direction in
         meters.
 
     Returns

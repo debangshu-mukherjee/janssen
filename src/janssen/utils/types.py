@@ -29,7 +29,7 @@ MicroscopeData : PyTree
 SampleFunction : PyTree
     A named tuple for representing a sample function
 SlicedMaterialFunction : PyTree
-    A named tuple for representing a 3D sliced material with complex 
+    A named tuple for representing a 3D sliced material with complex
     refractive index.
 Diffractogram : PyTree
     A named tuple for storing a single diffraction pattern

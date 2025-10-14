@@ -34,7 +34,7 @@ from beartype import beartype
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
-from janssen.lenses.lens_prop import fraunhofer_prop, optical_zoom
+from janssen.prop import fraunhofer_prop, optical_zoom
 from janssen.utils import (
     Diffractogram,
     MicroscopeData,

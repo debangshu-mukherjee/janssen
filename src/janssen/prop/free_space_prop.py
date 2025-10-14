@@ -11,25 +11,27 @@ Routine Listings
 ----------------
 angular_spectrum_prop : function
     Propagates a complex optical field using the angular spectrum method
+    without making any paraxial approximations.
+correct_propagator : function
+    Automatically selects the most appropriate propagation method.
+digital_zoom : function
+    Zooms an optical wavefront by a specified factor.
 fresnel_prop : function
     Propagates a complex optical field using the Fresnel approximation
 fraunhofer_prop : function
     Propagates a complex optical field using the Fraunhofer
-    approximation
-digital_zoom : function
-    Zooms an optical wavefront by a specified factor
+    approximation.
+lens_propagation : function
+    Propagates an optical wavefront through a lens.
 optical_zoom : function
     Modifies the calibration of an optical wavefront without changing
-    its field
-lens_propagation : function
-    Propagates an optical wavefront through a lens
+    its field.
 
 Notes
 -----
 All propagation methods are implemented using FFT-based algorithms for
 efficiency. The choice of propagation method depends on the Fresnel
-number
-and the specific requirements of the simulation.
+number and the specific requirements of the simulation.
 """
 
 import jax
@@ -47,7 +49,7 @@ from janssen.utils import (
     scalar_numeric,
 )
 
-from .lens_elements import create_lens_phase
+from janssen.lenses.lens_elements import create_lens_phase
 
 jax.config.update("jax_enable_x64", True)
 

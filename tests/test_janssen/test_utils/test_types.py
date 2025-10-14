@@ -355,7 +355,8 @@ class TestLensParamsPyTree(chex.TestCase):
         focal_lengths = jnp.array([0.01, 0.02, 0.03])
 
         def create_lens(f: Float[Array, " "]) -> LensParams:
-            # For vmap, we can't use factory functions that require concrete values
+            # For vmap, we can't use factory functions that require concrete 
+            # values
             # So we use direct instantiation here
             return LensParams(
                 focal_length=f,
@@ -744,8 +745,8 @@ class TestPtychographyParamsPyTree(chex.TestCase):
         zoom_factors = jnp.array([1.0, 2.0, 3.0])
 
         def create_params(zoom: Float[Array, " "]) -> PtychographyParams:
-            # For vmap, we can't use factory functions that require concrete values
-            # So we use direct instantiation here
+            # For vmap, we can't use factory functions that require concrete 
+            # values. So we use direct instantiation here
             return PtychographyParams(
                 zoom_factor=zoom,
                 aperture_diameter=self.ptycho_params.aperture_diameter,

@@ -5,7 +5,7 @@ import pytest
 from absl.testing import parameterized
 from jaxtyping import Array, Complex
 
-from janssen.lenses import (
+from janssen.prop import (
     angular_spectrum_prop,
     digital_zoom,
     fraunhofer_prop,
