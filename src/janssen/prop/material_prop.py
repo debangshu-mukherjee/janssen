@@ -9,25 +9,18 @@ material interaction and free-space propagation.
 
 Routine Listings
 ----------------
-compute_optical_path_length : function
-    Compute the optical path length through a material.
-compute_total_transmission : function
-    Compute the total transmission through a material.
 multislice_propagation : function
     Propagate optical wavefront through 3D material using multi-slice BPM
+optical_path_length : function
+    Compute the optical path length through a material.
+total_transmit : function
+    Compute the total transmission through a material.
 
 Notes
 -----
 The multi-slice method decomposes 3D propagation into a series of 2D
 interactions followed by thin propagation steps. This is accurate when
 the slice thickness is small compared to relevant length scales.
-
-Algorithm Overview
-------------------
-For each slice z:
-    1. Apply material interaction (phase shift + absorption)
-    2. Propagate to next slice using free-space propagation
-Return final wavefront
 """
 
 import jax
@@ -41,6 +34,7 @@ from janssen.utils import (
     SlicedMaterialFunction,
     make_optical_wavefront,
     scalar_float,
+    scalar_integer,
 )
 
 from .free_space_prop import correct_propagator, optical_zoom
@@ -132,7 +126,7 @@ def multislice_propagation(
     Propagate through a uniform glass slab:
 
     >>> import jax.numpy as jnp
-    >>> from janssen.utils import make_optical_wavefront, 
+    >>> from janssen.utils import make_optical_wavefront,
     >>>                           make_sliced_material_function
     >>> from janssen.prop import multislice_propagation
     >>>
@@ -239,11 +233,11 @@ def multislice_propagation(
 
 
 @jaxtyped(typechecker=beartype)
-def compute_optical_path_length(
+def optical_path_length(
     material: SlicedMaterialFunction,
-    x_idx: Optional[int] = None,
-    y_idx: Optional[int] = None,
-) -> Float[Array, " ..."]:
+    x_idx: Optional[scalar_integer] = -1,
+    y_idx: Optional[scalar_integer] = -1,
+) -> Float[Array, " H W"]:
     """Compute optical path length through material.
 
     Calculates the optical path length (OPL) along rays through the
@@ -254,31 +248,43 @@ def compute_optical_path_length(
     ----------
     material : SlicedMaterialFunction
         3D material with complex refractive index.
-    x_idx : int, optional
-        X-index for specific ray. If None, computes for all x.
-    y_idx : int, optional
-        Y-index for specific ray. If None, computes for all y.
+    x_idx : scalar_integer, optional
+        X-index for specific ray. If -1 (default), computes for all x.
+        When specified, the result is tiled to maintain (H, W) shape.
+    y_idx : scalar_integer, optional
+        Y-index for specific ray. If -1 (default), computes for all y.
+        When specified, the result is tiled to maintain (H, W) shape.
 
     Returns
     -------
-    opl : Float[Array, " ..."]
-        Optical path length in meters. Shape depends on indices:
-        - Both indices specified: scalar
-        - One index specified: 1D array
-        - No indices specified: 2D array (H, W)
+    opl : Float[Array, " H W"]
+        Optical path length in meters as a 2D array (H, W).
+        When indices are specified, the result is broadcast/tiled:
+        - Both indices: scalar value tiled to (H, W)
+        - x_idx only: 1D result tiled along y to (H, W)
+        - y_idx only: 1D result tiled along x to (H, W)
+        - Neither: full 2D projection (H, W)
+
+        Users can extract specific values with indexing, e.g.,
+        opl[0, 0] for scalar, opl[0, :] for x-line, opl[:, 0] for y-line.
 
     Notes
     -----
     Implementation:
     1. Extract real part of material (refractive index n)
-    2. Use nested jax.lax.cond to select computation based on indices:
-       - Both x_idx and y_idx: compute OPL for single ray
-       - Only x_idx: compute OPL for all y at fixed x
-       - Only y_idx: compute OPL for all x at fixed y
-       - Neither: compute OPL for entire 2D projection
-    3. Sum refractive indices along z and multiply by slice thickness
+    2. Get material dimensions (height, width)
+    3. Use nested jax.lax.cond to select computation:
+       - All branches return same shape (H, W) for JIT compatibility
+       - Both indices: broadcast scalar to (H, W)
+       - Only x_idx: tile 1D result to (H, W)
+       - Only y_idx: tile 1D result to (H, W)
+       - Neither: compute 2D projection directly
+    4. Extract appropriate slice/element from 2D result
+    5. Sum refractive indices along z and multiply by slice thickness
 
-    Uses jax.lax.cond instead of if/elif for JIT compilation compatibility.
+    Uses jax.lax.cond with uniform output shapes, then extracts the
+    relevant data. This ensures JIT compilation compatibility while
+    supporting dynamic return shapes.
 
     Formula:
     OPL = Σ_z n(x, y, z) × tz
@@ -289,42 +295,56 @@ def compute_optical_path_length(
     Examples
     --------
     >>> # Compute OPL for entire material
-    >>> opl_map = compute_optical_path_length(material)
+    >>> opl_map = optical_path_length(material)
     >>> # Compute OPL along center ray
-    >>> center_opl = compute_optical_path_length(material, 64, 64)
+    >>> center_opl = optical_path_length(material, 64, 64)
     """
     n_material: Float[Array, " H W Z"] = material.material.real
+    height: int
+    width: int
+    height, width, _ = material.material.shape
 
-    def both_indices() -> Float[Array, " ..."]:
+    def _both_indices() -> Float[Array, " H W"]:
+        """Compute OPL for single ray and tile to full array."""
         n_ray: Float[Array, " Z"] = n_material[y_idx, x_idx, :]
-        return jnp.sum(n_ray) * material.tz
+        scalar_opl: Float[Array, " "] = jnp.sum(n_ray) * material.tz
+        return jnp.full((height, width), scalar_opl)
 
-    def x_only() -> Float[Array, " ..."]:
+    def _x_only() -> Float[Array, " H W"]:
+        """Compute OPL for all y at fixed x and tile along height."""
         n_line: Float[Array, " W Z"] = n_material[:, x_idx, :]
-        return jnp.sum(n_line, axis=1) * material.tz
+        line_opl: Float[Array, " W"] = jnp.sum(n_line, axis=1) * material.tz
+        return jnp.tile(line_opl[jnp.newaxis, :], (height, 1))
 
-    def y_or_neither() -> Float[Array, " ..."]:
-        def y_only() -> Float[Array, " ..."]:
+    def _y_or_neither() -> Float[Array, " H W"]:
+        """Branch for y-only or full 2D projection."""
+        def y_only() -> Float[Array, " H W"]:
+            """Compute OPL for all x at fixed y and tile along width."""
             n_line: Float[Array, " H Z"] = n_material[y_idx, :, :]
-            return jnp.sum(n_line, axis=1) * material.tz
+            line_opl: Float[Array, " H"] = (
+                jnp.sum(n_line, axis=1) * material.tz
+            )
+            return jnp.tile(line_opl[:, jnp.newaxis], (1, width))
 
-        def neither() -> Float[Array, " ..."]:
-            n_projection: Float[Array, " H W"] = jnp.sum(n_material, axis=2)
-            return n_projection * material.tz
+        def neither() -> Float[Array, " H W"]:
+            """Compute OPL for entire 2D projection."""
+            return jnp.sum(n_material, axis=2) * material.tz
 
-        return jax.lax.cond(y_idx is not None, y_only, neither)
+        return jax.lax.cond(y_idx >= 0, y_only, neither)
 
-    def x_branch() -> Float[Array, " ..."]:
-        return jax.lax.cond(y_idx is not None, both_indices, x_only)
+    def _x_branch() -> Float[Array, " H W"]:
+        """Branch when x_idx is specified."""
+        return jax.lax.cond(y_idx >= 0, _both_indices, _x_only)
 
-    opl: Float[Array, " ..."] = jax.lax.cond(
-        x_idx is not None, x_branch, y_or_neither
+    opl: Float[Array, " H W"] = jax.lax.cond(
+        x_idx >= 0, _x_branch, _y_or_neither
     )
+
     return opl
 
 
 @jaxtyped(typechecker=beartype)
-def compute_total_transmission(
+def total_transmit(
     material: SlicedMaterialFunction,
     wavelength: scalar_float,
 ) -> Float[Array, " H W"]:
@@ -366,7 +386,7 @@ def compute_total_transmission(
 
     Examples
     --------
-    >>> transmission = compute_total_transmission(material, 550e-9)
+    >>> transmission = total_transmit(material, 550e-9)
     >>> absorption_percent = (1 - transmission) * 100
     >>> print(f"Max absorption: {jnp.max(absorption_percent):.1f}%")
     """
@@ -374,9 +394,7 @@ def compute_total_transmission(
         wavelength, dtype=jnp.float64
     )
     kappa: Float[Array, " H W Z"] = material.material.imag
-    alpha: Float[Array, " H W Z"] = (
-        4 * jnp.pi * kappa / wavelength_array
-    )
+    alpha: Float[Array, " H W Z"] = 4 * jnp.pi * kappa / wavelength_array
     amplitude_transmission: Float[Array, " H W Z"] = jnp.exp(
         -alpha * material.tz
     )

@@ -188,12 +188,14 @@ def spherical_inclusion(
     x_coords: Float[Array, " w"] = (
         jnp.arange(width, dtype=jnp.float64) - width / 2.0
     ) * dx
-    z_coords: Float[Array, " z"] = jnp.arange(num_slices, dtype=jnp.float64) * tz
+    z_coords: Float[Array, " z"] = (
+        jnp.arange(num_slices, dtype=jnp.float64) * tz
+    )
 
     # Set center position
-    def _get_default_center() -> Tuple[
-        Float[Array, " "], Float[Array, " "], Float[Array, " "]
-    ]:
+    def _get_default_center() -> (
+        Tuple[Float[Array, " "], Float[Array, " "], Float[Array, " "]]
+    ):
         y0: Float[Array, " "] = jnp.asarray(0.0, dtype=jnp.float64)
         x0: Float[Array, " "] = jnp.asarray(0.0, dtype=jnp.float64)
         z0: Float[Array, " "] = jnp.asarray(
@@ -201,9 +203,9 @@ def spherical_inclusion(
         )
         return (y0, x0, z0)
 
-    def _get_provided_center() -> Tuple[
-        Float[Array, " "], Float[Array, " "], Float[Array, " "]
-    ]:
+    def _get_provided_center() -> (
+        Tuple[Float[Array, " "], Float[Array, " "], Float[Array, " "]]
+    ):
         y0: Float[Array, " "] = jnp.asarray(center[0], dtype=jnp.float64)
         x0: Float[Array, " "] = jnp.asarray(center[1], dtype=jnp.float64)
         z0: Float[Array, " "] = jnp.asarray(center[2], dtype=jnp.float64)
@@ -227,7 +229,9 @@ def spherical_inclusion(
     )
 
     # Assign refractive index based on distance
-    n_sphere_val: Complex[Array, " "] = jnp.asarray(n_sphere, dtype=jnp.complex128)
+    n_sphere_val: Complex[Array, " "] = jnp.asarray(
+        n_sphere, dtype=jnp.complex128
+    )
     n_background_val: Complex[Array, " "] = jnp.asarray(
         n_background, dtype=jnp.complex128
     )
@@ -431,7 +435,9 @@ def biological_cell(
     x_coords: Float[Array, " w"] = (
         jnp.arange(width, dtype=jnp.float64) - width / 2.0
     ) * dx
-    z_coords: Float[Array, " z"] = jnp.arange(num_slices, dtype=jnp.float64) * tz
+    z_coords: Float[Array, " z"] = (
+        jnp.arange(num_slices, dtype=jnp.float64) * tz
+    )
 
     # Set center position (Python-time conditional)
     if center is None:
@@ -466,7 +472,9 @@ def biological_cell(
     n_medium_val: Complex[Array, " "] = jnp.asarray(
         n_medium, dtype=jnp.complex128
     )
-    nucleus_r: Float[Array, " "] = jnp.asarray(nucleus_radius, dtype=jnp.float64)
+    nucleus_r: Float[Array, " "] = jnp.asarray(
+        nucleus_radius, dtype=jnp.float64
+    )
     cell_r: Float[Array, " "] = jnp.asarray(cell_radius, dtype=jnp.float64)
 
     # Nested jnp.where for three regions
@@ -573,9 +581,11 @@ def gradient_index_material(
 
     # Apply GRIN formula
     n0: Float[Array, " "] = jnp.asarray(n_center, dtype=jnp.float64)
-    A: Float[Array, " "] = jnp.asarray(gradient_constant, dtype=jnp.float64)
+    steepness: Float[Array, " "] = jnp.asarray(
+        gradient_constant, dtype=jnp.float64
+    )
 
-    n_profile: Float[Array, " h w"] = n0 * (1.0 - (A / 2.0) * r_xy**2)
+    n_profile: Float[Array, " h w"] = n0 * (1.0 - (steepness / 2.0) * r_xy**2)
 
     # Clip to physical range
     n_minimum: Float[Array, " "] = jnp.asarray(

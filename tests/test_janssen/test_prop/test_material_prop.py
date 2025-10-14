@@ -5,9 +5,9 @@ import pytest
 from absl.testing import parameterized
 
 from janssen.prop import (
-    compute_optical_path_length,
-    compute_total_transmission,
     multislice_propagation,
+    optical_path_length,
+    total_transmit,
 )
 from janssen.utils import (
     OpticalWavefront,
@@ -294,9 +294,9 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
     @chex.variants(with_jit=True, without_jit=True)
     def test_opl_full_projection(self) -> None:
         """Test OPL computation for entire material."""
-        var_compute_opl = self.variant(compute_optical_path_length)
+        var_opl = self.variant(optical_path_length)
 
-        opl = var_compute_opl(self.uniform_material)
+        opl = var_opl(self.uniform_material)
 
         chex.assert_shape(opl, (self.ny, self.nx))
 
@@ -308,11 +308,12 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
     @chex.variants(with_jit=True, without_jit=True)
     def test_opl_single_ray(self) -> None:
         """Test OPL computation for a single ray."""
-        var_compute_opl = self.variant(compute_optical_path_length)
+        var_opl = self.variant(optical_path_length)
 
-        opl = var_compute_opl(self.uniform_material, x_idx=15, y_idx=15)
+        opl_2d = var_opl(self.uniform_material, x_idx=15, y_idx=15)
+        opl = opl_2d[0, 0]
 
-        chex.assert_shape(opl, ())
+        chex.assert_shape(opl_2d, (self.ny, self.nx))
 
         expected_opl = 1.5 * self.nz * self.tz
         chex.assert_trees_all_close(opl, expected_opl, rtol=1e-10, atol=1e-15)
@@ -320,11 +321,13 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
     @chex.variants(with_jit=True, without_jit=True)
     def test_opl_x_line(self) -> None:
         """Test OPL computation along a line at fixed x."""
-        var_compute_opl = self.variant(compute_optical_path_length)
+        var_opl = self.variant(optical_path_length)
 
-        opl = var_compute_opl(self.uniform_material, x_idx=15, y_idx=None)
+        opl_2d = var_opl(self.uniform_material, x_idx=15, y_idx=-1)
+        opl = opl_2d[0, :]
 
-        chex.assert_shape(opl, (self.ny,))
+        chex.assert_shape(opl_2d, (self.ny, self.nx))
+        chex.assert_shape(opl, (self.nx,))
 
         expected_opl = 1.5 * self.nz * self.tz
         chex.assert_trees_all_close(opl[0], expected_opl, rtol=1e-10)
@@ -332,11 +335,13 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
     @chex.variants(with_jit=True, without_jit=True)
     def test_opl_y_line(self) -> None:
         """Test OPL computation along a line at fixed y."""
-        var_compute_opl = self.variant(compute_optical_path_length)
+        var_opl = self.variant(optical_path_length)
 
-        opl = var_compute_opl(self.uniform_material, x_idx=None, y_idx=15)
+        opl_2d = var_opl(self.uniform_material, x_idx=-1, y_idx=15)
+        opl = opl_2d[:, 0]
 
-        chex.assert_shape(opl, (self.nx,))
+        chex.assert_shape(opl_2d, (self.ny, self.nx))
+        chex.assert_shape(opl, (self.ny,))
 
         expected_opl = 1.5 * self.nz * self.tz
         chex.assert_trees_all_close(opl[0], expected_opl, rtol=1e-10)
@@ -345,7 +350,7 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
     def test_opl_varying_material(self) -> None:
         """Test OPL with spatially varying refractive index."""
         var_make_material = self.variant(make_sliced_material_function)
-        var_compute_opl = self.variant(compute_optical_path_length)
+        var_opl = self.variant(optical_path_length)
 
         n_values = jnp.linspace(1.0, 2.0, self.nz)
         material_array = jnp.ones(
@@ -358,7 +363,7 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
             material=material_array, dx=self.dx, tz=self.tz
         )
 
-        opl = var_compute_opl(varying_material)
+        opl = var_opl(varying_material)
 
         expected_opl = jnp.sum(n_values) * self.tz
         chex.assert_trees_all_close(opl[0, 0], expected_opl, rtol=1e-9)
@@ -378,7 +383,7 @@ class TestComputeTotalTransmission(chex.TestCase):
     def test_transmission_transparent_material(self) -> None:
         """Test transmission through transparent material (no absorption)."""
         var_make_material = self.variant(make_sliced_material_function)
-        var_compute_transmission = self.variant(compute_total_transmission)
+        var_compute_transmission = self.variant(total_transmit)
 
         transparent_material = jnp.ones(
             (self.ny, self.nx, self.nz), dtype=jnp.complex128
@@ -398,7 +403,7 @@ class TestComputeTotalTransmission(chex.TestCase):
     def test_transmission_absorbing_material(self) -> None:
         """Test transmission through absorbing material."""
         var_make_material = self.variant(make_sliced_material_function)
-        var_compute_transmission = self.variant(compute_total_transmission)
+        var_compute_transmission = self.variant(total_transmit)
 
         absorbing_material = jnp.ones(
             (self.ny, self.nx, self.nz), dtype=jnp.complex128
@@ -419,7 +424,7 @@ class TestComputeTotalTransmission(chex.TestCase):
     def test_transmission_varying_absorption(self) -> None:
         """Test transmission with spatially varying absorption."""
         var_make_material = self.variant(make_sliced_material_function)
-        var_compute_transmission = self.variant(compute_total_transmission)
+        var_compute_transmission = self.variant(total_transmit)
 
         x = jnp.arange(self.nx) - self.nx / 2
         y = jnp.arange(self.ny) - self.ny / 2
