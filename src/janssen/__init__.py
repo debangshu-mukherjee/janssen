@@ -15,8 +15,8 @@ invert
     Inversion algorithms for phase retrieval and ptychography.
 models
     Models for generating datasets for testing and validation.
-simul
-    Differentiable optical simulation toolkit.
+optics
+    Variety of different optical elements.
 lenses
     Lens implementations and optical calculations.
 
@@ -39,12 +39,12 @@ CPU and GPU execution. For best performance, use JIT compilation
 and consider using the provided factory functions for data validation.
 """
 
-from . import invert, lenses, models, simul, utils
+from . import invert, lenses, models, optics, utils
 
 __all__: list[str] = [
     "invert",
     "lenses",
     "models",
-    "simul",
+    "optics",
     "utils",
 ]

@@ -5,7 +5,7 @@ import pytest
 from absl.testing import parameterized
 from jaxtyping import Array, Complex, Float
 
-from janssen.simul.elements import (
+from janssen.optics.elements import (
     amplitude_grating_binary,
     apply_phase_mask,
     apply_phase_mask_fn,

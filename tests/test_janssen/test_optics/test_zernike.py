@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import pytest
 from absl.testing import parameterized
 
-from janssen.simul.zernike import (
+from janssen.optics.zernike import (
     apply_aberration,
     astigmatism,
     coma,

@@ -2,20 +2,28 @@
 
 ## Overview
 
-Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into four main modules: `utils` for common utilities, `simul` for forward models, `lenses` for lens implementations, and `invert` for reconstruction algorithms.
+Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into five main modules: `utils` for common utilities, `optics` for forward models, `lenses` for lens implementations, `models` for test pattern generation, and `invert` for reconstruction algorithms.
 
 ## Module Structure
 
 ### **janssen.utils**
+
 Common utilities and shared data structures used throughout the package.
 
-### **janssen.simul**
-The forward simulation module for optical microscopy, providing differentiable implementations of optical elements and propagation.
+### **janssen.optics**
+
+The forward optical simulation module for optical microscopy, providing differentiable implementations of optical elements and propagation.
 
 ### **janssen.lenses**
+
 Dedicated module for lens implementations and optical calculations.
 
+### **janssen.models**
+
+Models for generating test patterns and datasets for testing and validation.
+
 ### **janssen.invert**
+
 The reconstruction module containing phase retrieval algorithms and optimization routines.
 
 
@@ -44,12 +52,16 @@ src/janssen/
 │   ├── __init__.py       # Utils module exports
 │   ├── types.py          # Shared type definitions
 │   └── decorators.py     # JAX decorators and utilities
-├── simul/
-│   ├── __init__.py       # Simulation module exports
+├── optics/
+│   ├── __init__.py       # Optics module exports
 │   ├── apertures.py      # Aperture functions
 │   ├── elements.py       # Optical elements
 │   ├── helper.py         # Utility functions
-│   └── microscope.py     # Microscopy simulations
+│   ├── microscope.py     # Microscopy simulations
+│   └── zernike.py        # Zernike polynomials
+├── models/
+│   ├── __init__.py       # Models module exports
+│   └── usaf_pattern.py   # USAF test pattern generation
 ├── lenses/
 │   ├── __init__.py       # Lenses module exports
 │   ├── lens_optics.py    # Lens calculations
@@ -69,7 +81,7 @@ The package is designed to be extensible:
 1. **Custom Loss Functions**: Implement new loss functions following the pattern in `invert.loss_functions`
 2. **New Optimizers**: Add optimizers with Wirtinger derivative support
 3. **Additional Reconstructions**: Build on base reconstruction algorithms in `invert.ptychography`
-4. **Custom Optical Elements**: Add new elements in `simul.elements`
+4. **Custom Optical Elements**: Add new elements in `optics.elements`
 5. **Custom Workflows**: Combine existing functions for specific use cases
 
 ## Future Directions

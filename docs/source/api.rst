@@ -28,9 +28,9 @@ janssen.models
    :imported-members:
    :exclude-members: __builtins__, __cached__, __doc__, __file__, __loader__, __name__, __package__, __path__, __spec__
 
-janssen.simul
--------------
-.. automodule:: janssen.simul
+janssen.optics
+--------------
+.. automodule:: janssen.optics
    :members:
    :undoc-members:
    :show-inheritance:

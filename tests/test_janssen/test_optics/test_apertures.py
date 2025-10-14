@@ -1,4 +1,4 @@
-"""Tests for aperture functions in janssen.simul.apertures module."""
+"""Tests for aperture functions in janssen.optics.apertures module."""
 
 import chex
 import jax
@@ -8,7 +8,7 @@ from absl.testing import parameterized
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float
 
-from janssen.simul.apertures import (
+from janssen.optics.apertures import (
     _arrayed_grids,
     annular_aperture,
     circular_aperture,
