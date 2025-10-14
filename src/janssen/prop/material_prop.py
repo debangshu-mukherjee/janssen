@@ -154,9 +154,8 @@ def multislice_propagation(
 
     See Also
     --------
-    angular_spectrum_prop : Angular spectrum propagation in free space
-    fresnel_prop : Fresnel propagation in free space
     correct_propagator : Automatic selection of propagation method
+    optical_zoom : Resampling function
     """
     dx_tolerance: float = 1e-10
     dx_mismatch: Float[Array, " "] = jnp.abs(incoming.dx - material.dx)
