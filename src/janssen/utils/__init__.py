@@ -8,6 +8,8 @@ Provides the foundation for type-safe JAX programming with PyTrees.
 
 Submodules
 ----------
+distributed
+    Multi-device utilities for scalable optical computing
 factory
     Factory functions for creating data structures
 types
@@ -15,6 +17,12 @@ types
 
 Routine Listings
 ----------------
+create_mesh : function
+    Creates a device mesh for data parallelism across available devices
+get_device_count : function
+    Gets the number of available JAX devices
+shard_batch : function
+    Shards array data across the batch dimension for parallel processing
 Diffractogram : PyTree
     PyTree for storing diffraction patterns
 GridParams : PyTree
@@ -71,6 +79,11 @@ proper type checking and validation. All PyTrees are registered with
 JAX and support automatic differentiation.
 """
 
+from .distributed import (
+    create_mesh,
+    get_device_count,
+    shard_batch,
+)
 from .factory import (
     make_diffractogram,
     make_grid_params,
@@ -110,6 +123,7 @@ __all__: list[str] = [
     "PtychographyParams",
     "SampleFunction",
     "SlicedMaterialFunction",
+    "create_mesh",
     "make_diffractogram",
     "make_grid_params",
     "make_lens_params",
@@ -125,4 +139,6 @@ __all__: list[str] = [
     "scalar_float",
     "scalar_integer",
     "scalar_numeric",
+    "shard_batch",
+    "get_device_count",
 ]

@@ -318,6 +318,7 @@ def optical_path_length(
 
     def _y_or_neither() -> Float[Array, " H W"]:
         """Branch for y-only or full 2D projection."""
+
         def y_only() -> Float[Array, " H W"]:
             """Compute OPL for all x at fixed y and tile along width."""
             n_line: Float[Array, " H Z"] = n_material[y_idx, :, :]

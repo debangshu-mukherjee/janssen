@@ -163,7 +163,9 @@ jax==0.7.1
 jax-cuda12-pjrt==0.7.1
     # via jax-cuda12-plugin
 jax-cuda12-plugin==0.7.1
-    # via jax
+    # via
+    #   janssen (pyproject.toml)
+    #   jax
 jaxlib==0.7.1
     # via
     #   chex
