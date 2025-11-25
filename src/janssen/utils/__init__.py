@@ -59,17 +59,17 @@ make_sample_function : function
     Factory function for SampleFunction creation
 make_sliced_material_function : function
     Factory function for SlicedMaterialFunction creation
-non_jax_number : TypeAlias
+NonJaxNumber : TypeAlias
     Type alias for Python numeric types
-scalar_bool : TypeAlias
+ScalarBool : TypeAlias
     Type alias for scalar boolean values
-scalar_complex : TypeAlias
+ScalarComplex : TypeAlias
     Type alias for scalar complex values
-scalar_float : TypeAlias
+ScalarFloat : TypeAlias
     Type alias for scalar float values
-scalar_integer : TypeAlias
+ScalarInteger : TypeAlias
     Type alias for scalar integer values
-scalar_numeric : TypeAlias
+ScalarNumeric : TypeAlias
     Type alias for any scalar numeric value
 
 Notes
@@ -105,12 +105,12 @@ from .types import (
     PtychographyParams,
     SampleFunction,
     SlicedMaterialFunction,
-    non_jax_number,
-    scalar_bool,
-    scalar_complex,
-    scalar_float,
-    scalar_integer,
-    scalar_numeric,
+    NonJaxNumber,
+    ScalarBool,
+    ScalarComplex,
+    ScalarFloat,
+    ScalarInteger,
+    ScalarNumeric,
 )
 
 __all__: list[str] = [
@@ -133,12 +133,12 @@ __all__: list[str] = [
     "make_ptychography_params",
     "make_sample_function",
     "make_sliced_material_function",
-    "non_jax_number",
-    "scalar_bool",
-    "scalar_complex",
-    "scalar_float",
-    "scalar_integer",
-    "scalar_numeric",
+    "NonJaxNumber",
+    "ScalarBool",
+    "ScalarComplex",
+    "ScalarFloat",
+    "ScalarInteger",
+    "ScalarNumeric",
     "shard_batch",
     "get_device_count",
 ]

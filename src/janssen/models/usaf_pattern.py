@@ -35,9 +35,9 @@ from jaxtyping import (
 from janssen.utils import (
     SampleFunction,
     make_sample_function,
-    scalar_bool,
-    scalar_float,
-    scalar_integer,
+    ScalarBool,
+    ScalarFloat,
+    ScalarInteger,
 )
 
 
@@ -45,10 +45,10 @@ from janssen.utils import (
 @jaxtyped(typechecker=beartype)
 def create_bar_triplet(
     blank_pattern: Int[Array, " h w"],
-    width: scalar_integer,
-    length: scalar_integer,
-    spacing: scalar_integer,
-    horizontal: scalar_bool = True,
+    width: ScalarInteger,
+    length: ScalarInteger,
+    spacing: ScalarInteger,
+    horizontal: ScalarBool = True,
 ) -> Int[Array, " h w"]:
     """Create 3 parallel bars (horizontal or vertical).
 
@@ -56,11 +56,11 @@ def create_bar_triplet(
     ----------
     blank_pattern : Int[Array, " h w"]
         Pre-allocated array to fill with bar pattern
-    width : scalar_integer
+    width : ScalarInteger
         Width of the bars
-    length : scalar_integer
+    length : ScalarInteger
         Length of the bars
-    spacing : scalar_integer
+    spacing : ScalarInteger
         Spacing between the bars
     horizontal : bool, optional
         Whether to create horizontal bars, by default True
@@ -164,10 +164,10 @@ def create_bar_triplet(
 @jaxtyped(typechecker=beartype)
 def create_element(
     blank_pattern: Int[Array, " buffer_size buffer_size"],
-    group: scalar_integer,
-    element: scalar_integer,
-    scale_factor: scalar_float,
-    dpi: scalar_float,
+    group: ScalarInteger,
+    element: ScalarInteger,
+    scale_factor: ScalarFloat,
+    dpi: ScalarFloat,
 ) -> Float[Array, " buffer_size buffer_size"]:
     """Create a single element (horizontal + vertical bars).
 
@@ -175,13 +175,13 @@ def create_element(
     ----------
     blank_pattern : Int[Array, " buffer_size buffer_size"]
         Pre-allocated buffer array to avoid traced shape creation
-    group : scalar_integer
+    group : ScalarInteger
         Group number (can be Python int or JAX scalar)
-    element : scalar_integer
+    element : ScalarInteger
         Element number (can be Python int or JAX scalar)
-    scale_factor : scalar_float
+    scale_factor : ScalarFloat
         Scale factor
-    dpi : scalar_float
+    dpi : ScalarFloat
         Dots per inch
 
     Returns
@@ -216,19 +216,19 @@ def create_element(
     group_val: Float[Array, " "] = jnp.asarray(group, dtype=jnp.float64)
     element_val: Float[Array, " "] = jnp.asarray(element, dtype=jnp.float64)
 
-    resolution_lp_mm: scalar_float = 2.0 ** (
+    resolution_lp_mm: ScalarFloat = 2.0 ** (
         group_val + (element_val - 1) / 6.0
     )
     mm_per_inch: float = 25.4
-    pixels_per_mm: scalar_float = dpi / mm_per_inch
-    pixels_per_lp: scalar_float = pixels_per_mm / resolution_lp_mm
+    pixels_per_mm: ScalarFloat = dpi / mm_per_inch
+    pixels_per_lp: ScalarFloat = pixels_per_mm / resolution_lp_mm
     bar_width: Float[Array, " "] = pixels_per_lp / 2.0 * scale_factor
     bar_width = jnp.maximum(bar_width, 1.0)
     bar_length: Float[Array, " "] = bar_width * 5.0
 
-    bar_width_int: scalar_integer = jnp.round(bar_width).astype(jnp.int32)
-    bar_length_int: scalar_integer = jnp.round(bar_length).astype(jnp.int32)
-    spacing_int: scalar_integer = jnp.round(bar_width * 0.5).astype(jnp.int32)
+    bar_width_int: ScalarInteger = jnp.round(bar_width).astype(jnp.int32)
+    bar_length_int: ScalarInteger = jnp.round(bar_length).astype(jnp.int32)
+    spacing_int: ScalarInteger = jnp.round(bar_width * 0.5).astype(jnp.int32)
 
     h_bars: Int[Array, " h w"] = create_bar_triplet(
         blank_pattern,
@@ -244,23 +244,23 @@ def create_element(
         bar_width_int,
         horizontal=False,
     )
-    h_height: scalar_integer = h_bars.shape[0]
-    h_width: scalar_integer = h_bars.shape[1]
-    v_height: scalar_integer = v_bars.shape[0]
+    h_height: ScalarInteger = h_bars.shape[0]
+    h_width: ScalarInteger = h_bars.shape[1]
+    v_height: ScalarInteger = v_bars.shape[0]
 
-    total_height: scalar_integer = jnp.maximum(h_height, v_height)
+    total_height: ScalarInteger = jnp.maximum(h_height, v_height)
 
     element_buffer: Float[Array, " buffer_size buffer_size"] = (
         blank_pattern.astype(jnp.float32) * 0.0
     )
 
-    h_offset: scalar_integer = ((total_height - h_height) // 2).astype(
+    h_offset: ScalarInteger = ((total_height - h_height) // 2).astype(
         jnp.int32
     )
-    v_offset: scalar_integer = ((total_height - v_height) // 2).astype(
+    v_offset: ScalarInteger = ((total_height - v_height) // 2).astype(
         jnp.int32
     )
-    zero_int32: scalar_integer = jnp.int32(0)
+    zero_int32: ScalarInteger = jnp.int32(0)
 
     h_bars_float: Float[Array, " h_height h_width"] = h_bars.astype(
         jnp.float32
@@ -272,7 +272,7 @@ def create_element(
     v_bars_float: Float[Array, " v_height v_width"] = v_bars.astype(
         jnp.float32
     )
-    v_x_pos: scalar_integer = (h_width + spacing_int).astype(jnp.int32)
+    v_x_pos: ScalarInteger = (h_width + spacing_int).astype(jnp.int32)
     element_buffer_out: Float[Array, " buffer_size buffer_size"] = (
         jax.lax.dynamic_update_slice(
             element_buffer, v_bars_float, (v_offset, v_x_pos)
@@ -286,8 +286,8 @@ def create_element(
 def generate_usaf_pattern(
     image_size: int = 1024,
     groups: Optional[Iterable[int]] = None,
-    dpi: scalar_float = 300,
-    dx: Optional[scalar_float] = None,
+    dpi: ScalarFloat = 300,
+    dx: Optional[ScalarFloat] = None,
 ) -> SampleFunction:
     """
     Generate USAF 1951 resolution test pattern using pure JAX.
@@ -298,9 +298,9 @@ def generate_usaf_pattern(
         Size of the output image (square), by default 1024
     groups : Iterable[int], optional
         Range of groups to include, by default range(-2, 8)
-    dpi : scalar_float, optional
+    dpi : ScalarFloat, optional
         Dots per inch for scaling, by default 300
-    dx : scalar_float, optional
+    dx : ScalarFloat, optional
         Spatial sampling interval in meters. If None, calculated from dpi.
 
     Returns
@@ -342,14 +342,14 @@ def generate_usaf_pattern(
 
     if dx is None:
         mm_per_inch: float = 25.4
-        dx_calculated: scalar_float = (mm_per_inch * 1e-3) / dpi
+        dx_calculated: ScalarFloat = (mm_per_inch * 1e-3) / dpi
     else:
         dx_calculated = dx
 
     canvas: Float[Array, " image_size image_size"] = (
         jnp.ones((image_size, image_size), dtype=jnp.float32) * 0.5
     )
-    scale_factor: scalar_float = image_size / 1024.0
+    scale_factor: ScalarFloat = image_size / 1024.0
     num_groups: int = len(groups_array)
     grid_size: int = int(jnp.ceil(jnp.sqrt(num_groups)))
     cell_size: int = image_size // (grid_size + 1)
@@ -364,7 +364,7 @@ def generate_usaf_pattern(
         group_idx: int, canvas_carry: Float[Array, " image_size image_size"]
     ) -> Float[Array, " image_size image_size"]:
         """Process a single group and place all its elements."""
-        group: scalar_integer = groups_array[group_idx]
+        group: ScalarInteger = groups_array[group_idx]
 
         row: Float[Array, " "] = jnp.asarray(group_idx) // grid_size
         col: Float[Array, " "] = jnp.asarray(group_idx) % grid_size
@@ -388,10 +388,10 @@ def generate_usaf_pattern(
             elem_y_float: Float[Array, " "] = y_pos + e_row * element_spacing
             elem_x_float: Float[Array, " "] = x_pos + e_col * element_spacing
 
-            elem_y: scalar_integer = jnp.clip(
+            elem_y: ScalarInteger = jnp.clip(
                 elem_y_float, 0, image_size - buffer_size
             ).astype(jnp.int32)
-            elem_x: scalar_integer = jnp.clip(
+            elem_x: ScalarInteger = jnp.clip(
                 elem_x_float, 0, image_size - buffer_size
             ).astype(jnp.int32)
 

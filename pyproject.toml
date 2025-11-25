@@ -1,10 +1,10 @@
 [project]
 name = "janssen"
-version = "2025.09.15"
+version = "2025.09.20"
 description = "Modular Optical Microscopy with JAX"
-authors = [{name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov"}]
-license = {file = "LICENSE.md"}
-maintainers = [{name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov"}]
+authors = [{ name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov" }]
+license = { file = "LICENSE.md" }
+maintainers = [{ name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov" }]
 keywords = [
     "optical microscopy",
     "JAX",
@@ -28,20 +28,19 @@ dependencies = [
     "matplotlib >= 2.2.0",
     "matplotlib-scalebar >= 0.5.0",
     "tqdm >= 4.66.0",
-    "jaxtyping>=0.2.21",
+    "jaxtyping>0.3.2",
     "chex >= 0.1.85",
     "optax >= 0.1.8",
     "pytest >= 8.0.0",
-    "beartype>=0.19.0",
-    "jax[cuda12]>=0.7.0 ; sys_platform == 'linux'",
-    "jax-cuda12-plugin>=0.7.0 ; sys_platform == 'linux'",
     "jax>=0.7.0 ; sys_platform == 'win64'",
     "jax>=0.7.0 ; sys_platform == 'darwin'",
+    "jax>=0.7.0 ; sys_platform == 'linux'",
     "pytest-cov>=6.2.1",
     "jupyterlab>=4.4.5",
     "jupyter>=1.1.1",
     "ipykernel>=6.29.5",
     "black[jupyter]>=25.1.0",
+    "beartype>=0.21.0",
 ]
 
 [tool.setuptools]
@@ -53,6 +52,10 @@ namespaces = true
 where = ["src"]
 
 [project.optional-dependencies]
+cuda = [
+    "jax[cuda12]>=0.7.0 ; platform_machine == 'x86_64' and sys_platform == 'linux'",
+    "nvidia-cudnn-cu12>=9.5.0 ; platform_machine == 'x86_64' and sys_platform == 'linux'",
+]
 docs = [
     "furo>=2025.7.19",
     "ipykernel>=6.29.5",
@@ -67,19 +70,15 @@ docs = [
     "interrogate>=1.7.0",
     "pandoc>=2.4",
 ]
+notebooks = ["ipywidgets>=8.1.0", "ipykernel>=6.29.5", "nbconvert>=7.16.6"]
 test = [
     "pytest>=8.3.5",
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",
     "chex>=0.1.89",
 ]
-notebooks = [
-    "ipywidgets>=8.1.0",
-    "ipykernel>=6.29.5",
-    "nbconvert>=7.16.6",
-]
 dev = [
-    "janssen[docs,test,notebooks]",
+    "janssen[cuda,docs,notebooks,test]",
     "black>=25.1.0",
     "ipykernel>=6.29.5",
     "isort>=6.0.1",
@@ -114,6 +113,21 @@ python_functions = "test_*"
 [tool.coverage.run]
 source = ["janssen"]
 omit = ["*/tests/*", "*/site-packages/*"]
+
+[tool.pydoclint]
+style = "numpy"
+check-return-types = true
+check-yield-types = true
+check-arg-order = true
+require-return-section-when-returning = true
+require-yield-section-when-yielding = true
+
+[tool.interrogate]
+fail-under = 90
+style = "sphinx"
+exclude = ["tests", "build", "dist"]
+ignore-init-module = true
+quiet = true
 
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py"]
@@ -160,24 +174,24 @@ docstring-code-line-length = 79
 [tool.ruff.lint]
 select = [
     "D",
-    "E", 
-    "F", 
-    "B", 
-    "I", 
-    "N", 
-    "UP", 
-    "ANN", 
-    "S", 
-    "A", 
-    "C4", 
-    "PIE", 
-    "PT", 
-    "RET", 
-    "SIM", 
-    "ARG", 
-    "ERA", 
-    "PL"
-    ]
+    "E",
+    "F",
+    "B",
+    "I",
+    "N",
+    "UP",
+    "ANN",
+    "S",
+    "A",
+    "C4",
+    "PIE",
+    "PT",
+    "RET",
+    "SIM",
+    "ARG",
+    "ERA",
+    "PL",
+]
 ignore = [
     "ANN401",
     "PYI021",
@@ -185,12 +199,14 @@ ignore = [
     "COM812",
     "D205",
     "D212",
+    "UP037",  # Don't remove quotes from jaxtyping annotations
+    "F821",   # jaxtyping dimension variables (N, M, etc.) are intentionally "undefined"
 ]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = [
     "jax.numpy.zeros",
-    "jax.numpy.ones", 
+    "jax.numpy.ones",
     "jax.numpy.array",
     "jax.numpy.asarray",
     "jnp.zeros",
@@ -209,19 +225,41 @@ known-third-party = ["jax", "jaxtyping"]
 convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D"]
+"tests/**/*.py" = [
+    "D",       # Ignore all docstring issues
+    "ANN",     # Ignore type annotations (tests often use Any)
+    "S",       # Ignore security issues (tests may use assert, random, etc.)
+    "PLR",     # Ignore refactoring suggestions
+    "ARG",     # Ignore unused arguments
+    "ERA",     # Ignore commented code
+    "B",       # Ignore bugbear warnings
+    "A",       # Ignore shadowing builtins
+    "C4",      # Ignore comprehension issues
+    "PIE",     # Ignore misc lints
+    "PT",      # Ignore pytest style (we use unittest style)
+    "RET",     # Ignore return issues
+    "SIM",     # Ignore simplification suggestions
+    "N",       # Ignore naming conventions
+    "UP",      # Ignore upgrade suggestions
+    "F401",    # Ignore unused imports (tests may import for side effects)
+    "F841",    # Ignore unused variables
+    "PLR2004", # Ignore magic value comparisons
+]
 
-[tool.pydoclint]
-style = "numpy"
-check-return-types = true
-check-yield-types = true
-check-arg-order = true
-require-return-section-when-returning = true
-require-yield-section-when-yielding = true
-
-[tool.interrogate]
-fail-under = 90
-style = "sphinx"
-exclude = ["tests", "build", "dist"]
-ignore-init-module = true
-quiet = true
+[tool.black]
+line-length = 79
+target-version = ["py311", "py312", "py313"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''

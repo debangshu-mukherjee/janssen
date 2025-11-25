@@ -36,11 +36,11 @@ from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import (
+    ScalarComplex,
+    ScalarFloat,
+    ScalarInteger,
     SlicedMaterialFunction,
     make_sliced_material_function,
-    scalar_complex,
-    scalar_float,
-    scalar_integer,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -49,9 +49,9 @@ jax.config.update("jax_enable_x64", True)
 @jaxtyped(typechecker=beartype)
 def uniform_material(
     shape: Tuple[int, int, int],
-    n: scalar_complex,
-    dx: scalar_float,
-    tz: scalar_float,
+    n: ScalarComplex,
+    dx: ScalarFloat,
+    tz: ScalarFloat,
 ) -> SlicedMaterialFunction:
     """Create uniform 3D material with constant refractive index.
 
@@ -59,11 +59,11 @@ def uniform_material(
     ----------
     shape : Tuple[int, int, int]
         Shape of material (height, width, num_slices)
-    n : scalar_complex
+    n : ScalarComplex
         Complex refractive index (n_real + i*kappa)
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in x-y plane in meters
-    tz : scalar_float
+    tz : ScalarFloat
         Slice spacing in z direction in meters
 
     Returns
@@ -117,12 +117,12 @@ def uniform_material(
 @jaxtyped(typechecker=beartype)
 def spherical_inclusion(
     shape: Tuple[int, int, int],
-    radius: scalar_float,
-    n_sphere: scalar_complex,
-    n_background: scalar_complex,
-    dx: scalar_float,
-    tz: scalar_float,
-    center: Optional[Tuple[scalar_float, scalar_float, scalar_float]] = None,
+    radius: ScalarFloat,
+    n_sphere: ScalarComplex,
+    n_background: ScalarComplex,
+    dx: ScalarFloat,
+    tz: ScalarFloat,
+    center: Optional[Tuple[ScalarFloat, ScalarFloat, ScalarFloat]] = None,
 ) -> SlicedMaterialFunction:
     """Create material with spherical inclusion.
 
@@ -130,17 +130,17 @@ def spherical_inclusion(
     ----------
     shape : Tuple[int, int, int]
         Shape of material (height, width, num_slices)
-    radius : scalar_float
+    radius : ScalarFloat
         Radius of sphere in meters
-    n_sphere : scalar_complex
+    n_sphere : ScalarComplex
         Complex refractive index of sphere
-    n_background : scalar_complex
+    n_background : ScalarComplex
         Complex refractive index of background
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in x-y plane in meters
-    tz : scalar_float
+    tz : ScalarFloat
         Slice spacing in z direction in meters
-    center : Tuple[scalar_float, scalar_float, scalar_float], optional
+    center : Tuple[ScalarFloat, ScalarFloat, ScalarFloat], optional
         Center position (y, x, z) in meters. If None, centered in volume.
 
     Returns
@@ -255,10 +255,10 @@ def spherical_inclusion(
 @jaxtyped(typechecker=beartype)
 def layered_material(
     shape: Tuple[int, int, int],
-    n_layers: Tuple[scalar_complex, scalar_complex],
-    dx: scalar_float,
-    tz: scalar_float,
-    slices_per_layer: scalar_integer = 1,
+    n_layers: Tuple[ScalarComplex, ScalarComplex],
+    dx: ScalarFloat,
+    tz: ScalarFloat,
+    slices_per_layer: ScalarInteger = 1,
 ) -> SlicedMaterialFunction:
     """Create alternating layers of materials.
 
@@ -266,13 +266,13 @@ def layered_material(
     ----------
     shape : Tuple[int, int, int]
         Shape of material (height, width, num_slices)
-    n_layers : Tuple[scalar_complex, scalar_complex]
+    n_layers : Tuple[ScalarComplex, ScalarComplex]
         Refractive indices of two alternating layers (n1, n2)
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in x-y plane in meters
-    tz : scalar_float
+    tz : ScalarFloat
         Slice spacing in z direction in meters
-    slices_per_layer : scalar_integer, optional
+    slices_per_layer : ScalarInteger, optional
         Number of slices per layer, by default 1
 
     Returns
@@ -350,14 +350,14 @@ def layered_material(
 @jaxtyped(typechecker=beartype)
 def biological_cell(
     shape: Tuple[int, int, int],
-    cell_radius: scalar_float,
-    nucleus_radius: scalar_float,
-    n_cytoplasm: scalar_complex,
-    n_nucleus: scalar_complex,
-    n_medium: scalar_complex,
-    dx: scalar_float,
-    tz: scalar_float,
-    center: Optional[Tuple[scalar_float, scalar_float, scalar_float]] = None,
+    cell_radius: ScalarFloat,
+    nucleus_radius: ScalarFloat,
+    n_cytoplasm: ScalarComplex,
+    n_nucleus: ScalarComplex,
+    n_medium: ScalarComplex,
+    dx: ScalarFloat,
+    tz: ScalarFloat,
+    center: Optional[Tuple[ScalarFloat, ScalarFloat, ScalarFloat]] = None,
 ) -> SlicedMaterialFunction:
     """Create biological cell model with nucleus.
 
@@ -365,21 +365,21 @@ def biological_cell(
     ----------
     shape : Tuple[int, int, int]
         Shape of material (height, width, num_slices)
-    cell_radius : scalar_float
+    cell_radius : ScalarFloat
         Outer radius of cell in meters
-    nucleus_radius : scalar_float
+    nucleus_radius : ScalarFloat
         Radius of nucleus in meters
-    n_cytoplasm : scalar_complex
+    n_cytoplasm : ScalarComplex
         Complex refractive index of cytoplasm
-    n_nucleus : scalar_complex
+    n_nucleus : ScalarComplex
         Complex refractive index of nucleus
-    n_medium : scalar_complex
+    n_medium : ScalarComplex
         Complex refractive index of surrounding medium
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in x-y plane in meters
-    tz : scalar_float
+    tz : ScalarFloat
         Slice spacing in z direction in meters
-    center : Tuple[scalar_float, scalar_float, scalar_float], optional
+    center : Tuple[ScalarFloat, ScalarFloat, ScalarFloat], optional
         Center position (y, x, z) in meters. If None, centered in volume.
 
     Returns
@@ -500,11 +500,11 @@ def biological_cell(
 @jaxtyped(typechecker=beartype)
 def gradient_index_material(
     shape: Tuple[int, int, int],
-    n_center: scalar_float,
-    gradient_constant: scalar_float,
-    dx: scalar_float,
-    tz: scalar_float,
-    n_min: Optional[scalar_float] = None,
+    n_center: ScalarFloat,
+    gradient_constant: ScalarFloat,
+    dx: ScalarFloat,
+    tz: ScalarFloat,
+    n_min: Optional[ScalarFloat] = None,
 ) -> SlicedMaterialFunction:
     """Create gradient-index (GRIN) material with radial profile.
 
@@ -512,15 +512,15 @@ def gradient_index_material(
     ----------
     shape : Tuple[int, int, int]
         Shape of material (height, width, num_slices)
-    n_center : scalar_float
+    n_center : ScalarFloat
         Refractive index at center
-    gradient_constant : scalar_float
+    gradient_constant : ScalarFloat
         GRIN constant A in n(r) = n0(1 - Ar²/2), units: m^-2
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in x-y plane in meters
-    tz : scalar_float
+    tz : ScalarFloat
         Slice spacing in z direction in meters
-    n_min : scalar_float, optional
+    n_min : ScalarFloat, optional
         Minimum refractive index (for clipping), default is 1.0
 
     Returns

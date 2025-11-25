@@ -74,8 +74,8 @@ from jaxtyping import Array, Float, Int, jaxtyped
 from janssen.utils import (
     OpticalWavefront,
     make_optical_wavefront,
-    scalar_float,
-    scalar_integer,
+    ScalarFloat,
+    ScalarInteger,
 )
 
 from .helper import add_phase_screen
@@ -105,7 +105,7 @@ def factorial(n: Int[Array, " "]) -> Int[Array, " "]:
 
 
 @jaxtyped(typechecker=beartype)
-def noll_to_nm(j: scalar_integer) -> Tuple[int, int]:
+def noll_to_nm(j: ScalarInteger) -> Tuple[int, int]:
     """Convert Noll index to (n, m) indices.
 
     Parameters
@@ -491,7 +491,7 @@ def generate_aberration_nm(
     n_indices: Int[Array, " N"],
     m_indices: Int[Array, " N"],
     coefficients: Float[Array, " N"],
-    pupil_radius: scalar_float,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate aberration from (n,m) indices and coefficients (JAX-compatible).
 
@@ -507,7 +507,7 @@ def generate_aberration_nm(
         Array of azimuthal frequencies
     coefficients : Float[Array, " N"]
         Zernike coefficients in waves
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -557,7 +557,7 @@ def generate_aberration_noll(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
     coefficients: Float[Array, " N"],
-    pupil_radius: scalar_float,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate aberration from Noll-indexed coefficients.
 
@@ -570,7 +570,7 @@ def generate_aberration_noll(
     coefficients : Float[Array, " N"]
         Zernike coefficients in waves, indexed by Noll index.
         Element 0 corresponds to j=1 (piston), element 1 to j=2, etc.
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -607,8 +607,8 @@ def generate_aberration_noll(
 def defocus(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
-    amplitude: scalar_float,
-    pupil_radius: scalar_float,
+    amplitude: ScalarFloat,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate defocus aberration (Z4 in Noll notation).
 
@@ -618,9 +618,9 @@ def defocus(
         X coordinate grid in meters
     yy : Float[Array, " H W"]
         Y coordinate grid in meters
-    amplitude : scalar_float
+    amplitude : ScalarFloat
         Defocus amplitude in waves
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -640,9 +640,9 @@ def defocus(
 def astigmatism(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
-    amplitude_0: scalar_float,
-    amplitude_45: scalar_float,
-    pupil_radius: scalar_float,
+    amplitude_0: ScalarFloat,
+    amplitude_45: ScalarFloat,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate astigmatism aberration (Z5 and Z6 in Noll notation).
 
@@ -652,11 +652,11 @@ def astigmatism(
         X coordinate grid in meters
     yy : Float[Array, " H W"]
         Y coordinate grid in meters
-    amplitude_0 : scalar_float
+    amplitude_0 : ScalarFloat
         Vertical/horizontal astigmatism amplitude in waves (Z6)
-    amplitude_45 : scalar_float
+    amplitude_45 : ScalarFloat
         Oblique astigmatism amplitude in waves (Z5)
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -677,9 +677,9 @@ def astigmatism(
 def coma(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
-    amplitude_x: scalar_float,
-    amplitude_y: scalar_float,
-    pupil_radius: scalar_float,
+    amplitude_x: ScalarFloat,
+    amplitude_y: ScalarFloat,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate coma aberration (Z7 and Z8 in Noll notation).
 
@@ -689,11 +689,11 @@ def coma(
         X coordinate grid in meters
     yy : Float[Array, " H W"]
         Y coordinate grid in meters
-    amplitude_x : scalar_float
+    amplitude_x : ScalarFloat
         Horizontal coma amplitude in waves (Z8)
-    amplitude_y : scalar_float
+    amplitude_y : ScalarFloat
         Vertical coma amplitude in waves (Z7)
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -714,8 +714,8 @@ def coma(
 def spherical_aberration(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
-    amplitude: scalar_float,
-    pupil_radius: scalar_float,
+    amplitude: ScalarFloat,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate primary spherical aberration (Z11 in Noll notation).
 
@@ -725,9 +725,9 @@ def spherical_aberration(
         X coordinate grid in meters
     yy : Float[Array, " H W"]
         Y coordinate grid in meters
-    amplitude : scalar_float
+    amplitude : ScalarFloat
         Spherical aberration amplitude in waves
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -747,9 +747,9 @@ def spherical_aberration(
 def trefoil(
     xx: Float[Array, " H W"],
     yy: Float[Array, " H W"],
-    amplitude_0: scalar_float,
-    amplitude_30: scalar_float,
-    pupil_radius: scalar_float,
+    amplitude_0: ScalarFloat,
+    amplitude_30: ScalarFloat,
+    pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Generate trefoil aberration (Z9 and Z10 in Noll notation).
 
@@ -759,11 +759,11 @@ def trefoil(
         X coordinate grid in meters
     yy : Float[Array, " H W"]
         Y coordinate grid in meters
-    amplitude_0 : scalar_float
+    amplitude_0 : ScalarFloat
         Vertical trefoil amplitude in waves (Z10)
-    amplitude_30 : scalar_float
+    amplitude_30 : ScalarFloat
         Oblique trefoil amplitude in waves (Z9)
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns
@@ -792,7 +792,7 @@ def trefoil(
 def apply_aberration(
     incoming: OpticalWavefront,
     coefficients: Float[Array, " N"],
-    pupil_radius: scalar_float,
+    pupil_radius: ScalarFloat,
 ) -> OpticalWavefront:
     """Apply Zernike aberrations to an optical wavefront.
 

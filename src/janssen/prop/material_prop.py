@@ -31,10 +31,10 @@ from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
+    ScalarFloat,
+    ScalarInteger,
     SlicedMaterialFunction,
     make_optical_wavefront,
-    scalar_float,
-    scalar_integer,
 )
 
 from .free_space_prop import correct_propagator, optical_zoom
@@ -235,8 +235,8 @@ def multislice_propagation(
 @jaxtyped(typechecker=beartype)
 def optical_path_length(
     material: SlicedMaterialFunction,
-    x_idx: Optional[scalar_integer] = -1,
-    y_idx: Optional[scalar_integer] = -1,
+    x_idx: Optional[ScalarInteger] = -1,
+    y_idx: Optional[ScalarInteger] = -1,
 ) -> Float[Array, " H W"]:
     """Compute optical path length through material.
 
@@ -248,10 +248,10 @@ def optical_path_length(
     ----------
     material : SlicedMaterialFunction
         3D material with complex refractive index.
-    x_idx : scalar_integer, optional
+    x_idx : ScalarInteger, optional
         X-index for specific ray. If -1 (default), computes for all x.
         When specified, the result is tiled to maintain (H, W) shape.
-    y_idx : scalar_integer, optional
+    y_idx : ScalarInteger, optional
         Y-index for specific ray. If -1 (default), computes for all y.
         When specified, the result is tiled to maintain (H, W) shape.
 
@@ -347,7 +347,7 @@ def optical_path_length(
 @jaxtyped(typechecker=beartype)
 def total_transmit(
     material: SlicedMaterialFunction,
-    wavelength: scalar_float,
+    wavelength: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """Compute intensity transmission through material.
 
@@ -359,7 +359,7 @@ def total_transmit(
     ----------
     material : SlicedMaterialFunction
         3D material with complex refractive index.
-    wavelength : scalar_float
+    wavelength : ScalarFloat
         Wavelength of light in meters.
 
     Returns

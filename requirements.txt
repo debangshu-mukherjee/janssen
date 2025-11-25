@@ -163,15 +163,13 @@ jax==0.7.1
 jax-cuda12-pjrt==0.7.1
     # via jax-cuda12-plugin
 jax-cuda12-plugin==0.7.1
-    # via
-    #   janssen (pyproject.toml)
-    #   jax
+    # via jax
 jaxlib==0.7.1
     # via
     #   chex
     #   jax
     #   optax
-jaxtyping==0.3.2
+jaxtyping==0.3.3
     # via janssen (pyproject.toml)
 jedi==0.19.2
     # via ipython
@@ -339,7 +337,9 @@ nvidia-cuda-nvrtc-cu12==12.9.86
 nvidia-cuda-runtime-cu12==12.9.79
     # via jax-cuda12-plugin
 nvidia-cudnn-cu12==9.13.0.50
-    # via jax-cuda12-plugin
+    # via
+    #   janssen (pyproject.toml)
+    #   jax-cuda12-plugin
 nvidia-cufft-cu12==11.4.1.4
     # via jax-cuda12-plugin
 nvidia-cusolver-cu12==11.7.5.82

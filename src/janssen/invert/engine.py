@@ -50,10 +50,10 @@ from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
+    ScalarFloat,
+    ScalarInteger,
     make_optical_wavefront,
     make_sample_function,
-    scalar_float,
-    scalar_integer,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -66,15 +66,15 @@ def epie_optical(
     initial_object: OpticalWavefront,
     initial_surface: SampleFunction,
     pixel_mask: Float[Array, " H W"],
-    propagation_distance_1: scalar_float,
-    propagation_distance_2: scalar_float,
-    magnification: scalar_integer,
-    vmap_iterations: Optional[scalar_integer] = 0,
-    alpha_object: Optional[scalar_float] = 0.1,
-    gamma_object: Optional[scalar_float] = 0.5,
-    alpha_surface: Optional[scalar_float] = 0.1,
-    gamma_surface: Optional[scalar_float] = 0.5,
-    num_loops: Optional[scalar_integer] = 10,
+    propagation_distance_1: ScalarFloat,
+    propagation_distance_2: ScalarFloat,
+    magnification: ScalarInteger,
+    vmap_iterations: Optional[ScalarInteger] = 0,
+    alpha_object: Optional[ScalarFloat] = 0.1,
+    gamma_object: Optional[ScalarFloat] = 0.5,
+    alpha_surface: Optional[ScalarFloat] = 0.1,
+    gamma_surface: Optional[ScalarFloat] = 0.5,
+    num_loops: Optional[ScalarInteger] = 10,
 ) -> tuple[OpticalWavefront, SampleFunction]:
     """Reconstruct ptychography using the extended PIE algorithm.
 
@@ -88,28 +88,28 @@ def epie_optical(
         Initial guess for surface pattern.
     pixel_mask : Float[Array, " H W"]
         Pixel response mask for modeling sensor characteristics.
-    propagation_distance_1 : scalar_float
+    propagation_distance_1 : ScalarFloat
         Distance from object to diffuser plane in meters.
-    propagation_distance_2 : scalar_float
+    propagation_distance_2 : ScalarFloat
         Distance from diffuser to sensor plane in meters.
-    magnification : scalar_integer
+    magnification : ScalarInteger
         Magnification factor for downsampling.
-    vmap_iterations : scalar_integer, optional
+    vmap_iterations : ScalarInteger, optional
         Number of initial iterations to run in vmap mode for rapid
         convergence.
         If 0, use sequential mode for all iterations.
         If > 0, use vmap for first N iterations, then switch to
         sequential.
         Default is 0.
-    alpha_object : scalar_float, optional
+    alpha_object : ScalarFloat, optional
         Object update mixing parameter. Default is 0.1.
-    gamma_object : scalar_float, optional
+    gamma_object : ScalarFloat, optional
         Object update step size. Default is 0.5.
-    alpha_surface : scalar_float, optional
+    alpha_surface : ScalarFloat, optional
         Surface update mixing parameter. Default is 0.1.
-    gamma_surface : scalar_float, optional
+    gamma_surface : ScalarFloat, optional
         Surface update step size. Default is 0.5.
-    num_loops : scalar_integer, optional
+    num_loops : ScalarInteger, optional
         Number of iteration loops. Default is 10.
 
     Returns
@@ -149,7 +149,7 @@ def epie_optical(
     surface_pattern: Complex[Array, " H W"] = initial_surface.sample
 
     def loop_body(
-        loop_idx: scalar_integer,
+        loop_idx: ScalarInteger,
         state: tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
     ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
         object_prop_ft: Complex[Array, " H W"]
@@ -215,14 +215,14 @@ def single_pie_iteration(
     frequency_x_grid: Float[Array, " H W"],
     frequency_y_grid: Float[Array, " H W"],
     pixel_mask: Float[Array, " H W"],
-    propagation_distance_2: scalar_float,
-    magnification: scalar_integer,
-    alpha_object: scalar_float,
-    gamma_object: scalar_float,
-    alpha_surface: scalar_float,
-    gamma_surface: scalar_float,
-    wavelength: scalar_float,
-    dx: scalar_float,
+    propagation_distance_2: ScalarFloat,
+    magnification: ScalarInteger,
+    alpha_object: ScalarFloat,
+    gamma_object: ScalarFloat,
+    alpha_surface: ScalarFloat,
+    gamma_surface: ScalarFloat,
+    wavelength: ScalarFloat,
+    dx: ScalarFloat,
 ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
     """Single iteration of the extended PIE algorithm.
 
@@ -242,21 +242,21 @@ def single_pie_iteration(
         Frequency grid in y direction.
     pixel_mask : Float[Array, " H W"]
         Pixel response mask for sensor modeling.
-    propagation_distance_2 : scalar_float
+    propagation_distance_2 : ScalarFloat
         Distance from diffuser to sensor.
-    magnification : scalar_integer
+    magnification : ScalarInteger
         Downsampling magnification factor.
-    alpha_object : scalar_float
+    alpha_object : ScalarFloat
         Object update mixing parameter.
-    gamma_object : scalar_float
+    gamma_object : ScalarFloat
         Object update step size.
-    alpha_surface : scalar_float
+    alpha_surface : ScalarFloat
         Surface update mixing parameter.
-    gamma_surface : scalar_float
+    gamma_surface : ScalarFloat
         Surface update step size.
-    wavelength : scalar_float
+    wavelength : ScalarFloat
         Wavelength of light in meters.
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in meters.
 
     Returns
@@ -367,14 +367,14 @@ def single_pie_sequential(
     frequency_x_grid: Float[Array, " H W"],
     frequency_y_grid: Float[Array, " H W"],
     pixel_mask: Float[Array, " H W"],
-    propagation_distance_2: scalar_float,
-    magnification: scalar_integer,
-    alpha_object: scalar_float,
-    gamma_object: scalar_float,
-    alpha_surface: scalar_float,
-    gamma_surface: scalar_float,
-    wavelength: scalar_float,
-    dx: scalar_float,
+    propagation_distance_2: ScalarFloat,
+    magnification: ScalarInteger,
+    alpha_object: ScalarFloat,
+    gamma_object: ScalarFloat,
+    alpha_surface: ScalarFloat,
+    gamma_surface: ScalarFloat,
+    wavelength: ScalarFloat,
+    dx: ScalarFloat,
 ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
     """Sequential processing over positions using fori_loop for proper
     PIE convergence.
@@ -395,21 +395,21 @@ def single_pie_sequential(
         Frequency grid in y direction.
     pixel_mask : Float[Array, " H W"]
         Pixel response mask for sensor modeling.
-    propagation_distance_2 : scalar_float
+    propagation_distance_2 : ScalarFloat
         Distance from diffuser to sensor.
-    magnification : scalar_integer
+    magnification : ScalarInteger
         Downsampling magnification factor.
-    alpha_object : scalar_float
+    alpha_object : ScalarFloat
         Object update mixing parameter.
-    gamma_object : scalar_float
+    gamma_object : ScalarFloat
         Object update step size.
-    alpha_surface : scalar_float
+    alpha_surface : ScalarFloat
         Surface update mixing parameter.
-    gamma_surface : scalar_float
+    gamma_surface : ScalarFloat
         Surface update step size.
-    wavelength : scalar_float
+    wavelength : ScalarFloat
         Wavelength of light in meters.
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in meters.
 
     Returns
@@ -425,10 +425,10 @@ def single_pie_sequential(
     - Apply fori_loop over positions
     - Return updated state
     """
-    num_positions: scalar_integer = image_data.shape[0]
+    num_positions: ScalarInteger = image_data.shape[0]
 
     def position_body(
-        pos_idx: scalar_integer,
+        pos_idx: ScalarInteger,
         state: tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
     ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
         return single_pie_iteration(
@@ -466,14 +466,14 @@ def single_pie_vmap(
     frequency_x_grid: Float[Array, " H W"],
     frequency_y_grid: Float[Array, " H W"],
     pixel_mask: Float[Array, " H W"],
-    propagation_distance_2: scalar_float,
-    magnification: scalar_integer,
-    alpha_object: scalar_float,
-    gamma_object: scalar_float,
-    alpha_surface: scalar_float,
-    gamma_surface: scalar_float,
-    wavelength: scalar_float,
-    dx: scalar_float,
+    propagation_distance_2: ScalarFloat,
+    magnification: ScalarInteger,
+    alpha_object: ScalarFloat,
+    gamma_object: ScalarFloat,
+    alpha_surface: ScalarFloat,
+    gamma_surface: ScalarFloat,
+    wavelength: ScalarFloat,
+    dx: ScalarFloat,
 ) -> tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
     """Parallel processing over positions using vmap for faster but
     approximate PIE.
@@ -496,21 +496,21 @@ def single_pie_vmap(
         Frequency grid in y direction.
     pixel_mask : Float[Array, " H W"]
         Pixel response mask for sensor modeling.
-    propagation_distance_2 : scalar_float
+    propagation_distance_2 : ScalarFloat
         Distance from diffuser to sensor.
-    magnification : scalar_integer
+    magnification : ScalarInteger
         Downsampling magnification factor.
-    alpha_object : scalar_float
+    alpha_object : ScalarFloat
         Object update mixing parameter.
-    gamma_object : scalar_float
+    gamma_object : ScalarFloat
         Object update step size.
-    alpha_surface : scalar_float
+    alpha_surface : ScalarFloat
         Surface update mixing parameter.
-    gamma_surface : scalar_float
+    gamma_surface : ScalarFloat
         Surface update step size.
-    wavelength : scalar_float
+    wavelength : ScalarFloat
         Wavelength of light in meters.
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in meters.
 
     Returns
@@ -584,8 +584,8 @@ def _update_object_wavefront(
     surface_pattern: Complex[Array, " H W"],
     surface_plane: Complex[Array, " H W"],
     surface_plane_new: Complex[Array, " H W"],
-    alpha_object: scalar_float,
-    gamma_object: scalar_float,
+    alpha_object: ScalarFloat,
+    gamma_object: ScalarFloat,
 ) -> Complex[Array, " H W"]:
     """Update object wavefront using rPIE algorithm.
 
@@ -599,9 +599,9 @@ def _update_object_wavefront(
         Current exit wave at surface.
     surface_plane_new : Complex[Array, " H W"]
         Updated exit wave at surface.
-    alpha_object : scalar_float
+    alpha_object : ScalarFloat
         Mixing parameter for denominator.
-    gamma_object : scalar_float
+    gamma_object : ScalarFloat
         Update step size.
 
     Returns
@@ -641,8 +641,8 @@ def _update_surface_pattern(
     object_shift: Complex[Array, " H W"],
     surface_plane: Complex[Array, " H W"],
     surface_plane_new: Complex[Array, " H W"],
-    alpha_surface: scalar_float,
-    gamma_surface: scalar_float,
+    alpha_surface: ScalarFloat,
+    gamma_surface: ScalarFloat,
 ) -> Complex[Array, " H W"]:
     """Update surface pattern using modified PIE algorithm.
 
@@ -656,9 +656,9 @@ def _update_surface_pattern(
         Current exit wave at surface.
     surface_plane_new : Complex[Array, " H W"]
         Updated exit wave at surface.
-    alpha_surface : scalar_float
+    alpha_surface : ScalarFloat
         Mixing parameter for denominator.
-    gamma_surface : scalar_float
+    gamma_surface : ScalarFloat
         Update step size.
 
     Returns
@@ -759,7 +759,7 @@ def _apply_position_shift(
     - Compute position-shifted field in real space
     - Return position-shifted field
     """
-    image_size: scalar_integer = field_ft.shape[0]
+    image_size: ScalarInteger = field_ft.shape[0]
     phase_factor: Complex[Array, " H W"] = jnp.exp(
         -1j
         * 2
@@ -779,9 +779,9 @@ def _apply_position_shift(
 @jaxtyped(typechecker=beartype)
 def _get_propagation_kernel(
     field_shape: Tuple[int, int],
-    distance: scalar_float,
-    wavelength: scalar_float,
-    dx: scalar_float,
+    distance: ScalarFloat,
+    wavelength: ScalarFloat,
+    dx: ScalarFloat,
 ) -> Complex[Array, " H W"]:
     """Return propagation kernel H_d for free space propagation.
 
@@ -789,11 +789,11 @@ def _get_propagation_kernel(
     ----------
     field_shape : Tuple[int, int]
         Shape of the field (height, width).
-    distance : scalar_float
+    distance : ScalarFloat
         Propagation distance in meters.
-    wavelength : scalar_float
+    wavelength : ScalarFloat
         Wavelength in meters.
-    dx : scalar_float
+    dx : ScalarFloat
         Pixel spacing in meters.
 
     Returns
@@ -825,7 +825,7 @@ def _get_propagation_kernel(
     frequency_squared: Float[Array, " H W"] = (
         frequency_x_grid**2 + frequency_y_grid**2
     )
-    k_0: scalar_float = 2 * jnp.pi / wavelength
+    k_0: ScalarFloat = 2 * jnp.pi / wavelength
     k_z: Complex[Array, " H W"] = jnp.sqrt(
         k_0**2 - (2 * jnp.pi) ** 2 * frequency_squared + 0j
     )
@@ -837,7 +837,7 @@ def _get_propagation_kernel(
 def _compute_sensor_intensity(
     sensor_field: Complex[Array, " H W"],
     pixel_mask: Float[Array, " H W"],
-    magnification: scalar_integer,
+    magnification: ScalarInteger,
 ) -> Float[Array, " H W"]:
     """Compute sensor plane intensity with pixel response mask and
     downsampling.
@@ -851,7 +851,7 @@ def _compute_sensor_intensity(
         Complex field at sensor plane.
     pixel_mask : Float[Array, " H W"]
         Pixel response mask modeling sensor characteristics.
-    magnification : scalar_integer
+    magnification : ScalarInteger
         Downsampling magnification factor.
 
     Returns
@@ -910,8 +910,8 @@ def _create_frequency_grids(
     - Compute frequency grid in x and y directions
     - Return frequency grids
     """
-    height: scalar_integer = field.shape[0]
-    width: scalar_integer = field.shape[1]
+    height: ScalarInteger = field.shape[0]
+    width: ScalarInteger = field.shape[1]
     frequency_x: Float[Array, " W"] = jnp.fft.fftfreq(width, dx)
     frequency_y: Float[Array, " H"] = jnp.fft.fftfreq(height, dx)
     frequency_x_grid: Float[Array, " H W"]

@@ -6,17 +6,17 @@ Data structures and type definitions for optical microscopy.
 
 Routine Listings
 ----------------
-non_jax_number : TypeAlias
+NonJaxNumber : TypeAlias
     A type alias for int, float or complex
-scalar_bool : TypeAlias
+ScalarBool : TypeAlias
     A type alias for bool or Bool[Array, " "]
-scalar_complex : TypeAlias
+ScalarComplex : TypeAlias
     A type alias for complex or Complex[Array, " "]
-scalar_float : TypeAlias
+ScalarFloat : TypeAlias
     A type alias for float or Float[Array, " "]
-scalar_integer : TypeAlias
+ScalarInteger : TypeAlias
     A type alias for int or Int[Array, " "]
-scalar_numeric : TypeAlias
+ScalarNumeric : TypeAlias
     A type alias for int, float, complex or Num[Array, " "]
 LensParams : PyTree
     A named tuple for lens parameters
@@ -52,12 +52,12 @@ from jaxtyping import Array, Bool, Complex, Float, Int, Num
 
 jax.config.update("jax_enable_x64", True)
 
-non_jax_number: TypeAlias = Union[int, float, complex]
-scalar_bool: TypeAlias = Union[bool, Bool[Array, " "]]
-scalar_complex: TypeAlias = Union[complex, Complex[Array, " "]]
-scalar_float: TypeAlias = Union[float, Float[Array, " "]]
-scalar_integer: TypeAlias = Union[int, Int[Array, " "]]
-scalar_numeric: TypeAlias = Union[int, float, complex, Num[Array, " "]]
+NonJaxNumber: TypeAlias = Union[int, float, complex]
+ScalarBool: TypeAlias = Union[bool, Bool[Array, " "]]
+ScalarComplex: TypeAlias = Union[complex, Complex[Array, " "]]
+ScalarFloat: TypeAlias = Union[float, Float[Array, " "]]
+ScalarInteger: TypeAlias = Union[int, Int[Array, " "]]
+ScalarNumeric: TypeAlias = Union[int, float, complex, Num[Array, " "]]
 
 
 @register_pytree_node_class

@@ -43,11 +43,11 @@ from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
 from janssen.utils import (
+    ScalarBool,
+    ScalarFloat,
+    ScalarNumeric,
     LensParams,
     make_lens_params,
-    scalar_bool,
-    scalar_float,
-    scalar_numeric,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -56,10 +56,10 @@ jax.config.update("jax_enable_x64", True)
 @jaxtyped(typechecker=beartype)
 def lens_thickness_profile(
     r: Float[Array, " H W"],
-    r1: scalar_float,
-    r2: scalar_float,
-    center_thickness: scalar_float,
-    diameter: scalar_float,
+    r1: ScalarFloat,
+    r2: ScalarFloat,
+    center_thickness: ScalarFloat,
+    diameter: ScalarFloat,
 ) -> Float[Array, " H W"]:
     """
     Calculate the thickness profile of a lens.
@@ -68,13 +68,13 @@ def lens_thickness_profile(
     ----------
     r : Float[Array, " H W"]
         Radial distance from the optical axis.
-    r1 : scalar_float
+    r1 : ScalarFloat
         Radius of curvature of the first surface.
-    r2 : scalar_float
+    r2 : ScalarFloat
         Radius of curvature of the second surface.
-    center_thickness : scalar_float
+    center_thickness : ScalarFloat
         Thickness at the center of the lens.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Diameter of the lens.
 
     Returns
@@ -115,25 +115,25 @@ def lens_thickness_profile(
 
 @jaxtyped(typechecker=beartype)
 def lens_focal_length(
-    n: scalar_float,
-    r1: scalar_numeric,
-    r2: scalar_numeric,
-) -> scalar_float:
+    n: ScalarFloat,
+    r1: ScalarNumeric,
+    r2: ScalarNumeric,
+) -> ScalarFloat:
     """
     Calculate the focal length of a lens using the lensmaker's equation.
 
     Parameters
     ----------
-    n : scalar_float
+    n : ScalarFloat
         Refractive index of the lens material.
-    r1 : scalar_numeric
+    r1 : ScalarNumeric
         Radius of curvature of the first surface (positive for convex).
-    r2 : scalar_numeric
+    r2 : ScalarNumeric
         Radius of curvature of the second surface (positive for convex).
 
     Returns
     -------
-    f : scalar_float
+    f : ScalarFloat
         Focal length of the lens.
 
     Notes
@@ -143,9 +143,9 @@ def lens_focal_length(
     """
     is_symmetric: Bool[Array, " "] = r1 == r2
     symmetric_f: Float[Array, " "] = jnp.asarray(r1 / (2 * (n - 1)))
-    special_r1: scalar_float = 0.1
-    special_r2: scalar_float = 0.3
-    special_n: scalar_float = 1.5
+    special_r1: ScalarFloat = 0.1
+    special_r2: ScalarFloat = 0.3
+    special_n: ScalarFloat = 1.5
     is_special_case: Bool[Array, " "] = jnp.logical_and(
         jnp.logical_and((r1 == special_r1), (r2 == special_r2)),
         (n == special_n),
@@ -167,7 +167,7 @@ def create_lens_phase(
     xx: Float[Array, " hh ww"],
     yy: Float[Array, " hh ww"],
     params: LensParams,
-    wavelength: scalar_float,
+    wavelength: ScalarFloat,
 ) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
     """
     Create the phase profile and transmission mask for a lens.
@@ -180,7 +180,7 @@ def create_lens_phase(
         Y coordinates grid.
     params : LensParams
         Lens parameters.
-    wavelength : scalar_float
+    wavelength : ScalarFloat
         Wavelength of light.
 
     Returns
@@ -251,26 +251,26 @@ def propagate_through_lens(
 
 @jaxtyped(typechecker=beartype)
 def double_convex_lens(
-    focal_length: scalar_float,
-    diameter: scalar_float,
-    n: scalar_float,
-    center_thickness: scalar_float,
-    r_ratio: Optional[scalar_float] = 1.0,
+    focal_length: ScalarFloat,
+    diameter: ScalarFloat,
+    n: ScalarFloat,
+    center_thickness: ScalarFloat,
+    r_ratio: Optional[ScalarFloat] = 1.0,
 ) -> LensParams:
     """
     Create parameters for a double convex lens.
 
     Parameters
     ----------
-    focal_length : scalar_float
+    focal_length : ScalarFloat
         Desired focal length.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Lens diameter.
-    n : scalar_float
+    n : ScalarFloat
         Refractive index.
-    center_thickness : scalar_float
+    center_thickness : ScalarFloat
         Center thickness.
-    r_ratio : scalar_float, optional
+    r_ratio : ScalarFloat, optional
         Ratio of r2/r1, by default 1.0 for symmetric lens.
 
     Returns
@@ -301,26 +301,26 @@ def double_convex_lens(
 
 @jaxtyped(typechecker=beartype)
 def double_concave_lens(
-    focal_length: scalar_float,
-    diameter: scalar_float,
-    n: scalar_float,
-    center_thickness: scalar_float,
-    r_ratio: Optional[scalar_float] = 1.0,
+    focal_length: ScalarFloat,
+    diameter: ScalarFloat,
+    n: ScalarFloat,
+    center_thickness: ScalarFloat,
+    r_ratio: Optional[ScalarFloat] = 1.0,
 ) -> LensParams:
     """
     Create parameters for a double concave lens.
 
     Parameters
     ----------
-    focal_length : scalar_float
+    focal_length : ScalarFloat
         Desired focal length.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Lens diameter.
-    n : scalar_float
+    n : ScalarFloat
         Refractive index.
-    center_thickness : scalar_float
+    center_thickness : ScalarFloat
         Center thickness.
-    r_ratio : scalar_float, optional
+    r_ratio : ScalarFloat, optional
         Ratio of R2/R1, by default 1.0 for symmetric lens.
 
     Returns
@@ -351,26 +351,26 @@ def double_concave_lens(
 
 @jaxtyped(typechecker=beartype)
 def plano_convex_lens(
-    focal_length: scalar_float,
-    diameter: scalar_float,
-    n: scalar_float,
-    center_thickness: scalar_float,
-    convex_first: Optional[scalar_bool] = True,
+    focal_length: ScalarFloat,
+    diameter: ScalarFloat,
+    n: ScalarFloat,
+    center_thickness: ScalarFloat,
+    convex_first: Optional[ScalarBool] = True,
 ) -> LensParams:
     """
     Create parameters for a plano-convex lens.
 
     Parameters
     ----------
-    focal_length : scalar_float
+    focal_length : ScalarFloat
         Desired focal length.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Lens diameter.
-    n : scalar_float
+    n : ScalarFloat
         Refractive index.
-    center_thickness : scalar_float
+    center_thickness : ScalarFloat
         Center thickness.
-    convex_first : scalar_bool, optional
+    convex_first : ScalarBool, optional
         If True, first surface is convex, by default True.
 
     Returns
@@ -401,26 +401,26 @@ def plano_convex_lens(
 
 @jaxtyped(typechecker=beartype)
 def plano_concave_lens(
-    focal_length: scalar_float,
-    diameter: scalar_float,
-    n: scalar_float,
-    center_thickness: scalar_float,
-    concave_first: Optional[scalar_bool] = True,
+    focal_length: ScalarFloat,
+    diameter: ScalarFloat,
+    n: ScalarFloat,
+    center_thickness: ScalarFloat,
+    concave_first: Optional[ScalarBool] = True,
 ) -> LensParams:
     """
     Create parameters for a plano-concave lens.
 
     Parameters
     ----------
-    focal_length : scalar_float
+    focal_length : ScalarFloat
         Desired focal length.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Lens diameter.
-    n : scalar_float
+    n : ScalarFloat
         Refractive index.
-    center_thickness : scalar_float
+    center_thickness : ScalarFloat
         Center thickness.
-    concave_first : scalar_bool, optional
+    concave_first : ScalarBool, optional
         If True, first surface is concave, by default True.
 
     Returns
@@ -451,12 +451,12 @@ def plano_concave_lens(
 
 @jaxtyped(typechecker=beartype)
 def meniscus_lens(
-    focal_length: scalar_float,
-    diameter: scalar_float,
-    n: scalar_float,
-    center_thickness: scalar_float,
-    r_ratio: scalar_float,
-    convex_first: Optional[scalar_bool] = True,
+    focal_length: ScalarFloat,
+    diameter: ScalarFloat,
+    n: ScalarFloat,
+    center_thickness: ScalarFloat,
+    r_ratio: ScalarFloat,
+    convex_first: Optional[ScalarBool] = True,
 ) -> LensParams:
     """
     Create parameters for a meniscus (concavo-convex) lens.
@@ -466,17 +466,17 @@ def meniscus_lens(
 
     Parameters
     ----------
-    focal_length : scalar_float
+    focal_length : ScalarFloat
         Desired focal length in meters.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Lens diameter in meters.
-    n : scalar_float
+    n : ScalarFloat
         Refractive index of lens material.
-    center_thickness : scalar_float
+    center_thickness : ScalarFloat
         Center thickness in meters.
-    r_ratio : scalar_float
+    r_ratio : ScalarFloat
         Absolute ratio of R2/R1.
-    convex_first : scalar_bool, optional
+    convex_first : ScalarBool, optional
         If True, first surface is convex, by default True.
 
     Returns

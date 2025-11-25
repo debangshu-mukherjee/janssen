@@ -3,10 +3,8 @@
 Extended Summary
 ----------------
 High-level ptychography reconstruction algorithms that combine
-optimization
-strategies with forward models. Provides complete reconstruction
-pipelines
-for recovering complex-valued sample functions from intensity
+optimization strategies with forward models. Provides complete reconstruction
+pipelines for recovering complex-valued sample functions from intensity
 measurements.
 
 Routine Listings
@@ -20,8 +18,7 @@ Notes
 -----
 These functions provide complete reconstruction pipelines that can be
 directly applied to experimental data. All functions support JAX
-transformations
-and automatic differentiation for gradient-based optimization.
+transformations and automatic differentiation for gradient-based optimization.
 """
 
 import jax
@@ -36,10 +33,10 @@ from janssen.utils import (
     OpticalWavefront,
     PtychographyParams,
     SampleFunction,
+    ScalarFloat,
+    ScalarInteger,
     make_optical_wavefront,
     make_sample_function,
-    scalar_float,
-    scalar_integer,
 )
 
 from .loss_functions import create_loss_function
@@ -86,14 +83,12 @@ def simple_microscope_ptychography(
     guess_sample: SampleFunction,
     guess_lightwave: OpticalWavefront,
     params: PtychographyParams,
-    save_every: Optional[scalar_integer] = 10,
+    save_every: Optional[ScalarInteger] = 10,
     loss_type: Optional[str] = "mse",
     optimizer_name: Optional[str] = "adam",
-    zoom_factor_bounds: Optional[Tuple[scalar_float, scalar_float]] = None,
-    aperture_diameter_bounds: Optional[
-        Tuple[scalar_float, scalar_float]
-    ] = None,
-    travel_distance_bounds: Optional[Tuple[scalar_float, scalar_float]] = None,
+    zoom_factor_bounds: Optional[Tuple[ScalarFloat, ScalarFloat]] = None,
+    aperture_diameter_bounds: Optional[Tuple[ScalarFloat, ScalarFloat]] = None,
+    travel_distance_bounds: Optional[Tuple[ScalarFloat, ScalarFloat]] = None,
     aperture_center_bounds: Optional[
         Tuple[Float[Array, " 2"], Float[Array, " 2"]]
     ] = None,
@@ -101,10 +96,10 @@ def simple_microscope_ptychography(
     Tuple[
         SampleFunction,  # final_sample
         OpticalWavefront,  # final_lightwave
-        scalar_float,  # final_zoom_factor
-        scalar_float,  # final_aperture_diameter
+        ScalarFloat,  # final_zoom_factor
+        ScalarFloat,  # final_aperture_diameter
         Optional[Float[Array, " 2"]],  # final_aperture_center
-        scalar_float,  # final_travel_distance
+        ScalarFloat,  # final_travel_distance
     ],
     Tuple[
         Complex[Array, " H W S"],  # intermediate_samples
@@ -139,18 +134,18 @@ def simple_microscope_ptychography(
         - camera_pixel_size: Camera pixel size in meters
         - learning_rate: Learning rate for optimization
         - num_iterations: Number of optimization iterations
-    save_every : scalar_integer, optional
+    save_every : ScalarInteger, optional
         Save intermediate results every n iterations. Default is 10.
     loss_type : str, optional
         Type of loss function to use. Default is "mse".
     optimizer_name : str, optional
         Name of the optimizer to use. Default is "adam".
-    zoom_factor_bounds : Tuple[scalar_float, scalar_float], optional
+    zoom_factor_bounds : Tuple[ScalarFloat, ScalarFloat], optional
         Lower and upper bounds for zoom factor optimization.
     aperture_diameter_bounds :
-        Tuple[scalar_float, scalar_float], optional
+        Tuple[ScalarFloat, ScalarFloat], optional
         Lower and upper bounds for aperture diameter optimization.
-    travel_distance_bounds : Tuple[scalar_float, scalar_float], optional
+    travel_distance_bounds : Tuple[ScalarFloat, ScalarFloat], optional
         Lower and upper bounds for travel distance optimization.
     aperture_center_bounds :
         Tuple[Float[Array, " 2"], Float[Array, " 2"]], optional
@@ -165,13 +160,13 @@ def simple_microscope_ptychography(
                 Optimized sample properties.
             - final_lightwave : OpticalWavefront
                 Optimized lightwave.
-            - final_zoom_factor : scalar_float
+            - final_zoom_factor : ScalarFloat
                 Optimized zoom factor.
-            - final_aperture_diameter : scalar_float
+            - final_aperture_diameter : ScalarFloat
                 Optimized aperture diameter.
             - final_aperture_center : Float[Array, " 2"] or None
                 Optimized aperture center.
-            - final_travel_distance : scalar_float
+            - final_travel_distance : ScalarFloat
                 Optimized travel distance.
         - Intermediate results tuple:
             - intermediate_samples : Complex[Array, " H W S"]
@@ -197,13 +192,19 @@ def simple_microscope_ptychography(
     num_iterations = params.num_iterations
 
     # Define bound enforcement functions
-    def enforce_bounds(param, param_bounds):
+    def enforce_bounds(
+        param: Float[Array, " S"],
+        param_bounds: Optional[Tuple[ScalarFloat, ScalarFloat]] = None,
+    ) -> Float[Array, " S"]:
         if param_bounds is None:
             return param
         lower, upper = param_bounds
         return jnp.clip(param, lower, upper)
 
-    def enforce_bounds_2d(param, param_bounds):
+    def enforce_bounds_2d(
+        param: Float[Array, " 2 S"],
+        param_bounds: Optional[Tuple[ScalarFloat, ScalarFloat]] = None,
+    ) -> Float[Array, " 2 S"]:
         if param_bounds is None:
             return param
         lower, upper = param_bounds
@@ -211,17 +212,19 @@ def simple_microscope_ptychography(
 
     # Define the forward model function for the loss calculation
     def forward_fn(
-        sample_field,
-        lightwave_field,
-        zoom_factor,
-        aperture_diameter,
-        travel_distance,
-        aperture_center,
-    ):
+        sample_field: Complex[Array, " H W S"],
+        lightwave_field: Complex[Array, " H W S"],
+        zoom_factor: Float[Array, " S"],
+        aperture_diameter: Float[Array, " S"],
+        travel_distance: Float[Array, " S"],
+        aperture_center: Float[Array, " 2 S"],
+    ) -> MicroscopeData:
         # Reconstruct PyTree objects from arrays
-        sample = make_sample_function(sample=sample_field, dx=guess_sample.dx)
+        sample: SampleFunction = make_sample_function(
+            sample=sample_field, dx=guess_sample.dx
+        )
 
-        lightwave = make_optical_wavefront(
+        lightwave: OpticalWavefront = make_optical_wavefront(
             field=lightwave_field,
             wavelength=guess_lightwave.wavelength,
             dx=guess_lightwave.dx,
@@ -229,7 +232,7 @@ def simple_microscope_ptychography(
         )
 
         # Generate the microscope data using the forward model
-        simulated_data = simple_microscope(
+        simulated_data: MicroscopeData = simple_microscope(
             sample=sample,
             positions=experimental_data.positions,
             lightwave=lightwave,
@@ -502,11 +505,11 @@ def simple_microscope_ptychography(
                 )
 
     # Create final objects
-    final_sample = make_sample_function(
+    final_sample: SampleFunction = make_sample_function(
         sample=sample_field, dx=guess_sample.dx
     )
 
-    final_lightwave = make_optical_wavefront(
+    final_lightwave: OpticalWavefront = make_optical_wavefront(
         field=lightwave_field,
         wavelength=guess_lightwave.wavelength,
         dx=guess_lightwave.dx,

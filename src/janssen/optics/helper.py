@@ -31,9 +31,9 @@ from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
 from janssen.utils import (
+    ScalarFloat,
     OpticalWavefront,
     make_optical_wavefront,
-    scalar_float,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -166,7 +166,7 @@ def field_intensity(field: Complex[Array, " hh ww"]) -> Float[Array, " hh ww"]:
 @jaxtyped(typechecker=beartype)
 def scale_pixel(
     wavefront: OpticalWavefront,
-    new_dx: scalar_float,
+    new_dx: ScalarFloat,
 ) -> OpticalWavefront:
     """
     Rescale OpticalWavefront pixel size while keeping array shape fixed.
@@ -177,7 +177,7 @@ def scale_pixel(
     ----------
     wavefront : OpticalWavefront
         OpticalWavefront to be resized.
-    new_dx : scalar_float
+    new_dx : ScalarFloat
         New pixel size (meters).
 
     Returns
@@ -202,15 +202,15 @@ def scale_pixel(
     - Return the resized OpticalWavefront.
     """
     field: Complex[Array, " hh ww"] = wavefront.field
-    old_dx: scalar_float = wavefront.dx
+    old_dx: ScalarFloat = wavefront.dx
     hh: int
     ww: int
     hh, ww = field.shape
-    scale: scalar_float = new_dx / old_dx
-    current_fov_h: scalar_float = hh * old_dx
-    current_fov_w: scalar_float = ww * old_dx
-    new_fov_h: scalar_float = hh * new_dx
-    new_fov_w: scalar_float = ww * new_dx
+    scale: ScalarFloat = new_dx / old_dx
+    current_fov_h: ScalarFloat = hh * old_dx
+    current_fov_w: ScalarFloat = ww * old_dx
+    new_fov_h: ScalarFloat = hh * new_dx
+    new_fov_w: ScalarFloat = ww * new_dx
 
     def _smaller_pixel_size(
         field: Complex[Array, " hh ww"],

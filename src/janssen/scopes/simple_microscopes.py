@@ -34,6 +34,8 @@ from beartype import beartype
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
+from janssen.optics.apertures import circular_aperture
+from janssen.optics.helper import field_intensity, scale_pixel
 from janssen.prop import fraunhofer_prop, optical_zoom
 from janssen.utils import (
     Diffractogram,
@@ -44,12 +46,9 @@ from janssen.utils import (
     make_microscope_data,
     make_optical_wavefront,
     make_sample_function,
-    scalar_float,
-    scalar_numeric,
+    ScalarFloat,
+    ScalarNumeric,
 )
-
-from janssen.optics.apertures import circular_aperture
-from janssen.optics.helper import field_intensity, scale_pixel
 
 jax.config.update("jax_enable_x64", True)
 
@@ -92,9 +91,9 @@ def linear_interaction(
 def diffractogram_noscale(
     sample_cut: SampleFunction,
     lightwave: OpticalWavefront,
-    zoom_factor: scalar_float,
-    aperture_diameter: scalar_float,
-    travel_distance: scalar_float,
+    zoom_factor: ScalarFloat,
+    aperture_diameter: ScalarFloat,
+    travel_distance: ScalarFloat,
     aperture_center: Optional[Float[Array, " 2"]] = None,
 ) -> OpticalWavefront:
     """Calculate the diffractogram of a sample using a simple model.
@@ -112,13 +111,13 @@ def diffractogram_noscale(
         sample
     lightwave : OpticalWavefront
         The incoming optical wavefront
-    zoom_factor : scalar_float
+    zoom_factor : ScalarFloat
         The zoom factor for the optical system
-    aperture_diameter : scalar_float
+    aperture_diameter : ScalarFloat
         The diameter of the aperture in meters
-    travel_distance : scalar_float
+    travel_distance : ScalarFloat
         The distance traveled by the light in meters
-    camera_pixel_size : scalar_float
+    camera_pixel_size : ScalarFloat
         The pixel size of the camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
         The center of the aperture in pixels
@@ -155,10 +154,10 @@ def diffractogram_noscale(
 def simple_diffractogram(
     sample_cut: SampleFunction,
     lightwave: OpticalWavefront,
-    zoom_factor: scalar_float,
-    aperture_diameter: scalar_float,
-    travel_distance: scalar_float,
-    camera_pixel_size: scalar_float,
+    zoom_factor: ScalarFloat,
+    aperture_diameter: ScalarFloat,
+    travel_distance: ScalarFloat,
+    camera_pixel_size: ScalarFloat,
     aperture_center: Optional[Float[Array, " 2"]] = None,
 ) -> Diffractogram:
     """Calculate the diffractogram of a sample using a simple model.
@@ -176,13 +175,13 @@ def simple_diffractogram(
         sample
     lightwave : OpticalWavefront
         The incoming optical wavefront
-    zoom_factor : scalar_float
+    zoom_factor : ScalarFloat
         The zoom factor for the optical system
-    aperture_diameter : scalar_float
+    aperture_diameter : ScalarFloat
         The diameter of the aperture in meters
-    travel_distance : scalar_float
+    travel_distance : ScalarFloat
         The distance traveled by the light in meters
-    camera_pixel_size : scalar_float
+    camera_pixel_size : ScalarFloat
         The pixel size of the camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
         The center of the aperture in pixels
@@ -237,10 +236,10 @@ def simple_microscope(
     sample: SampleFunction,
     positions: Num[Array, " n 2"],
     lightwave: OpticalWavefront,
-    zoom_factor: scalar_float,
-    aperture_diameter: scalar_float,
-    travel_distance: scalar_float,
-    camera_pixel_size: scalar_float,
+    zoom_factor: ScalarFloat,
+    aperture_diameter: ScalarFloat,
+    travel_distance: ScalarFloat,
+    camera_pixel_size: ScalarFloat,
     aperture_center: Optional[Float[Array, " 2"]] = None,
 ) -> MicroscopeData:
     """Calculate the 3D diffractograms of the entire imaging.
@@ -259,13 +258,13 @@ def simple_microscope(
         calculated.
     lightwave : OpticalWavefront
         The incoming optical wavefront
-    zoom_factor : scalar_float
+    zoom_factor : ScalarFloat
         The zoom factor for the optical system
-    aperture_diameter : scalar_float
+    aperture_diameter : ScalarFloat
         The diameter of the aperture in meters
-    travel_distance : scalar_float
+    travel_distance : ScalarFloat
         The distance traveled by the light in meters
-    camera_pixel_size : scalar_float
+    camera_pixel_size : ScalarFloat
         The pixel size of the camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
         The center of the aperture in pixels
@@ -293,8 +292,8 @@ def simple_microscope(
     def diffractogram_at_position(
         sample: SampleFunction, this_position: Num[Array, " 2"]
     ) -> Diffractogram:
-        x: scalar_numeric
-        y: scalar_numeric
+        x: ScalarNumeric
+        y: ScalarNumeric
         hh: int
         ww: int
         hh, ww = interaction_size

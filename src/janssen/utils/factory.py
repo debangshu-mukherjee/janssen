@@ -50,11 +50,11 @@ from .types import (
     OptimizerState,
     PtychographyParams,
     SampleFunction,
+    ScalarComplex,
+    ScalarFloat,
+    ScalarInteger,
+    ScalarNumeric,
     SlicedMaterialFunction,
-    scalar_complex,
-    scalar_float,
-    scalar_integer,
-    scalar_numeric,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -62,29 +62,29 @@ jax.config.update("jax_enable_x64", True)
 
 @jaxtyped(typechecker=beartype)
 def make_lens_params(
-    focal_length: scalar_numeric,
-    diameter: scalar_numeric,
-    n: scalar_numeric,
-    center_thickness: scalar_numeric,
-    r1: scalar_numeric,
-    r2: scalar_numeric,
+    focal_length: ScalarNumeric,
+    diameter: ScalarNumeric,
+    n: ScalarNumeric,
+    center_thickness: ScalarNumeric,
+    r1: ScalarNumeric,
+    r2: ScalarNumeric,
 ) -> LensParams:
     """JAX-safe factory function for LensParams with data validation.
 
     Parameters
     ----------
-    focal_length : scalar_numeric
+    focal_length : ScalarNumeric
         Focal length of the lens in meters
-    diameter : scalar_numeric
+    diameter : ScalarNumeric
         Diameter of the lens in meters
-    n : scalar_numeric
+    n : ScalarNumeric
         Refractive index of the lens material
-    center_thickness : scalar_numeric
+    center_thickness : ScalarNumeric
         Thickness at the center of the lens in meters
-    r1 : scalar_numeric
+    r1 : ScalarNumeric
         Radius of curvature of the first surface in meters
         (positive for convex)
-    r2 : scalar_numeric
+    r2 : ScalarNumeric
         Radius of curvature of the second surface in meters
         (positive for convex)
 
@@ -351,9 +351,9 @@ def make_grid_params(
 @jaxtyped(typechecker=beartype)
 def make_optical_wavefront(
     field: Union[Complex[Array, " hh ww"], Complex[Array, " hh ww 2"]],
-    wavelength: scalar_numeric,
-    dx: scalar_numeric,
-    z_position: scalar_numeric,
+    wavelength: ScalarNumeric,
+    dx: ScalarNumeric,
+    z_position: ScalarNumeric,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data
     validation.
@@ -364,11 +364,11 @@ def make_optical_wavefront(
        Complex amplitude of the optical field. Should be 2D for scalar
        fields or 3D with last dimension 2 for polarized fields.
        Polarization is automatically detected from field dimensions.
-    wavelength : scalar_numeric
+    wavelength : ScalarNumeric
         Wavelength of the optical wavefront in meters
-    dx : scalar_numeric
+    dx : ScalarNumeric
         Spatial sampling interval (grid spacing) in meters
-    z_position : scalar_numeric
+    z_position : ScalarNumeric
         Axial position of the wavefront in the propagation direction in
         meters.
 
@@ -504,8 +504,8 @@ def make_optical_wavefront(
 def make_microscope_data(
     image_data: Union[Float[Array, " pp hh ww"], Float[Array, " xx yy hh ww"]],
     positions: Num[Array, " pp 2"],
-    wavelength: scalar_numeric,
-    dx: scalar_numeric,
+    wavelength: ScalarNumeric,
+    dx: ScalarNumeric,
 ) -> MicroscopeData:
     """JAX-safe factory function for MicroscopeData with data
     validation.
@@ -517,9 +517,9 @@ def make_microscope_data(
         3D or 4D image data representing the optical field
     positions : Num[Array, " pp 2"]
         Positions of the images during collection
-    wavelength : scalar_numeric
+    wavelength : ScalarNumeric
         Wavelength of the optical wavefront in meters
-    dx : scalar_numeric
+    dx : ScalarNumeric
         Spatial sampling interval (grid spacing) in meters
 
     Returns
@@ -700,8 +700,8 @@ def make_microscope_data(
 @jaxtyped(typechecker=beartype)
 def make_diffractogram(
     image: Float[Array, " hh ww"],
-    wavelength: scalar_numeric,
-    dx: scalar_numeric,
+    wavelength: ScalarNumeric,
+    dx: ScalarNumeric,
 ) -> Diffractogram:
     """JAX-safe factory function for Diffractogram with data validation.
 
@@ -709,9 +709,9 @@ def make_diffractogram(
     ----------
     image : Float[Array, " hh ww"]
         Image data
-    wavelength : scalar_numeric
+    wavelength : ScalarNumeric
         Wavelength of the optical wavefront in meters
-    dx : scalar_numeric
+    dx : ScalarNumeric
         Spatial sampling interval (grid spacing) in meters
 
     Returns
@@ -807,7 +807,7 @@ def make_diffractogram(
 @jaxtyped(typechecker=beartype)
 def make_sample_function(
     sample: Num[Array, " hh ww"],
-    dx: scalar_numeric,
+    dx: ScalarNumeric,
 ) -> SampleFunction:
     """JAX-safe factory function for SampleFunction with data
     validation.
@@ -816,7 +816,7 @@ def make_sample_function(
     ----------
     sample : Num[Array, " hh ww"]
         The sample function. Will be converted to complex if real.
-    dx : scalar_numeric
+    dx : ScalarNumeric
         Spatial sampling interval (grid spacing) in meters
 
     Returns
@@ -891,8 +891,8 @@ def make_sample_function(
 @jaxtyped(typechecker=beartype)
 def make_sliced_material_function(
     material: Num[Array, " hh ww zz"],
-    dx: scalar_numeric,
-    tz: scalar_numeric,
+    dx: ScalarNumeric,
+    tz: ScalarNumeric,
 ) -> SlicedMaterialFunction:
     """JAX-safe validated factory function for SlicedMaterialFunction.
 
@@ -903,9 +903,9 @@ def make_sliced_material_function(
         the refractive index n, and the imaginary part represents the
         extinction coefficient κ (absorption). Will be converted to complex
         if real.
-    dx : scalar_numeric
+    dx : ScalarNumeric
         Spatial sampling interval (pixel spacing) within each slice in meters
-    tz : scalar_numeric
+    tz : ScalarNumeric
         Interslice distance (spacing between slices) in the z-direction in
         meters.
 
@@ -998,9 +998,9 @@ def make_sliced_material_function(
 @jaxtyped(typechecker=beartype)
 def make_optimizer_state(
     shape: Tuple,
-    m: Optional[Union[Complex[Array, " ..."], scalar_complex]] = 1j,
-    v: Optional[Union[Float[Array, " ..."], scalar_float]] = 0.0,
-    step: Optional[scalar_integer] = 0,
+    m: Optional[Union[Complex[Array, " ..."], ScalarComplex]] = 1j,
+    v: Optional[Union[Float[Array, " ..."], ScalarFloat]] = 0.0,
+    step: Optional[ScalarInteger] = 0,
 ) -> OptimizerState:
     """JAX-safe factory function for OptimizerState with data
     validation.
@@ -1017,7 +1017,7 @@ def make_optimizer_state(
         Second moment estimate. If None, initialized to zeros with given
         shape.
         Default is 0.0.
-    step : Optional[scalar_integer], optional
+    step : Optional[ScalarInteger], optional
         Step count. Default is 0.
 
     Returns
@@ -1094,31 +1094,31 @@ def make_optimizer_state(
 
 @jaxtyped(typechecker=beartype)
 def make_ptychography_params(
-    zoom_factor: scalar_numeric,
-    aperture_diameter: scalar_numeric,
-    travel_distance: scalar_numeric,
+    zoom_factor: ScalarNumeric,
+    aperture_diameter: ScalarNumeric,
+    travel_distance: ScalarNumeric,
     aperture_center: Float[Array, " 2"],
-    camera_pixel_size: scalar_numeric,
-    learning_rate: scalar_numeric,
-    num_iterations: scalar_integer,
+    camera_pixel_size: ScalarNumeric,
+    learning_rate: ScalarNumeric,
+    num_iterations: ScalarInteger,
 ) -> PtychographyParams:
     """Create a PtychographyParams PyTree with validated parameters.
 
     Parameters
     ----------
-    zoom_factor : scalar_numeric
+    zoom_factor : ScalarNumeric
         Optical zoom factor for magnification (must be positive)
-    aperture_diameter : scalar_numeric
+    aperture_diameter : ScalarNumeric
         Diameter of the aperture in meters (must be positive)
-    travel_distance : scalar_numeric
+    travel_distance : ScalarNumeric
         Light propagation distance in meters (must be positive)
     aperture_center : Float[Array, " 2"]
         Center position of the aperture (x, y) in meters
-    camera_pixel_size : scalar_numeric
+    camera_pixel_size : ScalarNumeric
         Camera pixel size in meters (must be positive)
-    learning_rate : scalar_numeric
+    learning_rate : ScalarNumeric
         Learning rate for optimization (must be positive)
-    num_iterations : scalar_integer
+    num_iterations : ScalarInteger
         Number of optimization iterations (must be positive)
 
     Returns

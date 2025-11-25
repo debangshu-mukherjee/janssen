@@ -49,8 +49,8 @@ from jaxtyping import Array, Bool, Float, Num, jaxtyped
 from janssen.utils import (
     OpticalWavefront,
     make_optical_wavefront,
-    scalar_float,
-    scalar_numeric,
+    ScalarFloat,
+    ScalarNumeric,
 )
 
 jax.config.update("jax_enable_x64", True)
@@ -59,7 +59,7 @@ jax.config.update("jax_enable_x64", True)
 def _arrayed_grids(
     x0: Num[Array, " hh ww"],
     y0: Num[Array, " hh ww"],
-    dx: Union[scalar_float, Num[Array, " 2"]],
+    dx: Union[ScalarFloat, Num[Array, " 2"]],
 ) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
     """Create coordinate grids without array creation.
 
@@ -69,7 +69,7 @@ def _arrayed_grids(
         Zero-valued input array for x coordinates.
     y0 : Num[Array, " hh ww"]
         Zero-valued input array for y coordinates.
-    dx : Union[scalar_float, Num[Array, " 2"]]
+    dx : Union[ScalarFloat, Num[Array, " 2"]]
         Grid spacing in meters. Can be scalar or 2-element array [dx, dy].
 
     Returns
@@ -119,9 +119,9 @@ def _arrayed_grids(
 @jaxtyped(typechecker=beartype)
 def circular_aperture(
     incoming: OpticalWavefront,
-    diameter: scalar_float,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    transmittivity: Optional[scalar_float] = 1.0,
+    diameter: ScalarFloat,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply a circular aperture to the incoming wavefront.
@@ -133,12 +133,12 @@ def circular_aperture(
     ----------
     incoming : OpticalWavefront
         Input wavefront PyTree.
-    diameter : scalar_float
+    diameter : ScalarFloat
         Aperture diameter in meters.
     center : Float[Array, " 2"], optional
         Physical center [x0, y0] of the aperture in meters, by default
         [0, 0].
-    transmittivity : Optional[scalar_float], optional
+    transmittivity : Optional[ScalarFloat], optional
         Uniform transmittivity inside the aperture (0..1), by default
         1.0.
 
@@ -185,10 +185,10 @@ def circular_aperture(
 @jaxtyped(typechecker=beartype)
 def rectangular_aperture(
     incoming: OpticalWavefront,
-    width: scalar_float,
-    height: scalar_float,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    transmittivity: Optional[scalar_float] = 1.0,
+    width: ScalarFloat,
+    height: ScalarFloat,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply an axis-aligned rectangular aperture to the incoming
@@ -198,13 +198,13 @@ def rectangular_aperture(
     ----------
     incoming : OpticalWavefront
         Input wavefront PyTree.
-    width : scalar_float
+    width : ScalarFloat
         Rectangle width along x in meters.
-    height : scalar_float
+    height : ScalarFloat
         Rectangle height along y in meters.
     center : Float[Array, " 2"], optional
         Rectangle center [x0, y0] in meters, by default [0, 0].
-    transmittivity : Optional[scalar_float], optional
+    transmittivity : Optional[ScalarFloat], optional
         Uniform transmittivity inside the rectangle (0..1), by default
         1.0.
 
@@ -253,10 +253,10 @@ def rectangular_aperture(
 @jaxtyped(typechecker=beartype)
 def annular_aperture(
     incoming: OpticalWavefront,
-    inner_diameter: scalar_float,
-    outer_diameter: scalar_float,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    transmittivity: Optional[scalar_float] = 1.0,
+    inner_diameter: ScalarFloat,
+    outer_diameter: ScalarFloat,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply an annular (ring) aperture with inner and outer diameters.
@@ -265,13 +265,13 @@ def annular_aperture(
     ----------
     incoming : OpticalWavefront
         Input wavefront PyTree.
-    inner_diameter : scalar_float
+    inner_diameter : ScalarFloat
         Inner blocked diameter in meters.
-    outer_diameter : scalar_float
+    outer_diameter : ScalarFloat
         Outer clear aperture diameter in meters.
     center : Float[Array, " 2"], optional
         Ring center [x0, y0] in meters, by default [0, 0].
-    transmittivity : Optional[scalar_float], optional
+    transmittivity : Optional[ScalarFloat], optional
         Uniform transmittivity in the ring (0..1), by default 1.0.
 
     Returns
@@ -318,7 +318,7 @@ def annular_aperture(
 @jaxtyped(typechecker=beartype)
 def variable_transmission_aperture(
     incoming: OpticalWavefront,
-    transmission: Union[scalar_float, Float[Array, " ..."]],
+    transmission: Union[ScalarFloat, Float[Array, " ..."]],
 ) -> OpticalWavefront:
     """
     Apply an arbitrary (spatially varying) transmission to the
@@ -328,7 +328,7 @@ def variable_transmission_aperture(
     ----------
     incoming : OpticalWavefront
         Input wavefront PyTree.
-    transmission : Union[scalar_float, Float[Array, " H W"]]
+    transmission : Union[ScalarFloat, Float[Array, " H W"]]
         Precomputed transmission map (0..1) with shape "H W", or a
         scalar attenuation factor for uniform transmission.
 
@@ -385,9 +385,9 @@ def variable_transmission_aperture(
 @jaxtyped(typechecker=beartype)
 def gaussian_apodizer(
     incoming: OpticalWavefront,
-    sigma: scalar_float,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    peak_transmittivity: Optional[scalar_float] = 1.0,
+    sigma: ScalarFloat,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    peak_transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply a Gaussian apodizer (smooth transmission mask) to the
@@ -397,12 +397,12 @@ def gaussian_apodizer(
     ----------
     incoming : OpticalWavefront
         Input optical wavefront.
-    sigma : scalar_float
+    sigma : ScalarFloat
         Gaussian width parameter in meters.
     center : Float[Array, " 2"], optional
         Physical center [x0, y0] of the Gaussian in meters, by default
         [0, 0].
-    peak_transmittivity : Optional[scalar_float], optional
+    peak_transmittivity : Optional[ScalarFloat], optional
         Maximum transmission at the Gaussian center, by default 1.0.
 
     Returns
@@ -447,10 +447,10 @@ def gaussian_apodizer(
 @jaxtyped(typechecker=beartype)
 def supergaussian_apodizer(
     incoming: OpticalWavefront,
-    sigma: scalar_float,
-    m: scalar_numeric,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    peak_transmittivity: Optional[scalar_float] = 1.0,
+    sigma: ScalarFloat,
+    m: ScalarNumeric,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    peak_transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply a super-Gaussian apodizer to the wavefront.
@@ -461,13 +461,13 @@ def supergaussian_apodizer(
     ----------
     incoming : OpticalWavefront
         Input optical wavefront.
-    sigma : scalar_float
+    sigma : ScalarFloat
         Width parameter in meters (sets the roll-off scale).
-    m : scalar_numeric
+    m : ScalarNumeric
         Super-Gaussian order (m=1 → Gaussian, m>1 → flatter top).
     center : Float[Array, " 2"], optional
         Physical center [x0, y0] of the profile, by default [0, 0].
-    peak_transmittivity : Optional[scalar_float], optional
+    peak_transmittivity : Optional[ScalarFloat], optional
         Maximum transmission at the center, by default 1.0.
 
     Returns
@@ -507,11 +507,11 @@ def supergaussian_apodizer(
 @jaxtyped(typechecker=beartype)
 def gaussian_apodizer_elliptical(
     incoming: OpticalWavefront,
-    sigma_x: scalar_float,
-    sigma_y: scalar_float,
-    theta: Optional[scalar_float] = 0.0,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    peak_transmittivity: Optional[scalar_float] = 1.0,
+    sigma_x: ScalarFloat,
+    sigma_y: ScalarFloat,
+    theta: Optional[ScalarFloat] = 0.0,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    peak_transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply an elliptical Gaussian apodizer to the wavefront.
@@ -522,18 +522,18 @@ def gaussian_apodizer_elliptical(
     ----------
     incoming : OpticalWavefront
         Input optical wavefront.
-    sigma_x : scalar_float
+    sigma_x : ScalarFloat
         Gaussian width along the x'-axis (meters) after rotation by
         `theta`.
-    sigma_y : scalar_float
+    sigma_y : ScalarFloat
         Gaussian width along the y'-axis (meters) after rotation by
         `theta`.
-    theta : Optional[scalar_float], optional
+    theta : Optional[ScalarFloat], optional
         Rotation angle in radians (counter-clockwise), by default
         0.0.
     center : Float[Array, " 2"], optional
         Physical center [x0, y0] in meters, by default [0, 0].
-    peak_transmittivity : Optional[scalar_float], optional
+    peak_transmittivity : Optional[ScalarFloat], optional
         Maximum transmission at the center, by default 1.0.
 
     Returns
@@ -591,12 +591,12 @@ def gaussian_apodizer_elliptical(
 @jaxtyped(typechecker=beartype)
 def supergaussian_apodizer_elliptical(
     incoming: OpticalWavefront,
-    sigma_x: scalar_float,
-    sigma_y: scalar_float,
-    m: scalar_numeric,
-    theta: Optional[scalar_float] = 0.0,
-    center: Union[scalar_float, Float[Array, " 2"]] = 0.0,
-    peak_transmittivity: Optional[scalar_float] = 1.0,
+    sigma_x: ScalarFloat,
+    sigma_y: ScalarFloat,
+    m: ScalarNumeric,
+    theta: Optional[ScalarFloat] = 0.0,
+    center: Union[ScalarFloat, Float[Array, " 2"]] = 0.0,
+    peak_transmittivity: Optional[ScalarFloat] = 1.0,
 ) -> OpticalWavefront:
     """
     Apply an elliptical super-Gaussian apodizer with optional
@@ -609,19 +609,19 @@ def supergaussian_apodizer_elliptical(
     ----------
     incoming : OpticalWavefront
         Input optical wavefront.
-    sigma_x : scalar_float
+    sigma_x : ScalarFloat
         Width along x' (meters) after rotation by `theta`.
-    sigma_y : scalar_float
+    sigma_y : ScalarFloat
         Width along y' (meters) after rotation by `theta`.
-    m : scalar_numeric
+    m : ScalarNumeric
         Super-Gaussian order
         (m=1 → Gaussian; m>1 → flatter top, sharper edges).
-    theta : Optional[scalar_float], optional
+    theta : Optional[ScalarFloat], optional
         Rotation angle in radians (counter-clockwise), by default
         0.0.
     center : Float[Array, " 2"], optional
         Physical center [x0, y0] in meters, by default [0, 0].
-    peak_transmittivity : Optional[scalar_float], optional
+    peak_transmittivity : Optional[ScalarFloat], optional
         Maximum transmission at the center, by default 1.0.
 
     Returns

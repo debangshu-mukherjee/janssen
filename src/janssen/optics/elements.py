@@ -62,7 +62,7 @@ from jaxtyping import Array, Bool, Complex, Float, Num, jaxtyped
 from janssen.utils import (
     OpticalWavefront,
     make_optical_wavefront,
-    scalar_float,
+    ScalarFloat,
 )
 
 from .apertures import _arrayed_grids
@@ -72,7 +72,7 @@ jax.config.update("jax_enable_x64", True)
 
 
 def _rotate_coords(
-    xx: Num[Array, " ..."], yy: Num[Array, " ..."], theta: scalar_float
+    xx: Num[Array, " ..."], yy: Num[Array, " ..."], theta: ScalarFloat
 ) -> Tuple[Num[Array, " ..."], Num[Array, " ..."]]:
     """
     Rotate coordinates by an angle theta.
@@ -83,7 +83,7 @@ def _rotate_coords(
         Grid of x coordinates.
     yy : Num[Array, " ..."]
         Grid of y coordinates.
-    theta : scalar_float
+    theta : ScalarFloat
         Angle of rotation in radians.
 
     Returns
@@ -109,8 +109,8 @@ def _rotate_coords(
 @jaxtyped(typechecker=beartype)
 def prism_phase_ramp(
     incoming: OpticalWavefront,
-    deflect_x: Optional[scalar_float] = 0.0,
-    deflect_y: Optional[scalar_float] = 0.0,
+    deflect_x: Optional[ScalarFloat] = 0.0,
+    deflect_y: Optional[ScalarFloat] = 0.0,
     use_small_angle: Optional[bool] = True,
 ) -> OpticalWavefront:
     """
@@ -121,12 +121,12 @@ def prism_phase_ramp(
     ----------
     incoming : OpticalWavefront
         Input scalar wavefront.
-    deflect_x : scalar_float, optional
+    deflect_x : ScalarFloat, optional
         Deflection along +x.
         If `use_small_angle` is True, interpreted as angle (rad).
         Otherwise interpreted as spatial frequency kx [rad/m], by
         default 0.0.
-    deflect_y : scalar_float, optional
+    deflect_y : ScalarFloat, optional
         Deflection along +y (angle or ky), by default 0.0.
     use_small_angle : bool, optional
         If True, convert small angles to kx, ky via k*sin(angle) ~
@@ -135,7 +135,7 @@ def prism_phase_ramp(
 
     Returns
     -------
-    OpticalWavefront
+    output_phasefront : OpticalWavefront
         Wavefront with added linear phase.
 
     Notes
@@ -150,29 +150,32 @@ def prism_phase_ramp(
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
-    k: scalar_float = (2.0 * jnp.pi) / incoming.wavelength
-    kx: scalar_float
-    ky: scalar_float
+    k: ScalarFloat = (2.0 * jnp.pi) / incoming.wavelength
+    kx: ScalarFloat
+    ky: ScalarFloat
     kx, ky = jax.lax.cond(
         use_small_angle,
         lambda: (k * deflect_x, k * deflect_y),
         lambda: (deflect_x, deflect_y),
     )
-    phase = (kx * xx) + (ky * yy)
-    field_out = add_phase_screen(incoming.field, phase)
-    return make_optical_wavefront(
+    phase: Float[Array, " hh ww"] = (kx * xx) + (ky * yy)
+    field_out: Complex[Array, " hh ww"] = add_phase_screen(
+        incoming.field, phase
+    )
+    output_phasefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
+    return output_phasefront
 
 
 @jaxtyped(typechecker=beartype)
 def beam_splitter(
     incoming: OpticalWavefront,
-    t2: Optional[scalar_float] = 0.5,
-    r2: Optional[scalar_float] = 0.5,
+    t2: Optional[ScalarFloat] = 0.5,
+    r2: Optional[ScalarFloat] = 0.5,
     normalize: Optional[bool] = True,
 ) -> Tuple[OpticalWavefront, OpticalWavefront]:
     """
@@ -182,9 +185,9 @@ def beam_splitter(
     ----------
     incoming : OpticalWavefront
         Input wavefront (scalar field).
-    t2 : scalar_float, optional
+    t2 : ScalarFloat, optional
         Complex transmission amplitude, by default jnp.sqrt(0.5).
-    r2 : scalar_float, optional
+    r2 : ScalarFloat, optional
         Complex reflection amplitude.
         Default 1j * jnp.sqrt(0.5) for 50/50 convention.
     normalize : bool, optional
@@ -224,13 +227,13 @@ def beam_splitter(
         normalize, normalize_values, lambda: (t_val, r_val)
     )
 
-    wf_t = make_optical_wavefront(
+    wf_t: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * t_val,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
-    wf_r = make_optical_wavefront(
+    wf_r: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * r_val,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
@@ -301,9 +304,9 @@ def mirror_reflection(
 @jaxtyped(typechecker=beartype)
 def phase_grating_sine(
     incoming: OpticalWavefront,
-    period: scalar_float,
-    depth: scalar_float,
-    theta: Optional[scalar_float] = 0.0,
+    period: ScalarFloat,
+    depth: ScalarFloat,
+    theta: Optional[ScalarFloat] = 0.0,
 ) -> OpticalWavefront:
     """
     Sinusoidal phase grating.
@@ -315,11 +318,11 @@ def phase_grating_sine(
     ----------
     incoming : OpticalWavefront
         Input field.
-    period : scalar_float
+    period : ScalarFloat
         Grating period in meters.
-    depth : scalar_float
+    depth : ScalarFloat
         Phase modulation depth in radians.
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Grating orientation (radians, CCW from x), by default 0.0.
 
     Returns
@@ -351,11 +354,11 @@ def phase_grating_sine(
 @jaxtyped(typechecker=beartype)
 def amplitude_grating_binary(
     incoming: OpticalWavefront,
-    period: scalar_float,
-    duty_cycle: Optional[scalar_float] = 0.5,
-    theta: Optional[scalar_float] = 0.0,
-    trans_high: Optional[scalar_float] = 1.0,
-    trans_low: Optional[scalar_float] = 0.0,
+    period: ScalarFloat,
+    duty_cycle: Optional[ScalarFloat] = 0.5,
+    theta: Optional[ScalarFloat] = 0.0,
+    trans_high: Optional[ScalarFloat] = 1.0,
+    trans_low: Optional[ScalarFloat] = 0.0,
 ) -> OpticalWavefront:
     """
     Binary amplitude grating with given duty cycle.
@@ -364,15 +367,15 @@ def amplitude_grating_binary(
     ----------
     incoming : OpticalWavefront
         Input field.
-    period : scalar_float
+    period : ScalarFloat
         Period in meters.
-    duty_cycle : scalar_float, optional
+    duty_cycle : ScalarFloat, optional
         Fraction of period in 'high' state (0..1), by default 0.5.
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Orientation (radians), by default 0.0.
-    trans_high : scalar_float, optional
+    trans_high : ScalarFloat, optional
         Amplitude transmittance for 'high' bars, by default 1.0.
-    trans_low : scalar_float, optional
+    trans_low : ScalarFloat, optional
         Amplitude transmittance for 'low' bars, by default 0.0.
 
     Returns
@@ -412,9 +415,9 @@ def amplitude_grating_binary(
 @jaxtyped(typechecker=beartype)
 def phase_grating_sawtooth(
     incoming: OpticalWavefront,
-    period: scalar_float,
-    depth: scalar_float,
-    theta: scalar_float = 0.0,
+    period: ScalarFloat,
+    depth: ScalarFloat,
+    theta: ScalarFloat = 0.0,
 ) -> OpticalWavefront:
     """
     Sawtooth phase grating with peak-to-peak depth (radians).
@@ -423,11 +426,11 @@ def phase_grating_sawtooth(
     ----------
     incoming : OpticalWavefront
         Input field.
-    period : scalar_float
+    period : ScalarFloat
         Grating period in meters.
-    depth : scalar_float
+    depth : ScalarFloat
         Phase depth over one period in radians.
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Orientation (radians), by default 0.0.
 
     Returns
@@ -527,7 +530,7 @@ def apply_phase_mask_fn(
 @jaxtyped(typechecker=beartype)
 def polarizer_jones(
     incoming: OpticalWavefront,
-    theta: scalar_float = 0.0,
+    theta: ScalarFloat = 0.0,
 ) -> OpticalWavefront:
     """
     Linear polarizer at angle `theta` (radians, CCW from x-axis).
@@ -539,7 +542,7 @@ def polarizer_jones(
     ----------
     incoming : OpticalWavefront
         Field shape must be Complex[H, W, 2].
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Transmission axis angle (radians), by default 0.0.
 
     Returns
@@ -572,8 +575,8 @@ def polarizer_jones(
 @jaxtyped(typechecker=beartype)
 def waveplate_jones(
     incoming: OpticalWavefront,
-    delta: scalar_float,
-    theta: scalar_float = 0.0,
+    delta: ScalarFloat,
+    theta: ScalarFloat = 0.0,
 ) -> OpticalWavefront:
     """
     Waveplate/retarder with retardance `delta` and fast-axis angle
@@ -585,9 +588,9 @@ def waveplate_jones(
     ----------
     incoming : OpticalWavefront
         Field shape must be Complex[H, W, 2].
-    delta : scalar_float
+    delta : ScalarFloat
         Phase delay between fast and slow axes in radians.
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Fast-axis angle (radians, CCW from x), by default 0.0.
 
     Returns
@@ -629,8 +632,8 @@ def waveplate_jones(
 @jaxtyped(typechecker=beartype)
 def nd_filter(
     incoming: OpticalWavefront,
-    optical_density: Optional[scalar_float] = 0.0,
-    transmittance: Optional[scalar_float] = -1.0,
+    optical_density: Optional[ScalarFloat] = 0.0,
+    transmittance: Optional[ScalarFloat] = -1.0,
 ) -> OpticalWavefront:
     """
     Neutral density (ND) filter as a uniform amplitude attenuator.
@@ -639,10 +642,10 @@ def nd_filter(
     ----------
     incoming : OpticalWavefront
         Input field.
-    optical_density : scalar_float, optional
+    optical_density : ScalarFloat, optional
         OD; intensity transmittance T = 10^(-OD).
         If given, overrides `transmittance`. Default is 0.0.
-    transmittance : scalar_float, optional
+    transmittance : ScalarFloat, optional
         Intensity transmittance T in [0, 1].
         Used if `optical_density` is 0.
 
@@ -676,7 +679,7 @@ def nd_filter(
 @jaxtyped(typechecker=beartype)
 def quarter_waveplate(
     incoming: OpticalWavefront,
-    theta: Optional[scalar_float] = 0.0,
+    theta: Optional[ScalarFloat] = 0.0,
 ) -> OpticalWavefront:
     """
     Apply a quarter-wave plate (δ = π/2) with fast-axis angle `theta`.
@@ -685,7 +688,7 @@ def quarter_waveplate(
     ----------
     incoming : OpticalWavefront
         Vector field Complex[H, W, 2] (Jones: ex, ey).
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Fast-axis angle in radians (CCW from x), by default 0.0.
 
     Returns
@@ -706,7 +709,7 @@ def quarter_waveplate(
 @jaxtyped(typechecker=beartype)
 def half_waveplate(
     incoming: OpticalWavefront,
-    theta: Optional[scalar_float] = 0.0,
+    theta: Optional[ScalarFloat] = 0.0,
 ) -> OpticalWavefront:
     """
     Apply a half-wave plate (δ = π) with fast-axis angle `theta`.
@@ -715,7 +718,7 @@ def half_waveplate(
     ----------
     incoming : OpticalWavefront
         Vector field Complex[H, W, 2] (Jones: ex, ey).
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Fast-axis angle in radians (CCW from x), by default 0.0.
 
     Returns
@@ -736,10 +739,10 @@ def half_waveplate(
 @jaxtyped(typechecker=beartype)
 def phase_grating_blazed_elliptical(
     incoming: OpticalWavefront,
-    period_x: scalar_float,
-    period_y: scalar_float,
-    theta: Optional[scalar_float] = 0.0,
-    depth: Optional[scalar_float] = 2.0 * jnp.pi,
+    period_x: ScalarFloat,
+    period_y: ScalarFloat,
+    theta: Optional[ScalarFloat] = 0.0,
+    depth: Optional[ScalarFloat] = 2.0 * jnp.pi,
     two_dim: Optional[bool] = False,
 ) -> OpticalWavefront:
     r"""
@@ -752,14 +755,14 @@ def phase_grating_blazed_elliptical(
     ----------
     incoming : OpticalWavefront
         Input scalar wavefront.
-    period_x : scalar_float
+    period_x : ScalarFloat
         Blaze period along x' in meters (after rotation by `theta`).
-    period_y : scalar_float
+    period_y : ScalarFloat
         Blaze period along y' in meters (after rotation by `theta`).
-    theta : scalar_float, optional
+    theta : ScalarFloat, optional
         Grating orientation angle in radians (CCW from x), by default
         0.0.
-    depth : scalar_float, optional
+    depth : ScalarFloat, optional
         Peak-to-peak phase depth in radians, by default 2π.
     two_dim : bool, optional
         If False (default), apply a 1D blaze along x' only.
