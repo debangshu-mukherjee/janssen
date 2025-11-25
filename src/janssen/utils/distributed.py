@@ -106,12 +106,8 @@ def create_mesh(n_devices: Optional[int] = None) -> Mesh:
     """
     if n_devices is None:
         n_devices = jax.device_count()
-
-    # Get the devices and select the requested number
     all_devices = jax.devices()
     selected_devices = all_devices[:n_devices]
-
-    # Create device mesh with selected devices
     devices = mesh_utils.create_device_mesh(
         (n_devices,), devices=selected_devices
     )

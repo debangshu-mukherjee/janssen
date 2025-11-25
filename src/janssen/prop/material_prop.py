@@ -278,7 +278,7 @@ def optical_path_length(
        - Both indices: broadcast scalar to (H, W)
        - Only x_idx: tile 1D result to (H, W)
        - Only y_idx: tile 1D result to (H, W)
-       - Neither: compute 2D projection directly
+       - Neither - compute 2D projection directly.
     4. Extract appropriate slice/element from 2D result
     5. Sum refractive indices along z and multiply by slice thickness
 
