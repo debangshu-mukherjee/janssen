@@ -34,10 +34,10 @@ from jaxtyping import (
 
 from janssen.utils import (
     SampleFunction,
-    make_sample_function,
     ScalarBool,
     ScalarFloat,
     ScalarInteger,
+    make_sample_function,
 )
 
 

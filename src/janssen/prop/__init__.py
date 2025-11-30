@@ -17,10 +17,6 @@ Routine Listings
 ----------------
 angular_spectrum_prop : function
     Angular spectrum propagation method (no paraxial approximation).
-optical_path_length : function
-    Compute the optical path length through a material.
-compute_total_transmission : function
-    Compute the total transmission through a material.
 correct_propagator : function
     Automatically selects the most appropriate propagation method.
 digital_zoom : function
@@ -31,10 +27,14 @@ fresnel_prop : function
     Fresnel (near-field) propagation.
 lens_propagation : function
     Propagate optical wavefront through a lens.
-multislice_propagation: function
+multislice_propagation : function
     Propagate optical wavefront through a 3D material.
+optical_path_length : function
+    Compute the optical path length through a material.
 optical_zoom : function
     Optical zoom transformation.
+total_transmit : function
+    Compute the total transmission through a material.
 
 Notes
 -----

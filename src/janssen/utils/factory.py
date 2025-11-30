@@ -354,6 +354,7 @@ def make_optical_wavefront(
     wavelength: ScalarNumeric,
     dx: ScalarNumeric,
     z_position: ScalarNumeric,
+    polarization: Bool[Array, " "] = False,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data
     validation.
@@ -371,6 +372,9 @@ def make_optical_wavefront(
     z_position : ScalarNumeric
         Axial position of the wavefront in the propagation direction in
         meters.
+    polarization : Bool[Array, " "]
+        Boolean indicating whether the field is polarized.
+        Default is False.
 
     Returns
     -------
@@ -404,10 +408,13 @@ def make_optical_wavefront(
     wavelength: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     dx: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     z_position: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
+    polarization: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
 
-    polarization: Bool[Array, " "] = jnp.asarray(
-        field.ndim == polar_dim and field.shape[-1] == non_polar_dim,
-        dtype=jnp.bool_,
+    # Override polarization if field dimensions indicate polarized field
+    polarization = jnp.where(
+        field.ndim == polar_dim,
+        jnp.asarray(field.shape[-1] == non_polar_dim, dtype=jnp.bool_),
+        polarization,
     )
 
     def validate_and_create() -> OpticalWavefront:

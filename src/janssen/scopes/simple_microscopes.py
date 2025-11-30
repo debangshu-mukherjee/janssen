@@ -42,12 +42,12 @@ from janssen.utils import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,
+    ScalarFloat,
+    ScalarNumeric,
     make_diffractogram,
     make_microscope_data,
     make_optical_wavefront,
     make_sample_function,
-    ScalarFloat,
-    ScalarNumeric,
 )
 
 jax.config.update("jax_enable_x64", True)

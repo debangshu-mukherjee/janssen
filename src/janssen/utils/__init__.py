@@ -21,26 +21,6 @@ create_mesh : function
     Creates a device mesh for data parallelism across available devices
 get_device_count : function
     Gets the number of available JAX devices
-shard_batch : function
-    Shards array data across the batch dimension for parallel processing
-Diffractogram : PyTree
-    PyTree for storing diffraction patterns
-GridParams : PyTree
-    PyTree for computational grid parameters
-LensParams : PyTree
-    PyTree for lens optical parameters
-MicroscopeData : PyTree
-    PyTree for microscopy data
-OpticalWavefront : PyTree
-    PyTree for optical wavefront representation
-OptimizerState : PyTree
-    PyTree for optimizer state tracking
-PtychographyParams : PyTree
-    PyTree for ptychography reconstruction parameters
-SampleFunction : PyTree
-    PyTree for sample representation
-SlicedMaterialFunction : PyTree
-    PyTree for 3D sliced material with complex refractive index
 make_diffractogram : function
     Factory function for Diffractogram creation
 make_grid_params : function
@@ -59,8 +39,26 @@ make_sample_function : function
     Factory function for SampleFunction creation
 make_sliced_material_function : function
     Factory function for SlicedMaterialFunction creation
+shard_batch : function
+    Shards array data across the batch dimension for parallel processing
+Diffractogram : PyTree
+    PyTree for storing diffraction patterns
+GridParams : PyTree
+    PyTree for computational grid parameters
+LensParams : PyTree
+    PyTree for lens optical parameters
+MicroscopeData : PyTree
+    PyTree for microscopy data
 NonJaxNumber : TypeAlias
     Type alias for Python numeric types
+OpticalWavefront : PyTree
+    PyTree for optical wavefront representation
+OptimizerState : PyTree
+    PyTree for optimizer state tracking
+PtychographyParams : PyTree
+    PyTree for ptychography reconstruction parameters
+SampleFunction : PyTree
+    PyTree for sample representation
 ScalarBool : TypeAlias
     Type alias for scalar boolean values
 ScalarComplex : TypeAlias
@@ -71,6 +69,8 @@ ScalarInteger : TypeAlias
     Type alias for scalar integer values
 ScalarNumeric : TypeAlias
     Type alias for any scalar numeric value
+SlicedMaterialFunction : PyTree
+    PyTree for 3D sliced material with complex refractive index
 
 Notes
 -----
@@ -100,30 +100,22 @@ from .types import (
     GridParams,
     LensParams,
     MicroscopeData,
+    NonJaxNumber,
     OpticalWavefront,
     OptimizerState,
     PtychographyParams,
     SampleFunction,
-    SlicedMaterialFunction,
-    NonJaxNumber,
     ScalarBool,
     ScalarComplex,
     ScalarFloat,
     ScalarInteger,
     ScalarNumeric,
+    SlicedMaterialFunction,
 )
 
 __all__: list[str] = [
-    "Diffractogram",
-    "GridParams",
-    "LensParams",
-    "MicroscopeData",
-    "OpticalWavefront",
-    "OptimizerState",
-    "PtychographyParams",
-    "SampleFunction",
-    "SlicedMaterialFunction",
     "create_mesh",
+    "get_device_count",
     "make_diffractogram",
     "make_grid_params",
     "make_lens_params",
@@ -133,12 +125,20 @@ __all__: list[str] = [
     "make_ptychography_params",
     "make_sample_function",
     "make_sliced_material_function",
+    "shard_batch",
+    "Diffractogram",
+    "GridParams",
+    "LensParams",
+    "MicroscopeData",
     "NonJaxNumber",
+    "OpticalWavefront",
+    "OptimizerState",
+    "PtychographyParams",
+    "SampleFunction",
     "ScalarBool",
     "ScalarComplex",
     "ScalarFloat",
     "ScalarInteger",
     "ScalarNumeric",
-    "shard_batch",
-    "get_device_count",
+    "SlicedMaterialFunction",
 ]

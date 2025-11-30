@@ -48,9 +48,9 @@ from jaxtyping import Array, Bool, Float, Num, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
-    make_optical_wavefront,
     ScalarFloat,
     ScalarNumeric,
+    make_optical_wavefront,
 )
 
 jax.config.update("jax_enable_x64", True)

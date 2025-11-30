@@ -12,10 +12,10 @@ simple_microscopes
 
 Routine Listings
 ----------------
-linear_interaction : function
-    Propagates an optical wavefront through a sample using linear interaction
 diffractogram_noscale : function
     Calculates the diffractogram without scaling camera pixel size
+linear_interaction : function
+    Propagates an optical wavefront through a sample using linear interaction
 simple_diffractogram : function
     Calculates the diffractogram using a simple model
 simple_microscope : function

@@ -138,9 +138,11 @@ napoleon_type_aliases = {
     'Int[Array, " N"]': "N int array",
     'Num[Array, " N"]': "N numeric array",
     'Bool[Array, " "]': "scalar bool",
-    "scalar_float": "float",
-    "scalar_int": "int",
-    "scalar_num": "numeric",
+    "ScalarFloat": "float",
+    "ScalarInteger": "int",
+    "ScalarNumeric": "numeric",
+    "ScalarComplex": "complex",
+    "ScalarBool": "bool",
 }
 
 typehints_defaults = "comma"

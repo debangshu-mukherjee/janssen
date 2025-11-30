@@ -117,9 +117,9 @@ All functions must include type hints for:
 3. **Use type aliases** for complex types:
    ```python
    from typing import TypeAlias
-   
-   scalar_float: TypeAlias = Union[float, Float[Array, " "]]
-   scalar_complex: TypeAlias = Union[complex, Complex[Array, " "]]
+
+   ScalarFloat: TypeAlias = Union[float, Float[Array, " "]]
+   ScalarComplex: TypeAlias = Union[complex, Complex[Array, " "]]
    ```
 
 4. **Annotate test methods**:

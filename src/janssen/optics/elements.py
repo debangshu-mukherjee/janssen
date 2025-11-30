@@ -57,12 +57,13 @@ import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Callable, Optional, Tuple
+from jax.lax import cond
 from jaxtyping import Array, Bool, Complex, Float, Num, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
-    make_optical_wavefront,
     ScalarFloat,
+    make_optical_wavefront,
 )
 
 from .apertures import _arrayed_grids
@@ -153,7 +154,7 @@ def prism_phase_ramp(
     k: ScalarFloat = (2.0 * jnp.pi) / incoming.wavelength
     kx: ScalarFloat
     ky: ScalarFloat
-    kx, ky = jax.lax.cond(
+    kx, ky = cond(
         use_small_angle,
         lambda: (k * deflect_x, k * deflect_y),
         lambda: (deflect_x, deflect_y),
@@ -223,9 +224,7 @@ def beam_splitter(
         r_norm: Complex[Array, " "] = r_val / sqrt_power
         return (t_norm, r_norm)
 
-    t_val, r_val = jax.lax.cond(
-        normalize, normalize_values, lambda: (t_val, r_val)
-    )
+    t_val, r_val = cond(normalize, normalize_values, lambda: (t_val, r_val))
 
     wf_t: OpticalWavefront = make_optical_wavefront(
         field=incoming.field * t_val,
@@ -282,16 +281,10 @@ def mirror_reflection(
     - Optional -1 factor for π phase.
     """
     field = incoming.field
-    field = jax.lax.cond(
-        flip_x, lambda f: jnp.flip(f, axis=-1), lambda f: f, field
-    )
-    field = jax.lax.cond(
-        flip_y, lambda f: jnp.flip(f, axis=-2), lambda f: f, field
-    )
-    field = jax.lax.cond(
-        conjugate, lambda f: jnp.conjugate(f), lambda f: f, field
-    )
-    field = jax.lax.cond(add_pi_phase, lambda f: -f, lambda f: f, field)
+    field = cond(flip_x, lambda f: jnp.flip(f, axis=-1), lambda f: f, field)
+    field = cond(flip_y, lambda f: jnp.flip(f, axis=-2), lambda f: f, field)
+    field = cond(conjugate, jnp.conjugate, lambda f: f, field)
+    field = cond(add_pi_phase, lambda f: -f, lambda f: f, field)
 
     return make_optical_wavefront(
         field=field,
@@ -435,7 +428,7 @@ def phase_grating_sawtooth(
 
     Returns
     -------
-    OpticalWavefront
+    grating : OpticalWavefront
         Field after blazed phase modulation.
 
     Notes
@@ -445,26 +438,33 @@ def phase_grating_sawtooth(
         (kept at [0, depth)).
     - Apply phase with exp(i*phase).
     """
-    arr_zeros = jnp.zeros_like(incoming.field, dtype=jnp.float64)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=jnp.float64
+    )
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    uu: Num[Array, " hh ww"]
     uu, _ = _rotate_coords(xx, yy, theta)
 
-    frac = (uu / period) - jnp.floor(uu / period)  # [0,1)
-    phase = depth * frac
-    field_out = add_phase_screen(incoming.field, phase)
-
-    return make_optical_wavefront(
+    frac: Float[Array, " hh ww"] = (uu / period) - jnp.floor(uu / period)
+    phase: Float[Array, " hh ww"] = depth * frac
+    field_out: Complex[Array, " hh ww"] = add_phase_screen(
+        incoming.field, phase
+    )
+    grating: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
+    return grating
 
 
 @jaxtyped(typechecker=beartype)
 def apply_phase_mask(
     incoming: OpticalWavefront,
-    phase_map: Float[Array, " H W"],
+    phase_map: Float[Array, " hh ww"],
 ) -> OpticalWavefront:
     """
     Apply an arbitrary phase mask (e.g., SLM, turbulence screen).
@@ -475,28 +475,32 @@ def apply_phase_mask(
     ----------
     incoming : OpticalWavefront
         Input field.
-    phase_map : Float[Array, " H W"]
+    phase_map : Float[Array, " hh ww"]
         Phase in radians, same spatial shape as field.
 
     Returns
     -------
-    OpticalWavefront
+    masked_wavefront : OpticalWavefront
         Field with added phase.
     """
-    field_out = add_phase_screen(incoming.field, phase_map)
-    return make_optical_wavefront(
+    field_out: Complex[Array, " hh ww"] = add_phase_screen(
+        incoming.field, phase_map
+    )
+    masked_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
+    return masked_wavefront
 
 
 @jaxtyped(typechecker=beartype)
 def apply_phase_mask_fn(
     incoming: OpticalWavefront,
     phase_fn: Callable[
-        [Float[Array, " H W"], Float[Array, " H W"]], Float[Array, " H W"]
+        [Float[Array, " hh ww"], Float[Array, " hh ww"]],
+        Float[Array, " hh ww"],
     ],
 ) -> OpticalWavefront:
     """
@@ -512,19 +516,26 @@ def apply_phase_mask_fn(
 
     Returns
     -------
-    OpticalWavefront
+    masked_wavefront : OpticalWavefront
         Field with added phase.
     """
-    arr_zeros = jnp.zeros_like(incoming.field, dtype=jnp.float64)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=jnp.float64
+    )
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
-    phase_map = phase_fn(xx, yy)
-    field_out = add_phase_screen(incoming.field, phase_map)
-    return make_optical_wavefront(
+    phase_map: Float[Array, " hh ww"] = phase_fn(xx, yy)
+    field_out: Complex[Array, " hh ww"] = add_phase_screen(
+        incoming.field, phase_map
+    )
+    masked_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
     )
+    return masked_wavefront
 
 
 @jaxtyped(typechecker=beartype)
@@ -555,21 +566,25 @@ def polarizer_jones(
     - Jones matrix: P = R(-θ) @ [[1, 0],[0, 0]] @ R(θ).
     - Apply P to [ex, ey] at each pixel.
     """
-    field = incoming.field
-    ct = jnp.cos(theta)
-    st = jnp.sin(theta)
-    ex, ey = field[..., 0], field[..., 1]
-    e_par = ex * ct + ey * st
-    ex_out = e_par * ct
-    ey_out = e_par * st
-    field_out = jnp.stack([ex_out, ey_out], axis=-1)
-    return make_optical_wavefront(
+    field: Complex[Array, " hh ww 2"] = incoming.field
+    ct: ScalarFloat = jnp.cos(theta)
+    st: ScalarFloat = jnp.sin(theta)
+    ex: Complex[Array, " hh ww"] = field[..., 0]
+    ey: Complex[Array, " hh ww"] = field[..., 1]
+    e_par: Complex[Array, " hh ww"] = (ex * ct) + (ey * st)
+    ex_out: Complex[Array, " hh ww"] = e_par * ct
+    ey_out: Complex[Array, " hh ww"] = e_par * st
+    field_out: Complex[Array, " hh ww 2"] = jnp.stack(
+        [ex_out, ey_out], axis=-1
+    )
+    polar_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,
         dx=incoming.dx,
         z_position=incoming.z_position,
         polarization=True,
     )
+    return polar_wavefront
 
 
 @jaxtyped(typechecker=beartype)
@@ -660,7 +675,7 @@ def nd_filter(
     - Amplitude factor a = sqrt(T).
     - Multiply field by a and return.
     """
-    tt = jax.lax.cond(
+    tt = cond(
         optical_density != 0,
         lambda: jnp.power(10.0, -jnp.asarray(optical_density)),
         lambda: jnp.clip(jnp.asarray(transmittance), 0.0, 1.0),
@@ -788,16 +803,28 @@ def phase_grating_blazed_elliptical(
         phase = depth * fu
     - Multiply by exp(i * phase) and return.
     """
-    arr_zeros = jnp.zeros_like(incoming.field, dtype=jnp.float64)
+    arr_zeros: Float[Array, " hh ww"] = jnp.zeros_like(
+        incoming.field, dtype=jnp.float64
+    )
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    uu: Float[Array, " hh ww"]
+    vv: Float[Array, " hh ww"]
     uu, vv = _rotate_coords(xx, yy, theta)
-    eps = 1e-30
-    px = jnp.where(jnp.abs(period_x) < eps, eps, period_x)
-    py = jnp.where(jnp.abs(period_y) < eps, eps, period_y)
-    fu = (uu / px) - jnp.floor(uu / px)  # in [0,1)
-    fv = (vv / py) - jnp.floor(vv / py)  # in [0,1)
-    phase = depth * ((fu + fv) - jnp.floor(fu + fv)) if two_dim else depth * fu
-    field_out = add_phase_screen(incoming.field, phase)
+    eps: ScalarFloat = 1e-30
+    px: ScalarFloat = jnp.where(jnp.abs(period_x) < eps, eps, period_x)
+    py: ScalarFloat = jnp.where(jnp.abs(period_y) < eps, eps, period_y)
+    fu: Float[Array, " hh ww"] = (uu / px) - jnp.floor(uu / px)
+    fv: Float[Array, " hh ww"] = (vv / py) - jnp.floor(vv / py)
+    phase: Float[Array, " hh ww"] = cond(
+        two_dim,
+        lambda: depth * ((fu + fv) - jnp.floor(fu + fv)),
+        lambda: depth * fu,
+    )
+    field_out: Complex[Array, " hh ww"] = add_phase_screen(
+        incoming.field, phase
+    )
     phase_grating_wavefront: OpticalWavefront = make_optical_wavefront(
         field=field_out,
         wavelength=incoming.wavelength,

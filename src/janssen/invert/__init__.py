@@ -23,22 +23,22 @@ Routine Listings
 ----------------
 create_loss_function : function
     Factory function for creating various loss functions
-simple_microscope_ptychography : function
-    Main ptychography reconstruction algorithm using PtychographyParams
 epie_optical : function
     Extended PIE algorithm for optical ptychography
+init_adagrad : function
+    Initialize Adagrad optimizer state
+init_adam : function
+    Initialize Adam optimizer state
+init_rmsprop : function
+    Initialize RMSprop optimizer state
+simple_microscope_ptychography : function
+    Main ptychography reconstruction algorithm using PtychographyParams
 single_pie_iteration : function
     Single iteration of PIE algorithm
 single_pie_sequential : function
     Sequential PIE implementation for multiple positions
-single_pie_vmap
+single_pie_vmap : function
     Vectorized PIE implementation using vmap
-init_adam : function
-    Initialize Adam optimizer state
-init_adagrad : function
-    Initialize Adagrad optimizer state
-init_rmsprop : function
-    Initialize RMSprop optimizer state
 
 Notes
 -----
@@ -59,12 +59,12 @@ from .ptychography import simple_microscope_ptychography
 
 __all__: list[str] = [
     "create_loss_function",
-    "simple_microscope_ptychography",
     "epie_optical",
+    "init_adagrad",
+    "init_adam",
+    "init_rmsprop",
+    "simple_microscope_ptychography",
     "single_pie_iteration",
     "single_pie_sequential",
     "single_pie_vmap",
-    "init_adam",
-    "init_adagrad",
-    "init_rmsprop",
 ]

@@ -43,10 +43,10 @@ from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
 from janssen.utils import (
+    LensParams,
     ScalarBool,
     ScalarFloat,
     ScalarNumeric,
-    LensParams,
     make_lens_params,
 )
 

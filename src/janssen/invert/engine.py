@@ -137,12 +137,11 @@ def epie_optical(
     """
     image_data: Float[Array, " P H W"] = microscope_data.image_data
     positions: Float[Array, " P 2"] = microscope_data.positions
-
-    frequency_x_grid: Float[Array, " H W"]
-    frequency_y_grid: Float[Array, " H W"]
-    frequency_x_grid, frequency_y_grid = _create_frequency_grids(
-        initial_object.field, initial_object.dx
+    frequency_grid_tuple: Tuple[Float[Array, " H W"], Float[Array, " H W"]] = (
+        _create_frequency_grids(initial_object.field, initial_object.dx)
     )
+    frequency_x_grid: Float[Array, " H W"] = frequency_grid_tuple[0]
+    frequency_y_grid: Float[Array, " H W"] = frequency_grid_tuple[1]
     object_recovery_prop_ft: Complex[Array, " H W"] = angular_spectrum_prop(
         initial_object, propagation_distance_1
     ).field
@@ -882,7 +881,7 @@ def _compute_sensor_intensity(
 
 @jaxtyped(typechecker=beartype)
 def _create_frequency_grids(
-    field: Complex[Array, " H W"], dx: scalar_float
+    field: Complex[Array, " H W"], dx: ScalarFloat
 ) -> Tuple[Float[Array, " H W"], Float[Array, " H W"]]:
     """Create frequency grids for Fourier transforms.
 
@@ -890,7 +889,7 @@ def _create_frequency_grids(
     ----------
     field : Complex[Array, " H W"]
         Input field to determine grid size.
-    dx : scalar_float
+    dx : ScalarFloat
         Spatial sampling interval.
 
     Returns

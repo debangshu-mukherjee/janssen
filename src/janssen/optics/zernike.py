@@ -73,9 +73,9 @@ from jaxtyping import Array, Float, Int, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
-    make_optical_wavefront,
     ScalarFloat,
     ScalarInteger,
+    make_optical_wavefront,
 )
 
 from .helper import add_phase_screen
@@ -477,9 +477,9 @@ def zernike_noll(
     Converts Noll index to (n,m) pair and calls zernike_nm.
     The Noll indexing convention assigns j=1 to piston (n=0, m=0).
     """
-    n: int
-    m: int
-    n, m = noll_to_nm(j)
+    nm_tuple: Tuple[int, int] = noll_to_nm(j)
+    n = nm_tuple[0]
+    m = nm_tuple[1]
     result: Float[Array, " *batch"] = zernike_nm(rho, theta, n, m, normalize)
     return result
 
@@ -554,20 +554,20 @@ def generate_aberration_nm(
 
 @jaxtyped(typechecker=beartype)
 def generate_aberration_noll(
-    xx: Float[Array, " H W"],
-    yy: Float[Array, " H W"],
-    coefficients: Float[Array, " N"],
+    xx: Float[Array, " hh ww"],
+    yy: Float[Array, " hh ww"],
+    coefficients: Float[Array, " nn"],
     pupil_radius: ScalarFloat,
-) -> Float[Array, " H W"]:
+) -> Float[Array, " hh ww"]:
     """Generate aberration from Noll-indexed coefficients.
 
     Parameters
     ----------
-    xx : Float[Array, " H W"]
+    xx : Float[Array, " hh ww"]
         X coordinate grid in meters
-    yy : Float[Array, " H W"]
+    yy : Float[Array, " hh ww"]
         Y coordinate grid in meters
-    coefficients : Float[Array, " N"]
+    coefficients : Float[Array, " nn"]
         Zernike coefficients in waves, indexed by Noll index.
         Element 0 corresponds to j=1 (piston), element 1 to j=2, etc.
     pupil_radius : ScalarFloat
@@ -575,29 +575,34 @@ def generate_aberration_noll(
 
     Returns
     -------
-    phase : Float[Array, " H W"]
+    phase : Float[Array, " hh ww"]
         Phase aberration map in radians
 
     Notes
     -----
     Converts Noll indices to (n,m) pairs and calls generate_aberration_nm.
-    The conversion happens at compile time with concrete indices.
-    Pre-computes all (n,m) pairs for the given number of coefficients.
+    Uses vectorized JAX operations for the Noll-to-nm conversion.
     """
-    n_list: list[int] = []
-    m_list: list[int] = []
-    num_coeffs: int = len(coefficients)
-    for j in range(1, num_coeffs + 1):
-        n: int
-        m: int
-        n, m = noll_to_nm(j)
-        n_list.append(n)
-        m_list.append(m)
+    num_coeffs: int = coefficients.shape[0]
+    j_indices: Int[Array, " nn"] = jnp.arange(
+        1, num_coeffs + 1, dtype=jnp.int32
+    )
+    sqrt_term: Float[Array, " nn"] = jnp.sqrt(9 + 8 * j_indices)
+    n_float: Float[Array, " nn"] = (-3 + sqrt_term) / 2
+    n_indices: Int[Array, " nn"] = jnp.ceil(n_float).astype(jnp.int32)
+    n_prev: Int[Array, " nn"] = n_indices * (n_indices - 1) // 2
+    p: Int[Array, " nn"] = j_indices - n_prev - 1
+    m_even_p_even: Int[Array, " nn"] = 2 * ((p + 1) // 2)
+    m_even_p_odd: Int[Array, " nn"] = -2 * ((p + 1) // 2)
+    m_even: Int[Array, " nn"] = jnp.where(
+        p % 2 == 0, m_even_p_even, m_even_p_odd
+    )
+    m_odd_p_even: Int[Array, " nn"] = -2 * ((p + 2) // 2) + 1
+    m_odd_p_odd: Int[Array, " nn"] = 2 * ((p + 2) // 2) - 1
+    m_odd: Int[Array, " nn"] = jnp.where(p % 2 == 0, m_odd_p_even, m_odd_p_odd)
 
-    n_indices: Int[Array, " N"] = jnp.array(n_list, dtype=jnp.int32)
-    m_indices: Int[Array, " N"] = jnp.array(m_list, dtype=jnp.int32)
-
-    phase: Float[Array, " H W"] = generate_aberration_nm(
+    m_indices: Int[Array, " nn"] = jnp.where(n_indices % 2 == 0, m_even, m_odd)
+    phase: Float[Array, " hh ww"] = generate_aberration_nm(
         xx, yy, n_indices, m_indices, coefficients, pupil_radius
     )
     return phase
@@ -605,18 +610,18 @@ def generate_aberration_noll(
 
 @jaxtyped(typechecker=beartype)
 def defocus(
-    xx: Float[Array, " H W"],
-    yy: Float[Array, " H W"],
+    xx: Float[Array, " hh ww"],
+    yy: Float[Array, " hh ww"],
     amplitude: ScalarFloat,
     pupil_radius: ScalarFloat,
-) -> Float[Array, " H W"]:
+) -> Float[Array, " hh ww"]:
     """Generate defocus aberration (Z4 in Noll notation).
 
     Parameters
     ----------
-    xx : Float[Array, " H W"]
+    xx : Float[Array, " hh ww"]
         X coordinate grid in meters
-    yy : Float[Array, " H W"]
+    yy : Float[Array, " hh ww"]
         Y coordinate grid in meters
     amplitude : ScalarFloat
         Defocus amplitude in waves
@@ -625,12 +630,12 @@ def defocus(
 
     Returns
     -------
-    phase : Float[Array, " H W"]
+    phase : Float[Array, " hh ww"]
         Defocus phase map in radians
     """
     coefficients: Float[Array, " 4"] = jnp.zeros(4)
     coefficients = coefficients.at[3].set(amplitude)
-    phase: Float[Array, " H W"] = generate_aberration_noll(
+    phase: Float[Array, " hh ww"] = generate_aberration_noll(
         xx, yy, coefficients, pupil_radius
     )
     return phase
@@ -802,7 +807,7 @@ def apply_aberration(
         Input wavefront
     coefficients : Float[Array, " N"]
         Noll-indexed Zernike coefficients in waves (index i = Noll index i+1)
-    pupil_radius : scalar_float
+    pupil_radius : ScalarFloat
         Pupil radius in meters
 
     Returns

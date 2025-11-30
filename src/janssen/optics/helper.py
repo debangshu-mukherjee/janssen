@@ -31,8 +31,8 @@ from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
 from janssen.utils import (
-    ScalarFloat,
     OpticalWavefront,
+    ScalarFloat,
     make_optical_wavefront,
 )
 
