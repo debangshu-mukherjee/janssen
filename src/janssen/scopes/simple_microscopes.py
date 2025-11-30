@@ -43,7 +43,6 @@ from janssen.utils import (
     OpticalWavefront,
     SampleFunction,
     ScalarFloat,
-    ScalarNumeric,
     make_diffractogram,
     make_microscope_data,
     make_optical_wavefront,
@@ -292,17 +291,11 @@ def simple_microscope(
     def diffractogram_at_position(
         sample: SampleFunction, this_position: Num[Array, " 2"]
     ) -> Diffractogram:
-        x: ScalarNumeric
-        y: ScalarNumeric
-        hh: int
-        ww: int
-        hh, ww = interaction_size
-        x, y = this_position
         start_cut_x: Int[Array, " "] = jnp.floor(
-            x - (0.5 * interaction_size[1])
+            this_position[0] - (0.5 * interaction_size[1])
         ).astype(int)
         start_cut_y: Int[Array, " "] = jnp.floor(
-            y - (0.5 * interaction_size[0])
+            this_position[1] - (0.5 * interaction_size[0])
         ).astype(int)
         cutout_sample: Complex[Array, " hh ww"] = jax.lax.dynamic_slice(
             sample.sample,

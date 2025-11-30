@@ -161,13 +161,8 @@ def multislice_propagation(
         lambda: incoming,
     )
 
-    height: int
-    width: int
-    num_slices: int
-    height, width, num_slices = material.material.shape
-
+    num_slices: int = material.material.shape[-1]
     k: Float[Array, " "] = 2 * jnp.pi / resampled_incoming.wavelength
-
     current_field: Complex[Array, " H W"] = resampled_incoming.field
     current_z: Float[Array, " "] = resampled_incoming.z_position
 

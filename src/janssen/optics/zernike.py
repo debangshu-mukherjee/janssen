@@ -493,7 +493,7 @@ def generate_aberration_nm(
     coefficients: Float[Array, " N"],
     pupil_radius: ScalarFloat,
 ) -> Float[Array, " H W"]:
-    """Generate aberration from (n,m) indices and coefficients (JAX-compatible).
+    """Generate aberration from (n,m) indices and coefficients.
 
     Parameters
     ----------
