@@ -26,12 +26,16 @@ publication-quality figures with proper scale annotations.
 import matplotlib.pyplot as plt
 import numpy as np
 from beartype import beartype
-from beartype.typing import Literal, Optional, Tuple, Union
+from beartype.typing import List, Literal, Optional, Tuple, Union
+from jaxtyping import Complex, Float
 from matplotlib.axes import Axes
 from matplotlib.colors import hsv_to_rgb
 from matplotlib.figure import Figure
+from matplotlib.image import AxesImage
 from matplotlib_scalebar.scalebar import ScaleBar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.axes_divider import AxesDivider
+from numpy import ndarray as NDArray  # noqa: N814
 
 from janssen.utils import OpticalWavefront
 
@@ -87,34 +91,49 @@ def plot_complex_wavefront(
     For polarized wavefronts (3D field with shape [H, W, 2]), two side-by-side
     plots are created showing Ex and Ey components.
     """
-    field = np.asarray(wavefront.field)
-    dx = float(wavefront.dx)
-    is_polarized = field.ndim == 3  # noqa: PLR2004
+    field: Complex[NDArray, " hh ww"] = np.asarray(wavefront.field)
+    dx: float = float(wavefront.dx)
+    is_polarized: bool = field.ndim == 3  # noqa: PLR2004
 
     if is_polarized:
-        polarized_figsize = (figsize[0] * 2, figsize[1])
+        polarized_figsize: Tuple[float, float] = (figsize[0] * 2, figsize[1])
+        fig: Figure
+        ax1: Axes
+        ax2: Axes
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=polarized_figsize)
-        axes = (ax1, ax2)
-        fields = [field[:, :, 0], field[:, :, 1]]
-        labels = ["Ex", "Ey"]
+        axes: Tuple[Axes, Axes] = (ax1, ax2)
+        fields: List[Complex[NDArray, " hh ww"]] = [
+            field[:, :, 0],
+            field[:, :, 1],
+        ]
+        labels: List[str] = ["Ex", "Ey"]
 
+        ax: Axes
+        f: Complex[NDArray, " hh ww"]
+        label: str
         for ax, f, label in zip(axes, fields, labels, strict=True):
-            amplitude = np.abs(f)
-            phase = np.angle(f)
-            amplitude_normalized = amplitude / (np.max(amplitude) + 1e-10)
+            amplitude: Float[NDArray, " hh ww"] = np.abs(f)
+            phase: Float[NDArray, " hh ww"] = np.angle(f)
+            amplitude_normalized: Float[NDArray, " hh ww"] = amplitude / (
+                np.max(amplitude) + 1e-10
+            )
 
-            hue = (phase + np.pi) / (2 * np.pi)
-            saturation = np.ones_like(amplitude_normalized)
-            value = amplitude_normalized
+            hue: Float[NDArray, " hh ww"] = (phase + np.pi) / (2 * np.pi)
+            saturation: Float[NDArray, " hh ww"] = np.ones_like(
+                amplitude_normalized
+            )
+            value: Float[NDArray, " hh ww"] = amplitude_normalized
 
-            hsv_image = np.stack([hue, saturation, value], axis=-1)
-            rgb_image = hsv_to_rgb(hsv_image)
+            hsv_image: Float[NDArray, " hh ww 3"] = np.stack(
+                [hue, saturation, value], axis=-1
+            )
+            rgb_image: Float[NDArray, " hh ww 3"] = hsv_to_rgb(hsv_image)
 
             ax.imshow(rgb_image, origin="lower")
             ax.axis("off")
             ax.set_title(label)
 
-            scalebar = ScaleBar(
+            scalebar: ScaleBar = ScaleBar(
                 dx,
                 units=scalebar_units,
                 length_fraction=0.25,
@@ -131,24 +150,30 @@ def plot_complex_wavefront(
         fig.tight_layout()
         return fig, axes
 
-    amplitude = np.abs(field)
-    phase = np.angle(field)
+    amplitude: Float[NDArray, " hh ww"] = np.abs(field)
+    phase: Float[NDArray, " hh ww"] = np.angle(field)
 
-    amplitude_normalized = amplitude / (np.max(amplitude) + 1e-10)
+    amplitude_normalized: Float[NDArray, " hh ww"] = amplitude / (
+        np.max(amplitude) + 1e-10
+    )
 
-    hue = (phase + np.pi) / (2 * np.pi)
-    saturation = np.ones_like(amplitude_normalized)
-    value = amplitude_normalized
+    hue: Float[NDArray, " hh ww"] = (phase + np.pi) / (2 * np.pi)
+    saturation: Float[NDArray, " hh ww"] = np.ones_like(amplitude_normalized)
+    value: Float[NDArray, " hh ww"] = amplitude_normalized
 
-    hsv_image = np.stack([hue, saturation, value], axis=-1)
-    rgb_image = hsv_to_rgb(hsv_image)
+    hsv_image: Float[NDArray, " hh ww 3"] = np.stack(
+        [hue, saturation, value], axis=-1
+    )
+    rgb_image: Float[NDArray, " hh ww 3"] = hsv_to_rgb(hsv_image)
 
+    fig: Figure
+    ax: Axes
     fig, ax = plt.subplots(figsize=figsize)
 
     ax.imshow(rgb_image, origin="lower")
     ax.axis("off")
 
-    scalebar = ScaleBar(
+    scalebar: ScaleBar = ScaleBar(
         dx,
         units=scalebar_units,
         length_fraction=0.25,
@@ -168,7 +193,7 @@ def plot_complex_wavefront(
 
 
 @beartype
-def plot_amplitude(
+def plot_amplitude(  # noqa: PLR0913
     wavefront: OpticalWavefront,
     figsize: Tuple[float, float] = (6, 5),
     cmap: str = "gray",
@@ -221,35 +246,49 @@ def plot_amplitude(
     For polarized wavefronts (3D field with shape [H, W, 2]), two side-by-side
     plots are created showing Ex and Ey components.
     """
-    field = np.asarray(wavefront.field)
-    dx = float(wavefront.dx)
-    is_polarized = field.ndim == 3  # noqa: PLR2004
+    field: Complex[NDArray, " hh ww"] = np.asarray(wavefront.field)
+    dx: float = float(wavefront.dx)
+    is_polarized: bool = field.ndim == 3  # noqa: PLR2004
 
     if is_polarized:
-        polarized_figsize = (figsize[0] * 2, figsize[1])
+        polarized_figsize: Tuple[float, float] = (figsize[0] * 2, figsize[1])
+        fig: Figure
+        ax1: Axes
+        ax2: Axes
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=polarized_figsize)
-        axes = (ax1, ax2)
-        fields = [field[:, :, 0], field[:, :, 1]]
-        labels = ["Ex", "Ey"]
+        axes: Tuple[Axes, Axes] = (ax1, ax2)
+        fields: List[Complex[NDArray, " hh ww"]] = [
+            field[:, :, 0],
+            field[:, :, 1],
+        ]
+        labels: List[str] = ["Ex", "Ey"]
 
+        ax: Axes
+        f: Complex[NDArray, " hh ww"]
+        label: str
         for ax, f, label in zip(axes, fields, labels, strict=True):
-            amplitude = np.abs(f)
+            amplitude: Float[NDArray, " hh ww"] = np.abs(f)
+            vmin: float
             if colorbar_min is not None:
                 vmin = colorbar_min
             else:
-                vmin = np.min(amplitude)
+                vmin = float(np.min(amplitude))
 
-            im = ax.imshow(amplitude, cmap=cmap, origin="lower", vmin=vmin)
+            im: AxesImage = ax.imshow(
+                amplitude, cmap=cmap, origin="lower", vmin=vmin
+            )
             ax.axis("off")
             ax.set_title(label)
 
-            divider = make_axes_locatable(ax)
-            is_vertical = colorbar_location in ("left", "right")
-            orientation = "vertical" if is_vertical else "horizontal"
-            cax = divider.append_axes(colorbar_location, size="5%", pad=0.05)
+            divider: AxesDivider = make_axes_locatable(ax)
+            is_vertical: bool = colorbar_location in ("left", "right")
+            orientation: str = "vertical" if is_vertical else "horizontal"
+            cax: Axes = divider.append_axes(
+                colorbar_location, size="5%", pad=0.05
+            )
             fig.colorbar(im, cax=cax, orientation=orientation)
 
-            scalebar = ScaleBar(
+            scalebar: ScaleBar = ScaleBar(
                 dx,
                 units=scalebar_units,
                 length_fraction=0.25,
@@ -266,22 +305,28 @@ def plot_amplitude(
         fig.tight_layout()
         return fig, axes
 
-    amplitude = np.abs(field)
+    amplitude: Float[NDArray, " hh ww"] = np.abs(field)
 
-    vmin = colorbar_min if colorbar_min is not None else np.min(amplitude)
+    vmin: float
+    if colorbar_min is not None:
+        vmin = colorbar_min
+    else:
+        vmin = float(np.min(amplitude))
 
+    fig: Figure
+    ax: Axes
     fig, ax = plt.subplots(figsize=figsize)
 
-    im = ax.imshow(amplitude, cmap=cmap, origin="lower", vmin=vmin)
+    im: AxesImage = ax.imshow(amplitude, cmap=cmap, origin="lower", vmin=vmin)
     ax.axis("off")
 
-    divider = make_axes_locatable(ax)
-    is_vertical = colorbar_location in ("left", "right")
-    orientation = "vertical" if is_vertical else "horizontal"
-    cax = divider.append_axes(colorbar_location, size="5%", pad=0.05)
+    divider: AxesDivider = make_axes_locatable(ax)
+    is_vertical: bool = colorbar_location in ("left", "right")
+    orientation: str = "vertical" if is_vertical else "horizontal"
+    cax: Axes = divider.append_axes(colorbar_location, size="5%", pad=0.05)
     fig.colorbar(im, cax=cax, orientation=orientation)
 
-    scalebar = ScaleBar(
+    scalebar: ScaleBar = ScaleBar(
         dx,
         units=scalebar_units,
         length_fraction=0.25,
@@ -301,7 +346,7 @@ def plot_amplitude(
 
 
 @beartype
-def plot_intensity(
+def plot_intensity(  # noqa: PLR0913
     wavefront: OpticalWavefront,
     figsize: Tuple[float, float] = (6, 5),
     cmap: str = "gray",
@@ -354,35 +399,49 @@ def plot_intensity(
     For polarized wavefronts (3D field with shape [H, W, 2]), two side-by-side
     plots are created showing Ex and Ey components.
     """
-    field = np.asarray(wavefront.field)
-    dx = float(wavefront.dx)
-    is_polarized = field.ndim == 3  # noqa: PLR2004
+    field: Complex[NDArray, " hh ww"] = np.asarray(wavefront.field)
+    dx: float = float(wavefront.dx)
+    is_polarized: bool = field.ndim == 3  # noqa: PLR2004
 
     if is_polarized:
-        polarized_figsize = (figsize[0] * 2, figsize[1])
+        polarized_figsize: Tuple[float, float] = (figsize[0] * 2, figsize[1])
+        fig: Figure
+        ax1: Axes
+        ax2: Axes
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=polarized_figsize)
-        axes = (ax1, ax2)
-        fields = [field[:, :, 0], field[:, :, 1]]
-        labels = ["Ex", "Ey"]
+        axes: Tuple[Axes, Axes] = (ax1, ax2)
+        fields: List[Complex[NDArray, " hh ww"]] = [
+            field[:, :, 0],
+            field[:, :, 1],
+        ]
+        labels: List[str] = ["Ex", "Ey"]
 
+        ax: Axes
+        f: Complex[NDArray, " hh ww"]
+        label: str
         for ax, f, label in zip(axes, fields, labels, strict=True):
-            intensity = np.abs(f) ** 2
+            intensity: Float[NDArray, " hh ww"] = np.abs(f) ** 2
+            vmin: float
             if colorbar_min is not None:
                 vmin = colorbar_min
             else:
-                vmin = np.min(intensity)
+                vmin = float(np.min(intensity))
 
-            im = ax.imshow(intensity, cmap=cmap, origin="lower", vmin=vmin)
+            im: AxesImage = ax.imshow(
+                intensity, cmap=cmap, origin="lower", vmin=vmin
+            )
             ax.axis("off")
             ax.set_title(label)
 
-            divider = make_axes_locatable(ax)
-            is_vertical = colorbar_location in ("left", "right")
-            orientation = "vertical" if is_vertical else "horizontal"
-            cax = divider.append_axes(colorbar_location, size="5%", pad=0.05)
+            divider: AxesDivider = make_axes_locatable(ax)
+            is_vertical: bool = colorbar_location in ("left", "right")
+            orientation: str = "vertical" if is_vertical else "horizontal"
+            cax: Axes = divider.append_axes(
+                colorbar_location, size="5%", pad=0.05
+            )
             fig.colorbar(im, cax=cax, orientation=orientation)
 
-            scalebar = ScaleBar(
+            scalebar: ScaleBar = ScaleBar(
                 dx,
                 units=scalebar_units,
                 length_fraction=0.25,
@@ -399,22 +458,28 @@ def plot_intensity(
         fig.tight_layout()
         return fig, axes
 
-    intensity = np.abs(field) ** 2
+    intensity: Float[NDArray, " hh ww"] = np.abs(field) ** 2
 
-    vmin = colorbar_min if colorbar_min is not None else np.min(intensity)
+    vmin: float
+    if colorbar_min is not None:
+        vmin = colorbar_min
+    else:
+        vmin = float(np.min(intensity))
 
+    fig: Figure
+    ax: Axes
     fig, ax = plt.subplots(figsize=figsize)
 
-    im = ax.imshow(intensity, cmap=cmap, origin="lower", vmin=vmin)
+    im: AxesImage = ax.imshow(intensity, cmap=cmap, origin="lower", vmin=vmin)
     ax.axis("off")
 
-    divider = make_axes_locatable(ax)
-    is_vertical = colorbar_location in ("left", "right")
-    orientation = "vertical" if is_vertical else "horizontal"
-    cax = divider.append_axes(colorbar_location, size="5%", pad=0.05)
+    divider: AxesDivider = make_axes_locatable(ax)
+    is_vertical: bool = colorbar_location in ("left", "right")
+    orientation: str = "vertical" if is_vertical else "horizontal"
+    cax: Axes = divider.append_axes(colorbar_location, size="5%", pad=0.05)
     fig.colorbar(im, cax=cax, orientation=orientation)
 
-    scalebar = ScaleBar(
+    scalebar: ScaleBar = ScaleBar(
         dx,
         units=scalebar_units,
         length_fraction=0.25,
@@ -483,32 +548,43 @@ def plot_phase(
     For polarized wavefronts (3D field with shape [H, W, 2]), two side-by-side
     plots are created showing Ex and Ey components.
     """
-    field = np.asarray(wavefront.field)
-    dx = float(wavefront.dx)
-    is_polarized = field.ndim == 3  # noqa: PLR2004
+    field: Complex[NDArray, " hh ww"] = np.asarray(wavefront.field)
+    dx: float = float(wavefront.dx)
+    is_polarized: bool = field.ndim == 3  # noqa: PLR2004
 
     if is_polarized:
-        polarized_figsize = (figsize[0] * 2, figsize[1])
+        polarized_figsize: Tuple[float, float] = (figsize[0] * 2, figsize[1])
+        fig: Figure
+        ax1: Axes
+        ax2: Axes
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=polarized_figsize)
-        axes = (ax1, ax2)
-        fields = [field[:, :, 0], field[:, :, 1]]
-        labels = ["Ex", "Ey"]
+        axes: Tuple[Axes, Axes] = (ax1, ax2)
+        fields: List[Complex[NDArray, " hh ww"]] = [
+            field[:, :, 0],
+            field[:, :, 1],
+        ]
+        labels: List[str] = ["Ex", "Ey"]
 
+        ax: Axes
+        f: Complex[NDArray, " hh ww"]
+        label: str
         for ax, f, label in zip(axes, fields, labels, strict=True):
-            phase = np.angle(f)
+            phase: Float[NDArray, " hh ww"] = np.angle(f)
 
-            hue = (phase + np.pi) / (2 * np.pi)
-            saturation = np.ones_like(hue)
-            value = np.ones_like(hue)
+            hue: Float[NDArray, " hh ww"] = (phase + np.pi) / (2 * np.pi)
+            saturation: Float[NDArray, " hh ww"] = np.ones_like(hue)
+            value: Float[NDArray, " hh ww"] = np.ones_like(hue)
 
-            hsv_image = np.stack([hue, saturation, value], axis=-1)
-            rgb_image = hsv_to_rgb(hsv_image)
+            hsv_image: Float[NDArray, " hh ww 3"] = np.stack(
+                [hue, saturation, value], axis=-1
+            )
+            rgb_image: Float[NDArray, " hh ww 3"] = hsv_to_rgb(hsv_image)
 
             ax.imshow(rgb_image, origin="lower")
             ax.axis("off")
             ax.set_title(label)
 
-            scalebar = ScaleBar(
+            scalebar: ScaleBar = ScaleBar(
                 dx,
                 units=scalebar_units,
                 length_fraction=0.25,
@@ -525,21 +601,25 @@ def plot_phase(
         fig.tight_layout()
         return fig, axes
 
-    phase = np.angle(field)
+    phase: Float[NDArray, " hh ww"] = np.angle(field)
 
-    hue = (phase + np.pi) / (2 * np.pi)
-    saturation = np.ones_like(hue)
-    value = np.ones_like(hue)
+    hue: Float[NDArray, " hh ww"] = (phase + np.pi) / (2 * np.pi)
+    saturation: Float[NDArray, " hh ww"] = np.ones_like(hue)
+    value: Float[NDArray, " hh ww"] = np.ones_like(hue)
 
-    hsv_image = np.stack([hue, saturation, value], axis=-1)
-    rgb_image = hsv_to_rgb(hsv_image)
+    hsv_image: Float[NDArray, " hh ww 3"] = np.stack(
+        [hue, saturation, value], axis=-1
+    )
+    rgb_image: Float[NDArray, " hh ww 3"] = hsv_to_rgb(hsv_image)
 
+    fig: Figure
+    ax: Axes
     fig, ax = plt.subplots(figsize=figsize)
 
     ax.imshow(rgb_image, origin="lower")
     ax.axis("off")
 
-    scalebar = ScaleBar(
+    scalebar: ScaleBar = ScaleBar(
         dx,
         units=scalebar_units,
         length_fraction=0.25,
