@@ -78,7 +78,7 @@ test = [
     "chex>=0.1.89",
 ]
 dev = [
-    "janssen[cuda,docs,notebooks,test]",
+    "janssen[docs,notebooks,test]",
     "black>=25.1.0",
     "ipykernel>=6.29.5",
     "isort>=6.0.1",
@@ -91,6 +91,8 @@ dev = [
     "sphinxcontrib-napoleon>=0.7",
     "twine>=6.1.0",
 ]
+
+dev_cuda = ["janssen[cuda,dev]"]
 
 [project.urls]
 Homepage = "https://github.com/debangshu-mukherjee/janssen"
