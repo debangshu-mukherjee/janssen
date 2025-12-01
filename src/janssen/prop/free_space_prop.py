@@ -87,24 +87,31 @@ def angular_spectrum_prop(
 
     Notes
     -----
+    The angular spectrum method is an exact solution to the Helmholtz equation
+    for propagation in homogeneous media. It decomposes the field into plane
+    waves, propagates each component, and reconstructs the field.
+
+    The transfer function is H(fx,fy) = exp(i*k*z*sqrt(1 - (lambda*fx)^2 -
+    (lambda*fy)^2)) where k = 2*pi/lambda is the wavenumber. For spatial
+    frequencies where (lambda*fx)^2 + (lambda*fy)^2 > 1, the waves become
+    evanescent and are set to zero to prevent numerical instability.
+
+    This method makes no paraxial approximation and is valid for all
+    propagation distances, though numerical accuracy may degrade for very
+    large distances due to sampling limitations.
+
     Algorithm:
 
-    - Get the shape of the input field
-    - Calculate the wavenumber
-    - Compute the path length
-    - Create spatial frequency coordinates
-    - Compute the squared spatial frequencies
-    - Angular spectrum transfer function
-    - Ensure evanescent waves are properly handled
-    - Fourier transform of the input field
-    - Apply the transfer function in the Fourier domain
-    - Inverse Fourier transform to get the propagated field
-    - Return the propagated field
+    1. Compute spatial frequency grids fx, fy using FFT frequencies
+    2. Build transfer function H = exp(i*k*z*sqrt(1 - lambda^2*(fx^2+fy^2)))
+    3. Create evanescent mask where fx^2 + fy^2 <= 1/lambda^2
+    4. FFT input field, multiply by masked transfer function, inverse FFT
+    5. Return propagated wavefront with updated z_position
     """
     ny: ScalarInteger = incoming.field.shape[0]
     nx: ScalarInteger = incoming.field.shape[1]
     wavenumber: Float[Array, " "] = 2 * jnp.pi / incoming.wavelength
-    path_length = refractive_index * z_move
+    path_length: Float[Array, " "] = refractive_index * z_move
     fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
     fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
     fx_mesh: Float[Array, " hh ww"]
@@ -166,63 +173,49 @@ def fresnel_prop(
 
     Notes
     -----
+    The Fresnel approximation is a paraxial approximation to scalar
+    diffraction theory. It assumes that the propagation angle is small,
+    which allows simplification of the angular spectrum transfer function
+    using a Taylor expansion: sqrt(1 - lambda^2*(fx^2+fy^2)) ≈ 1 -
+    lambda^2*(fx^2+fy^2)/2.
+
+    This leads to the Fresnel transfer function:
+    H(fx,fy) = exp(-i*pi*lambda*z*(fx^2 + fy^2))
+
+    The output field is multiplied by a global phase factor exp(i*k*z)
+    representing the on-axis propagation phase.
+
+    The Fresnel approximation is valid when the Fresnel number F = a^2/(λz)
+    is large (typically F > 1), where a is the characteristic aperture size.
+    For small Fresnel numbers, use fraunhofer_prop instead.
+
     Algorithm:
 
-    - Calculate the wavenumber
-    - Create spatial coordinates
-    - Quadratic phase factor for Fresnel approximation
-        (pre-free-space propagation)
-    - Apply quadratic phase to the input field
-    - Compute Fourier transform of the input field
-    - Compute spatial frequency coordinates
-    - Transfer function for Fresnel propagation
-    - Apply the transfer function in the Fourier domain
-    - Inverse Fourier transform to get the propagated field
-    - Final quadratic phase factor (post-free-space propagation)
-    - Apply final quadratic phase factor
-    - Return the propagated field
+    1. Compute spatial frequency grids fx, fy using FFT frequencies
+    2. Build Fresnel transfer function H = exp(-i*pi*lambda*z*(fx^2+fy^2))
+    3. FFT input field, multiply by transfer function, inverse FFT
+    4. Multiply result by global phase exp(i*k*z)
+    5. Return propagated wavefront with updated z_position
     """
     ny: ScalarInteger = incoming.field.shape[0]
     nx: ScalarInteger = incoming.field.shape[1]
     k: Float[Array, " "] = (2 * jnp.pi) / incoming.wavelength
-    x: Float[Array, " hh"] = jnp.arange(-nx // 2, nx // 2) * incoming.dx
-    y: Float[Array, " ww"] = jnp.arange(-ny // 2, ny // 2) * incoming.dx
-    x_mesh: Float[Array, " hh ww"]
-    y_mesh: Float[Array, " hh ww"]
-    x_mesh, y_mesh = jnp.meshgrid(x, y)
-    path_length = refractive_index * z_move
-    quadratic_phase: Float[Array, " hh ww"] = (
-        k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
-    )
-    field_with_phase: Complex[Array, " hh ww"] = incoming.field * jnp.exp(
-        1j * quadratic_phase
-    )
-    field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
-        jnp.fft.fft2(jnp.fft.ifftshift(field_with_phase)),
-    )
+    path_length: Float[Array, " "] = refractive_index * z_move
     fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
     fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
     fx_mesh: Float[Array, " hh ww"]
     fy_mesh: Float[Array, " hh ww"]
     fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
     transfer_phase: Float[Array, " hh ww"] = (
-        (-1)
-        * jnp.pi
-        * incoming.wavelength
-        * path_length
-        * (fx_mesh**2 + fy_mesh**2)
+        -jnp.pi * incoming.wavelength * path_length * (fx_mesh**2 + fy_mesh**2)
     )
-    propagated_ft: Complex[Array, " hh ww"] = field_ft * jnp.exp(
-        1j * transfer_phase
-    )
-    propagated_field: Complex[Array, " hh ww"] = jnp.fft.fftshift(
-        jnp.fft.ifft2(jnp.fft.ifftshift(propagated_ft)),
-    )
-    final_quadratic_phase: Float[Array, " hh ww"] = (
-        k / (2 * path_length) * (x_mesh**2 + y_mesh**2)
-    )
-    final_propagated_field: Complex[Array, " hh ww"] = jnp.fft.ifftshift(
-        propagated_field * jnp.exp(1j * final_quadratic_phase),
+    transfer_function: Complex[Array, " hh ww"] = jnp.exp(1j * transfer_phase)
+    field_ft: Complex[Array, " hh ww"] = jnp.fft.fft2(incoming.field)
+    propagated_ft: Complex[Array, " hh ww"] = field_ft * transfer_function
+    propagated_field: Complex[Array, " hh ww"] = jnp.fft.ifft2(propagated_ft)
+    global_phase: Complex[Array, " "] = jnp.exp(1j * k * path_length)
+    final_propagated_field: Complex[Array, " hh ww"] = (
+        global_phase * propagated_field
     )
     propagated: OpticalWavefront = make_optical_wavefront(
         field=final_propagated_field,
@@ -236,8 +229,8 @@ def fresnel_prop(
 @jaxtyped(typechecker=beartype)
 def fraunhofer_prop(
     incoming: OpticalWavefront,
-    z_move: ScalarFloat,
-    refractive_index: Optional[ScalarFloat] = 1.0,
+    z_move: ScalarNumeric,
+    refractive_index: ScalarNumeric = 1.0,
 ) -> OpticalWavefront:
     """Propagate a complex field using the Fraunhofer approximation.
 
@@ -254,52 +247,67 @@ def fraunhofer_prop(
             Grid spacing in meters
         z_position : Float[Array, " "]
             Wave front position in meters
-    z_move : ScalarFloat
+    z_move : ScalarNumeric
         Propagation distance in meters.
         This is in free space.
-    refractive_index : ScalarFloat, optional
+    refractive_index : ScalarNumeric, optional
         Index of refraction of the medium. Default is 1.0 (vacuum).
 
     Returns
     -------
     propagated : OpticalWavefront
-        Propagated wave front
+        Propagated wave front. Note that the output pixel size (dx) changes
+        according to Fraunhofer scaling: dx_out = wavelength * z / (N * dx_in)
 
     Notes
     -----
-    Algorithm:
+    The Fraunhofer approximation represents far-field diffraction where
+    the diffraction pattern is proportional to the Fourier transform of
+    the aperture function. This is the limiting case of Fresnel diffraction
+    when the propagation distance is very large.
 
-    - Get the shape of the input field
-    - Calculate the spatial frequency coordinates
-    - Create the meshgrid of spatial frequencies
-    - Compute the transfer function for Fraunhofer propagation
-    - Compute the Fourier transform of the input field
-    - Apply the transfer function in the Fourier domain
-    - Inverse Fourier transform to get the propagated field
-    - Return the propagated field
+    The Fraunhofer diffraction integral gives:
+    U(x',y') = exp(i*k*z) / (i*lambda*z) * FT{U(x,y)} * dx^2
+
+    where FT denotes the Fourier transform and the output coordinates are
+    related to spatial frequencies by x' = lambda*z*fx, y' = lambda*z*fy.
+
+    The output pixel size changes according to the Fraunhofer scaling
+    relation is dx_out = lambda * z / (N * dx_in), where N is the array size.
+
+    The Fraunhofer approximation is valid when the Fresnel number F = a^2/(λz)
+    is small (typically F < 1), where a is the characteristic aperture size.
+    For large Fresnel numbers, use fresnel_prop or angular_spectrum_prop.
+
+    Algorithm
+    ---------
+
+    1. Compute centered FFT of input field using ifftshift/fft2/fftshift
+    2. Apply global phase factor exp(i*k*z)
+    3. Apply amplitude scaling 1/(i*lambda*z) and area element dx^2
+    4. Compute output pixel size dx_out = lambda*z/(N*dx_in)
+    5. Return propagated wavefront with new dx and updated z_position
     """
-    ny: ScalarInteger = incoming.field.shape[0]
     nx: ScalarInteger = incoming.field.shape[1]
-    fx: Float[Array, " hh"] = jnp.fft.fftfreq(nx, d=incoming.dx)
-    fy: Float[Array, " ww"] = jnp.fft.fftfreq(ny, d=incoming.dx)
-    fx_mesh: Float[Array, " hh ww"]
-    fy_mesh: Float[Array, " hh ww"]
-    fx_mesh, fy_mesh = jnp.meshgrid(fx, fy)
-    path_length = refractive_index * z_move
-    hh: Complex[Array, " hh ww"] = jnp.exp(
-        -1j
-        * jnp.pi
-        * incoming.wavelength
-        * path_length
-        * (fx_mesh**2 + fy_mesh**2),
-    ) / (1j * incoming.wavelength * path_length)
-    field_ft: Complex[Array, " hh ww"] = jnp.fft.fft2(incoming.field)
-    propagated_ft: Complex[Array, " hh ww"] = field_ft * hh
-    propagated_field: Complex[Array, " hh ww"] = jnp.fft.ifft2(propagated_ft)
+    k: Float[Array, " "] = 2 * jnp.pi / incoming.wavelength
+    path_length: Float[Array, " "] = refractive_index * z_move
+    field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
+        jnp.fft.fft2(jnp.fft.ifftshift(incoming.field))
+    )
+    global_phase: Complex[Array, " "] = jnp.exp(1j * k * path_length)
+    scale_factor: Complex[Array, " "] = 1 / (
+        1j * incoming.wavelength * path_length
+    )
+    propagated_field: Complex[Array, " hh ww"] = (
+        global_phase * scale_factor * field_ft * (incoming.dx**2)
+    )
+    dx_out: Float[Array, " "] = (
+        incoming.wavelength * path_length / (nx * incoming.dx)
+    )
     propagated: OpticalWavefront = make_optical_wavefront(
         field=propagated_field,
         wavelength=incoming.wavelength,
-        dx=incoming.dx,
+        dx=dx_out,
         z_position=incoming.z_position + path_length,
     )
     return propagated

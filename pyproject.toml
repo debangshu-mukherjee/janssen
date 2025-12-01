@@ -1,6 +1,6 @@
 [project]
 name = "janssen"
-version = "2025.09.20"
+version = "2025.10.01"
 description = "Modular Optical Microscopy with JAX"
 authors = [{ name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov" }]
 license = { file = "LICENSE.md" }
@@ -26,7 +26,7 @@ dependencies = [
     "numpy>=1.13.0",
     "scipy >= 1.0.0",
     "matplotlib >= 2.2.0",
-    "matplotlib-scalebar >= 0.5.0",
+    "matplotlib-scalebar>=0.5.0",
     "tqdm >= 4.66.0",
     "jaxtyping>0.3.2",
     "chex >= 0.1.85",

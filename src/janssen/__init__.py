@@ -17,6 +17,8 @@ models
     Models for generating datasets for testing and validation.
 optics
     Variety of different optical elements.
+plots
+    Plotting utilities for optical data visualization.
 prop
     Propagation methods for optical wavefronts.
 scopes
@@ -43,13 +45,14 @@ CPU and GPU execution. For best performance, use JIT compilation
 and consider using the provided factory functions for data validation.
 """
 
-from . import invert, lenses, models, optics, prop, scopes, utils
+from . import invert, lenses, models, optics, plots, prop, scopes, utils
 
 __all__: list[str] = [
     "invert",
     "lenses",
     "models",
     "optics",
+    "plots",
     "prop",
     "scopes",
     "utils",
