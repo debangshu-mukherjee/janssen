@@ -50,6 +50,7 @@ from .types import (
     OptimizerState,
     PtychographyParams,
     SampleFunction,
+    ScalarBool,
     ScalarComplex,
     ScalarFloat,
     ScalarInteger,
@@ -354,7 +355,7 @@ def make_optical_wavefront(
     wavelength: ScalarNumeric,
     dx: ScalarNumeric,
     z_position: ScalarNumeric,
-    polarization: Bool[Array, " "] = False,
+    polarization: ScalarBool = False,
 ) -> OpticalWavefront:
     """JAX-safe factory function for OpticalWavefront with data
     validation.

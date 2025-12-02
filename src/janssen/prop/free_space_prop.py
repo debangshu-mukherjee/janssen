@@ -37,7 +37,7 @@ number and the specific requirements of the simulation.
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from beartype.typing import Optional, Tuple
+from beartype.typing import Optional
 from jaxtyping import Array, Bool, Complex, Float, Integer, jaxtyped
 
 from janssen.lenses import create_lens_phase
@@ -551,10 +551,11 @@ def lens_propagation(
     xarr: Float[Array, " hh ww"]
     yarr: Float[Array, " hh ww"]
     xarr, yarr = jnp.meshgrid(xline, yline)
-    lens_phase_tuple: Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]] = (
-        create_lens_phase(xarr, yarr, lens, incoming.wavelength)
+    phase_profile: Float[Array, " hh ww"]
+    transmission: Float[Array, " hh ww"]
+    phase_profile, transmission = create_lens_phase(
+        xarr, yarr, lens, incoming.wavelength
     )
-    phase_profile, transmission = lens_phase_tuple
     transmitted_field: Complex[Array, " hh ww"] = (
         incoming.field * transmission * jnp.exp(1j * phase_profile)
     )

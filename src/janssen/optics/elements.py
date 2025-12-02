@@ -62,6 +62,7 @@ from jaxtyping import Array, Bool, Complex, Float, Num, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
+    ScalarBool,
     ScalarFloat,
     make_optical_wavefront,
 )
@@ -112,7 +113,7 @@ def prism_phase_ramp(
     incoming: OpticalWavefront,
     deflect_x: Optional[ScalarFloat] = 0.0,
     deflect_y: Optional[ScalarFloat] = 0.0,
-    use_small_angle: Optional[bool] = True,
+    use_small_angle: Optional[ScalarBool] = True,
 ) -> OpticalWavefront:
     """
     Apply a linear phase ramp to simulate a prism-induced beam
@@ -150,7 +151,7 @@ def prism_phase_ramp(
     )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     k: ScalarFloat = (2.0 * jnp.pi) / incoming.wavelength
     kx: ScalarFloat
     ky: ScalarFloat
@@ -177,7 +178,7 @@ def beam_splitter(
     incoming: OpticalWavefront,
     t2: Optional[ScalarFloat] = 0.5,
     r2: Optional[ScalarFloat] = 0.5,
-    normalize: Optional[bool] = True,
+    normalize: Optional[ScalarBool] = True,
 ) -> Tuple[OpticalWavefront, OpticalWavefront]:
     """
     Split an input field into transmitted and reflected components.
@@ -244,10 +245,10 @@ def beam_splitter(
 @jaxtyped(typechecker=beartype)
 def mirror_reflection(
     incoming: OpticalWavefront,
-    flip_x: Optional[bool] = True,
-    flip_y: Optional[bool] = False,
-    add_pi_phase: Optional[bool] = True,
-    conjugate: Optional[bool] = True,
+    flip_x: Optional[ScalarBool] = True,
+    flip_y: Optional[ScalarBool] = False,
+    add_pi_phase: Optional[ScalarBool] = True,
+    conjugate: Optional[ScalarBool] = True,
 ) -> OpticalWavefront:
     """
     Mirror reflection:
@@ -328,7 +329,7 @@ def phase_grating_sine(
     )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     uu: Num[Array, " hh ww"]
     uu, _ = _rotate_coords(xx, yy, theta)
     phase: Float[Array, " hh ww"]
@@ -387,7 +388,7 @@ def amplitude_grating_binary(
     )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     uu: Num[Array, " hh ww"]
     uu, _ = _rotate_coords(xx, yy, theta)
     duty: Float[Array, " "] = jnp.clip(duty_cycle, 0.0, 1.0)
@@ -443,7 +444,7 @@ def phase_grating_sawtooth(
     )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     uu: Num[Array, " hh ww"]
     uu, _ = _rotate_coords(xx, yy, theta)
 
@@ -524,7 +525,7 @@ def apply_phase_mask_fn(
     )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     phase_map: Float[Array, " hh ww"] = phase_fn(xx, yy)
     field_out: Complex[Array, " hh ww"] = add_phase_screen(
         incoming.field, phase_map
@@ -758,7 +759,7 @@ def phase_grating_blazed_elliptical(
     period_y: ScalarFloat,
     theta: Optional[ScalarFloat] = 0.0,
     depth: Optional[ScalarFloat] = 2.0 * jnp.pi,
-    two_dim: Optional[bool] = False,
+    two_dim: Optional[ScalarBool] = False,
 ) -> OpticalWavefront:
     r"""
     Orientation-aware elliptical blazed grating.
@@ -808,7 +809,7 @@ def phase_grating_blazed_elliptical(
     )
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, float(incoming.dx))
+    xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
     uu: Float[Array, " hh ww"]
     vv: Float[Array, " hh ww"]
     uu, vv = _rotate_coords(xx, yy, theta)

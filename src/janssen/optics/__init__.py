@@ -11,6 +11,8 @@ Submodules
 ----------
 apertures
     Aperture functions for optical microscopy
+bessel
+    Bessel functions for JAX
 elements
     Optical element transformations
 helper
@@ -36,6 +38,22 @@ astigmatism : function
     Generate astigmatism aberration (Z5, Z6)
 beam_splitter : function
     Model beam splitter operation
+bessel_iv_series : function
+    Compute I_v(x) using series expansion for Bessel function.
+bessel_j0 : function
+    Compute J_0(x), regular Bessel function of the first kind, order 0.
+bessel_jn : function
+    Compute J_n(x), regular Bessel function of the first kind, order n.
+bessel_k0_series : function
+    Compute K_0(x) using series expansion.
+bessel_kn_recurrence : function
+    Compute K_n(x) using recurrence relation.
+bessel_kv : function
+    Compute K_v(x), modified Bessel function of the second kind.
+bessel_kv_small_integer : function
+    Compute K_v(x) for small x and integer v.
+bessel_kv_small_non_integer : function
+    Compute K_v(x) for small x and non-integer v.
 circular_aperture : function
     Create a circular aperture
 coma : function
@@ -118,6 +136,16 @@ from .apertures import (
     supergaussian_apodizer_elliptical,
     variable_transmission_aperture,
 )
+from .bessel import (
+    bessel_iv_series,
+    bessel_j0,
+    bessel_jn,
+    bessel_k0_series,
+    bessel_kn_recurrence,
+    bessel_kv,
+    bessel_kv_small_integer,
+    bessel_kv_small_non_integer,
+)
 from .elements import (
     amplitude_grating_binary,
     apply_phase_mask,
@@ -140,6 +168,7 @@ from .helper import (
     field_intensity,
     normalize_field,
     scale_pixel,
+    sellmeier,
 )
 from .zernike import (
     apply_aberration,
@@ -166,6 +195,14 @@ __all__: list[str] = [
     "apply_phase_mask_fn",
     "astigmatism",
     "beam_splitter",
+    "bessel_iv_series",
+    "bessel_j0",
+    "bessel_jn",
+    "bessel_k0_series",
+    "bessel_kn_recurrence",
+    "bessel_kv",
+    "bessel_kv_small_integer",
+    "bessel_kv_small_non_integer",
     "circular_aperture",
     "coma",
     "create_spatial_grid",
@@ -190,6 +227,7 @@ __all__: list[str] = [
     "quarter_waveplate",
     "rectangular_aperture",
     "scale_pixel",
+    "sellmeier",
     "spherical_aberration",
     "supergaussian_apodizer",
     "supergaussian_apodizer_elliptical",

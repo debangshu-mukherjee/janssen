@@ -117,9 +117,7 @@ def _plot_field(
         divider: AxesDivider = make_axes_locatable(ax)
         is_vertical: bool = colorbar_location in ("left", "right")
         orientation: str = "vertical" if is_vertical else "horizontal"
-        cax: Axes = divider.append_axes(
-            colorbar_location, size="5%", pad=0.05
-        )
+        cax: Axes = divider.append_axes(colorbar_location, size="5%", pad=0.05)
         fig.colorbar(im, cax=cax, orientation=orientation)
 
     scalebar: ScaleBar = ScaleBar(

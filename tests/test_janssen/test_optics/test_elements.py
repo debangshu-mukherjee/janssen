@@ -66,7 +66,7 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = k * (deflect_x * self.xx + deflect_y * self.yy)
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5)
+        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_prism_phase_ramp_spatial_freq(self) -> None:
@@ -80,7 +80,7 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = kx * self.xx + ky * self.yy
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5)
+        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -157,7 +157,7 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = depth * jnp.sin(2.0 * jnp.pi * self.xx / period)
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5)
+        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -177,7 +177,7 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = depth * jnp.sin(2.0 * jnp.pi * uu / period)
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5)
+        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -216,7 +216,7 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = depth * frac
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5)
+        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_apply_phase_mask(self) -> None:
@@ -330,8 +330,8 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         theta = jnp.pi / 4
         output = var_quarter_waveplate(self.polarized_wavefront, theta)
         linear_x = jnp.array([1.0, 0.0])
-        test_field = jnp.ones((self.ny, self.nx, 2), dtype=complex)
-        test_field[..., :] = linear_x
+        test_field = jnp.zeros((self.ny, self.nx, 2), dtype=complex)
+        test_field = test_field + linear_x
         test_wf = make_optical_wavefront(
             field=test_field,
             wavelength=self.wavelength,
@@ -352,8 +352,8 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         var_half_waveplate = self.variant(half_waveplate)
         theta = jnp.pi / 4
         linear_x = jnp.array([1.0, 0.0])
-        test_field = jnp.ones((self.ny, self.nx, 2), dtype=complex)
-        test_field[..., :] = linear_x
+        test_field = jnp.zeros((self.ny, self.nx, 2), dtype=complex)
+        test_field = test_field + linear_x
         test_wf = make_optical_wavefront(
             field=test_field,
             wavelength=self.wavelength,
@@ -402,7 +402,7 @@ class TestElements(chex.TestCase, parameterized.TestCase):
             expected_phase = depth * fu
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5)
+        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
 
     def test_vmap_on_elements(self) -> None:
         """Test vmap on optical elements."""
@@ -449,8 +449,8 @@ class TestElements(chex.TestCase, parameterized.TestCase):
     def test_polarization_element_validation(self) -> None:
         """Test that polarization elements work only with polarized fields."""
         linear_pol = jnp.array([1.0, 0.0])
-        pol_field = jnp.ones((self.ny, self.nx, 2), dtype=complex)
-        pol_field[..., :] = linear_pol
+        pol_field = jnp.zeros((self.ny, self.nx, 2), dtype=complex)
+        pol_field = pol_field + linear_pol
         pol_wf = make_optical_wavefront(
             field=pol_field,
             wavelength=self.wavelength,

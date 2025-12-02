@@ -27,12 +27,14 @@ simulations and are optimized for use with JAX transformations.
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from beartype.typing import Tuple
+from beartype.typing import Tuple, Union
 from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
 from janssen.utils import (
     OpticalWavefront,
     ScalarFloat,
+    ScalarInteger,
+    ScalarNumeric,
     make_optical_wavefront,
 )
 
@@ -40,25 +42,76 @@ jax.config.update("jax_enable_x64", True)
 
 
 @jaxtyped(typechecker=beartype)
+def sellmeier(
+    wavelength_nm: ScalarNumeric | Num[Array, " nn"],
+    sellmeier_b: Num[Array, " 3"],
+    sellmeier_c: Num[Array, " 3"],
+) -> Union[Float[Array, " "], Float[Array, " nn"]]:
+    r"""Calculate refractive index using the Sellmeier equation.
+
+    Parameters
+    ----------
+    wavelength_nm : ScalarNumeric | Num[Array, " nn"]
+        Wavelength in nanometers. Can be scalar or array.
+    sellmeier_b : Num[Array, " 3"]
+        Sellmeier B coefficients [B1, B2, B3].
+    sellmeier_c : Num[Array, " 3"]
+        Sellmeier C coefficients [C1, C2, C3] in micrometers squared.
+
+    Returns
+    -------
+    n : Union[Float[Array, " "], Float[Array, " nn"]]
+        Refractive index. Shape matches input wavelength.
+
+    Notes
+    -----
+    The Sellmeier equation relates refractive index to wavelength:
+
+    .. math::
+        n^2(\lambda) = 1 + \sum_{i=1}^{3} \frac{B_i\lambda^2}{\lambda^2 - C_i}
+
+    where :math:`\lambda` is in micrometers and :math:`C_i` are in
+    micrometers squared.
+    """
+    wavelength_um_sq: Float[Array, " nn"] | Float[Array, " "] = (
+        wavelength_nm / 1000.0
+    ) ** 2
+    terms: Num[Array, "... 3"] = (
+        sellmeier_b * wavelength_um_sq[..., None]
+    ) / (wavelength_um_sq[..., None] - sellmeier_c)
+    n_squared: Float[Array, " nn"] | Float[Array, " "] = 1.0 + jnp.sum(
+        terms, axis=-1
+    )
+    refractive_index: Float[Array, " nn"] | Float[Array, " "] = jnp.sqrt(
+        n_squared
+    )
+    return refractive_index
+
+
+@jaxtyped(typechecker=beartype)
 def create_spatial_grid(
-    diameter: Num[Array, " "],
-    num_points: Int[Array, " "],
-) -> Tuple[Float[Array, " nn nn"], Float[Array, " nn nn"]]:
+    diameter: ScalarNumeric | Num[Array, " 2"],
+    num_points: ScalarInteger | Int[Array, " 2"],
+) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
     """
     Create a 2D spatial grid for optical propagation.
 
     Parameters
     ----------
-    diameter : Num[Array, " "]
-        Physical size of the grid in meters.
-    num_points : Int[Array, " "]
-        Number of points in each dimension.
+    diameter : ScalarNumeric | Num[Array, " 2"]
+        Physical size of the grid in meters. Can be a scalar (square grid)
+        or array of shape (2,) with [diameter_x, diameter_y] for rectangular
+        grids.
+    num_points : ScalarInteger | Int[Array, " 2"]
+        Number of points in each dimension. Can be a scalar (square grid)
+        or array of shape (2,) with [num_points_x, num_points_y] for
+        rectangular grids.
 
     Returns
     -------
-    xx : Float[Array, " nn nn"]
+    xx : Float[Array, " hh ww"]
         X coordinate grid in meters.
-    yy : Float[Array, " nn nn"]
+    yy : Float[Array, " hh ww"]
         Y coordinate grid in meters.
 
     Notes
@@ -67,15 +120,41 @@ def create_spatial_grid(
     - Create a linear space of points along the y-axis.
     - Create a meshgrid of spatial coordinates.
     - Return the meshgrid.
+    - Supports both square and non-square grids without if-else statements.
+
+    Examples
+    --------
+    Square grid:
+
+    >>> xx, yy = create_spatial_grid(1e-3, 256)
+
+    Rectangular grid:
+
+    >>> grid_size = jnp.asarray((256, 512), dtype=jnp.int32)
+    >>> xx, yy = create_spatial_grid(jnp.array([1e-3, 2e-3]), grid_size)
     """
-    x: Float[Array, " nn"] = jnp.linspace(
-        -diameter / 2, diameter / 2, num_points
+    # Convert to arrays - scalars become (1,), arrays of shape (2,) stay (2,)
+    diameter_arr: Num[Array, "..."] = jnp.atleast_1d(diameter)
+    num_points_arr: Int[Array, "..."] = jnp.atleast_1d(num_points)
+
+    # Pad scalar inputs to shape (2,) by repeating the value
+    # If already shape (2,), take first 2 elements; if shape (1,), repeat
+    diameter_arr = jnp.broadcast_to(diameter_arr, (2,))
+    num_points_arr = jnp.broadcast_to(num_points_arr, (2,))
+
+    diameter_x: Num[Array, " "] = diameter_arr[0]
+    diameter_y: Num[Array, " "] = diameter_arr[1]
+    num_points_x: Int[Array, " "] = num_points_arr[0]
+    num_points_y: Int[Array, " "] = num_points_arr[1]
+
+    x: Float[Array, " ww"] = jnp.linspace(
+        -diameter_x / 2, diameter_x / 2, num_points_x
     )
-    y: Float[Array, " nn"] = jnp.linspace(
-        -diameter / 2, diameter / 2, num_points
+    y: Float[Array, " hh"] = jnp.linspace(
+        -diameter_y / 2, diameter_y / 2, num_points_y
     )
-    xx: Float[Array, " nn nn"]
-    yy: Float[Array, " nn nn"]
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
     return (xx, yy)
 

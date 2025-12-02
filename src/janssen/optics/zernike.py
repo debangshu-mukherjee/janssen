@@ -477,9 +477,7 @@ def zernike_noll(
     Converts Noll index to (n,m) pair and calls zernike_nm.
     The Noll indexing convention assigns j=1 to piston (n=0, m=0).
     """
-    nm_tuple: Tuple[int, int] = noll_to_nm(j)
-    n = nm_tuple[0]
-    m = nm_tuple[1]
+    n, m = noll_to_nm(j)
     result: Float[Array, " *batch"] = zernike_nm(rho, theta, n, m, normalize)
     return result
 

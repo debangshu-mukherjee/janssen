@@ -45,6 +45,14 @@ CPU and GPU execution. For best performance, use JIT compilation
 and consider using the provided factory functions for data validation.
 """
 
+import os
+
+# Enable multi-threaded CPU execution for JAX (must be set before importing JAX)
+os.environ.setdefault(
+    "XLA_FLAGS",
+    "--xla_cpu_multi_thread_eigen=true intra_op_parallelism_threads=0",
+)
+
 from . import invert, lenses, models, optics, plots, prop, scopes, utils
 
 __all__: list[str] = [
