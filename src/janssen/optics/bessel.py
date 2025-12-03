@@ -61,7 +61,9 @@ def bessel_j0(x: Float[Array, " ..."]) -> Float[Array, " ..."]:
     >>> j0_vals = bessel_j0(x)
     """
     # bessel_jn returns (n_orders, ...input_shape), extract first element
-    return jax.scipy.special.bessel_jn(0, x)[0]
+    # Handle x=0 edge case where jax.scipy returns NaN but J_0(0) = 1
+    result = jax.scipy.special.bessel_jn(x, v=0)[0]
+    return jnp.where(x == 0.0, 1.0, result)
 
 
 @jaxtyped(typechecker=beartype)
@@ -98,8 +100,12 @@ def bessel_jn(
     >>> j1_vals = bessel_jn(1, x)
     >>> j2_vals = bessel_jn(2, x)
     """
-    # bessel_jn returns shape (n_orders, ...input_shape), extract first
-    return jax.scipy.special.bessel_jn(n, x)[0]
+    # bessel_jn returns shape (n+1, ...input_shape) where [k] is J_k(x)
+    # Extract the n-th element for J_n(x)
+    # Handle x=0 edge case: J_0(0) = 1, J_n(0) = 0 for n > 0
+    result = jax.scipy.special.bessel_jn(x, v=n)[n]
+    zero_value = jnp.where(n == 0, 1.0, 0.0)
+    return jnp.where(x == 0.0, zero_value, result)
 
 
 @jaxtyped(typechecker=beartype)
