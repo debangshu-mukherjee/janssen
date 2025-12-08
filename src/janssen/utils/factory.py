@@ -14,6 +14,10 @@ make_grid_params : function
     Creates a GridParams instance with runtime type checking
 make_optical_wavefront : function
     Creates an OpticalWavefront instance with runtime type checking
+make_propagating_wavefront : function
+    Creates a PropagatingWavefront instance with runtime type checking
+optical2propagating : function
+    Creates a PropagatingWavefront from a tuple of OpticalWavefronts
 make_microscope_data : function
     Creates a MicroscopeData instance with runtime type checking
 make_diffractogram : function
@@ -48,6 +52,7 @@ from .types import (
     MicroscopeData,
     OpticalWavefront,
     OptimizerState,
+    PropagatingWavefront,
     PtychographyParams,
     SampleFunction,
     ScalarBool,
@@ -506,6 +511,247 @@ def make_optical_wavefront(
 
     validated_optical_wavefront: OpticalWavefront = validate_and_create()
     return validated_optical_wavefront
+
+
+@jaxtyped(typechecker=beartype)
+def make_propagating_wavefront(
+    field: Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]],
+    wavelength: ScalarNumeric,
+    dx: ScalarNumeric,
+    z_positions: Float[Array, " zz"],
+    polarization: ScalarBool = False,
+) -> PropagatingWavefront:
+    """JAX-safe factory function for PropagatingWavefront with data
+    validation.
+
+    Parameters
+    ----------
+    field : Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]]
+        Complex amplitude of the optical field. Should be 3D for scalar
+        fields (Z, H, W) or 4D with last dimension 2 for polarized fields
+        (Z, H, W, 2). Z represents slices along the propagation direction.
+    wavelength : ScalarNumeric
+        Wavelength of the optical wavefront in meters
+    dx : ScalarNumeric
+        Spatial sampling interval (grid spacing) in meters
+    z_positions : Float[Array, " zz"]
+        Axial positions of the wavefront slices along the propagation
+        direction in meters.
+    polarization : ScalarBool
+        Boolean indicating whether the field is polarized.
+        Default is False.
+
+    Returns
+    -------
+    validated_propagating_wavefront : PropagatingWavefront
+        Validated propagating wavefront instance
+
+    Raises
+    ------
+    ValueError
+        If data is invalid or parameters are out of valid ranges
+
+    Notes
+    -----
+    Algorithm:
+
+    - Convert inputs to JAX arrays
+    - Auto-detect polarization based on field dimensions (4D with last
+      dimension 2 means polarized)
+    - Validate field array:
+        - Check it's 3D or 4D with last dimension 2
+        - Ensure all values are finite
+    - Validate parameters:
+        - Check wavelength is positive
+        - Check dx is positive
+        - Check z_positions are finite
+        - Check z_positions length matches field's first dimension
+    - Create and return PropagatingWavefront instance
+    """
+    non_polar_dim: int = 3
+    polar_dim: int = 4
+    polarization_components: int = 2
+    field = jnp.asarray(field, dtype=jnp.complex128)
+    wavelength_arr: Float[Array, " "] = jnp.asarray(
+        wavelength, dtype=jnp.float64
+    )
+    dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
+    z_positions_arr: Float[Array, " zz"] = jnp.asarray(
+        z_positions, dtype=jnp.float64
+    )
+    polarization_arr: Bool[Array, " "] = jnp.asarray(
+        polarization, dtype=jnp.bool_
+    )
+
+    # Override polarization if field dimensions indicate polarized field
+    polarization_arr = jnp.where(
+        field.ndim == polar_dim,
+        jnp.asarray(
+            field.shape[-1] == polarization_components, dtype=jnp.bool_
+        ),
+        polarization_arr,
+    )
+
+    def validate_and_create() -> PropagatingWavefront:
+        def check_field_dimensions() -> (
+            Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]]
+        ):
+            def check_polarized() -> Complex[Array, " zz hh ww 2"]:
+                return lax.cond(
+                    jnp.logical_and(
+                        field.ndim == polar_dim,
+                        field.shape[-1] == polarization_components,
+                    ),
+                    lambda: field,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: field, lambda: field)
+                    ),
+                )
+
+            def check_scalar() -> Complex[Array, " zz hh ww"]:
+                return lax.cond(
+                    field.ndim == non_polar_dim,
+                    lambda: field,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: field, lambda: field)
+                    ),
+                )
+
+            return lax.cond(
+                polarization_arr,
+                check_polarized,
+                check_scalar,
+            )
+
+        def check_field_finite() -> (
+            Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]]
+        ):
+            return lax.cond(
+                jnp.all(jnp.isfinite(field)),
+                lambda: field,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: field, lambda: field)
+                ),
+            )
+
+        def check_wavelength() -> Float[Array, " "]:
+            return lax.cond(
+                wavelength_arr > 0,
+                lambda: wavelength_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: wavelength_arr, lambda: wavelength_arr
+                    )
+                ),
+            )
+
+        def check_dx() -> Float[Array, " "]:
+            return lax.cond(
+                dx_arr > 0,
+                lambda: dx_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx_arr, lambda: dx_arr)
+                ),
+            )
+
+        def check_z_positions_finite() -> Float[Array, " zz"]:
+            return lax.cond(
+                jnp.all(jnp.isfinite(z_positions_arr)),
+                lambda: z_positions_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: z_positions_arr, lambda: z_positions_arr
+                    )
+                ),
+            )
+
+        def check_z_positions_length() -> Float[Array, " zz"]:
+            return lax.cond(
+                z_positions_arr.shape[0] == field.shape[0],
+                lambda: z_positions_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: z_positions_arr, lambda: z_positions_arr
+                    )
+                ),
+            )
+
+        check_field_dimensions()
+        check_field_finite()
+        check_wavelength()
+        check_dx()
+        check_z_positions_finite()
+        check_z_positions_length()
+
+        return PropagatingWavefront(
+            field=field,
+            wavelength=wavelength_arr,
+            dx=dx_arr,
+            z_positions=z_positions_arr,
+            polarization=polarization_arr,
+        )
+
+    validated_propagating_wavefront: PropagatingWavefront = (
+        validate_and_create()
+    )
+    return validated_propagating_wavefront
+
+
+@jaxtyped(typechecker=beartype)
+def optical2propagating(
+    wavefronts: Tuple[OpticalWavefront, ...],
+) -> PropagatingWavefront:
+    """Create a PropagatingWavefront from a tuple of OpticalWavefronts.
+
+    Parameters
+    ----------
+    wavefronts : Tuple[OpticalWavefront, ...]
+        Tuple of OpticalWavefront instances. All wavefronts must have the
+        same wavelength, dx, polarization, and field shape (H, W).
+
+    Returns
+    -------
+    propagating_wavefront : PropagatingWavefront
+        A PropagatingWavefront containing all input wavefronts stacked
+        along the z dimension.
+
+    Raises
+    ------
+    ValueError
+        If wavefronts tuple is empty, or if wavefronts have inconsistent
+        wavelength, dx, polarization, or field shapes.
+
+    Notes
+    -----
+    Algorithm:
+
+    - Extract fields from all wavefronts and stack along axis 0
+    - Extract z_positions from each wavefront
+    - Validate all wavefronts have consistent wavelength, dx, and
+      polarization
+    - Create PropagatingWavefront using the factory function
+    """
+    if len(wavefronts) == 0:
+        raise ValueError("wavefronts tuple cannot be empty")
+
+    # Stack fields along axis 0
+    fields = jnp.stack([wf.field for wf in wavefronts], axis=0)
+
+    # Extract z_positions from each wavefront
+    z_positions = jnp.array([wf.z_position for wf in wavefronts])
+
+    # Use first wavefront's properties
+    wavelength = wavefronts[0].wavelength
+    dx = wavefronts[0].dx
+    polarization = wavefronts[0].polarization
+
+    return make_propagating_wavefront(
+        field=fields,
+        wavelength=wavelength,
+        dx=dx,
+        z_positions=z_positions,
+        polarization=polarization,
+    )
 
 
 @jaxtyped(typechecker=beartype)

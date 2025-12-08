@@ -24,6 +24,8 @@ GridParams : PyTree
     A named tuple for computational grid parameters
 OpticalWavefront : PyTree
     A named tuple for representing an optical wavefront
+PropagatingWavefront : PyTree
+    A named tuple for representing a propagating optical wavefront
 MicroscopeData : PyTree
     A named tuple for storing 3D or 4D microscope image data
 SampleFunction : PyTree
@@ -263,6 +265,72 @@ class OpticalWavefront(NamedTuple):
         """Unflatten the OpticalWavefront from a tuple of its components."""
         return cls(*children)
 
+@register_pytree_node_class
+class PropagatingWavefront(NamedTuple):
+    """PyTree structure for representing an propagating optical wavefront.
+
+    Attributes
+    ----------
+    field : Union[Complex[Array, "zz hh ww"], Complex[Array, "zz hh ww 2"]]
+        Complex amplitude of the optical field. Can be scalar (Z, H, W) or
+        polarized with two components (Z, H, W, 2). Z represents the slices
+        along the propagation direction.
+    wavelength : Float[Array, " "]
+        Wavelength of the optical wavefront in meters.
+    dx : Float[Array, " "]
+        Spatial sampling interval (grid spacing) in meters.
+    z_positions : Float[Array, " zz"]
+        Axial positions of the wavefront along the propagation direction.
+        In meters.
+    polarization : Bool[Array, " "]
+        Whether the field is polarized (True for 3D field, False for 2D
+        field).
+    """
+
+    field: Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]]
+    wavelength: Float[Array, " "]
+    dx: Float[Array, " "]
+    z_positions: Float[Array, " zz"]
+    polarization: Bool[Array, " "]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " zz"],
+            Bool[Array, " "],
+        ],
+        None,
+    ]:
+        """Flatten the PropagatingWavefront into a tuple of its components."""
+        return (
+            (
+                self.field,
+                self.wavelength,
+                self.dx,
+                self.z_positions,
+                self.polarization,
+            ),
+            None,
+        )
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Union[Complex[Array, " zz hh ww"], Complex[Array, " zz hh ww 2"]],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " zz"],
+            Bool[Array, " "],
+        ],
+    ) -> "PropagatingWavefront":
+        """Unflatten the PropagatingWavefront from tuple of its components."""
+        return cls(*children)
 
 @register_pytree_node_class
 class MicroscopeData(NamedTuple):

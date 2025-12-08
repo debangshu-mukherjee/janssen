@@ -55,6 +55,8 @@ OpticalWavefront : PyTree
     PyTree for optical wavefront representation
 OptimizerState : PyTree
     PyTree for optimizer state tracking
+PropagatingWavefront : PyTree
+    PyTree for propagating optical wavefront representation
 PtychographyParams : PyTree
     PyTree for ptychography reconstruction parameters
 SampleFunction : PyTree
@@ -103,6 +105,7 @@ from .types import (
     NonJaxNumber,
     OpticalWavefront,
     OptimizerState,
+    PropagatingWavefront,
     PtychographyParams,
     SampleFunction,
     ScalarBool,
@@ -133,6 +136,7 @@ __all__: list[str] = [
     "NonJaxNumber",
     "OpticalWavefront",
     "OptimizerState",
+    "PropagatingWavefront",
     "PtychographyParams",
     "SampleFunction",
     "ScalarBool",
