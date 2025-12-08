@@ -31,6 +31,10 @@ make_microscope_data : function
     Factory function for MicroscopeData creation
 make_optical_wavefront : function
     Factory function for OpticalWavefront creation
+make_propagating_wavefront : function
+    Factory function for PropagatingWavefront creation
+optical2propagating : function
+    Creates a PropagatingWavefront from a tuple of OpticalWavefronts
 make_optimizer_state : function
     Factory function for OptimizerState creation
 make_ptychography_params : function
@@ -93,9 +97,11 @@ from .factory import (
     make_microscope_data,
     make_optical_wavefront,
     make_optimizer_state,
+    make_propagating_wavefront,
     make_ptychography_params,
     make_sample_function,
     make_sliced_material_function,
+    optical2propagating,
 )
 from .types import (
     Diffractogram,
@@ -125,9 +131,11 @@ __all__: list[str] = [
     "make_microscope_data",
     "make_optical_wavefront",
     "make_optimizer_state",
+    "make_propagating_wavefront",
     "make_ptychography_params",
     "make_sample_function",
     "make_sliced_material_function",
+    "optical2propagating",
     "shard_batch",
     "Diffractogram",
     "GridParams",

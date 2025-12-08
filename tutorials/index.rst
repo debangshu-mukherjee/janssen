@@ -7,6 +7,7 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    :maxdepth: 1
    :caption: Tutorial Notebooks
 
+   DifferentBeams
    Diffractogram
    USAF_1951_Synthetic
 

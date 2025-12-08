@@ -11,6 +11,8 @@ Routine Listings
 ----------------
 plane_wave : function
     Creates a uniform plane wave with optional tilt
+sinusoidal_wave : function
+    Creates a sinusoidal interference pattern
 collimated_gaussian : function
     Creates a collimated Gaussian beam with flat phase
 converging_gaussian : function
@@ -25,6 +27,8 @@ laguerre_gaussian : function
     Creates Laguerre-Gaussian modes (includes vortex beams)
 hermite_gaussian : function
     Creates Hermite-Gaussian modes
+propagate_beam : function
+    Generates a beam at multiple z positions as a PropagatingWavefront
 
 Notes
 -----
@@ -47,10 +51,12 @@ from janssen.optics import create_spatial_grid
 from janssen.optics.bessel import bessel_j0
 from janssen.utils import (
     OpticalWavefront,
+    PropagatingWavefront,
     ScalarFloat,
     ScalarInteger,
     make_optical_wavefront,
 )
+from janssen.utils.factory import make_propagating_wavefront
 
 jax.config.update("jax_enable_x64", True)
 
@@ -117,6 +123,94 @@ def plane_wave(
     field: Complex[Array, " ny nx"] = jnp.asarray(amplitude) * jnp.exp(
         1j * phase
     )
+    wavefront: OpticalWavefront = make_optical_wavefront(
+        field=field,
+        wavelength=wavelength,
+        dx=dx,
+        z_position=z_position,
+    )
+    return wavefront
+
+
+@jaxtyped(typechecker=beartype)
+def sinusoidal_wave(
+    wavelength: ScalarFloat,
+    dx: ScalarFloat,
+    grid_size: Union[Int[Array, " 2"], Tuple[ScalarInteger, ScalarInteger]],
+    period: ScalarFloat,
+    direction: ScalarFloat = 0.0,
+    amplitude: ScalarFloat = 1.0,
+    z_position: ScalarFloat = 0.0,
+) -> OpticalWavefront:
+    r"""Create a sinusoidal interference pattern.
+
+    Parameters
+    ----------
+    wavelength : ScalarFloat
+        Wavelength of light in meters.
+    dx : ScalarFloat
+        Spatial sampling interval (pixel size) in meters.
+    grid_size : Union[Int[Array, " 2"], Tuple[ScalarInteger, ScalarInteger]]
+        Size of the computational grid. If int, creates square grid.
+        If tuple, specifies (height, width).
+    period : ScalarFloat
+        Spatial period of the sinusoidal pattern in meters.
+    direction : ScalarFloat
+        Direction angle of the sinusoidal pattern in radians.
+        0 = horizontal stripes, pi/2 = vertical stripes.
+        By default 0.0.
+    amplitude : ScalarFloat
+        Peak amplitude of the wave, by default 1.0.
+    z_position : ScalarFloat
+        Initial z position of the wavefront in meters, by default 0.0.
+
+    Returns
+    -------
+    wavefront : OpticalWavefront
+        Sinusoidal wave OpticalWavefront PyTree.
+
+    Notes
+    -----
+    A sinusoidal wave has an intensity profile that varies as:
+
+    .. math::
+        E(x, y) = A \cos\left(\frac{2\pi}{T}(x \cos\theta + y \sin\theta)
+        \right)
+
+    where :math:`T` is the spatial period and :math:`\theta` is the
+    direction angle.
+
+    This pattern represents the interference of two plane waves and is
+    useful for testing optical systems, creating gratings, and studying
+    diffraction phenomena.
+    """
+    grid_size = jnp.asarray(grid_size, dtype=jnp.int32)
+    ny: ScalarInteger = grid_size[0]
+    nx: ScalarInteger = grid_size[1]
+    diameter: Float[Array, " 2"] = jnp.asarray(
+        [nx * dx, ny * dx], dtype=jnp.float64
+    )
+    num_points: Int[Array, " 2"] = jnp.asarray([nx, ny], dtype=jnp.int32)
+    xx, yy = create_spatial_grid(diameter, num_points)
+
+    period_arr: Float[Array, " "] = jnp.asarray(period, dtype=jnp.float64)
+    direction_arr: Float[Array, " "] = jnp.asarray(
+        direction, dtype=jnp.float64
+    )
+
+    spatial_coord: Float[Array, " ny nx"] = (
+        xx * jnp.cos(direction_arr) + yy * jnp.sin(direction_arr)
+    )
+    sinusoid: Float[Array, " ny nx"] = jnp.cos(
+        2.0 * jnp.pi * spatial_coord / period_arr
+    )
+
+    field: Complex[Array, " ny nx"] = (
+        jnp.asarray(amplitude, dtype=jnp.float64)
+        * sinusoid
+        * jnp.ones_like(sinusoid, dtype=jnp.complex128)
+    )
+
     wavefront: OpticalWavefront = make_optical_wavefront(
         field=field,
         wavelength=wavelength,
@@ -872,3 +966,265 @@ def hermite_gaussian(
         z_position=z_position,
     )
     return wavefront
+
+
+@jaxtyped(typechecker=beartype)
+def propagate_beam(
+    beam_type: str,
+    z_positions: Float[Array, " zz"],
+    wavelength: ScalarFloat,
+    dx: ScalarFloat,
+    grid_size: Union[Int[Array, " 2"], Tuple[ScalarInteger, ScalarInteger]],
+    waist: ScalarFloat = 1e-3,
+    amplitude: ScalarFloat = 1.0,
+    center: Tuple[ScalarFloat, ScalarFloat] = (0.0, 0.0),
+    tilt_x: ScalarFloat = 0.0,
+    tilt_y: ScalarFloat = 0.0,
+    focus_distance: ScalarFloat = 1.0,
+    source_distance: ScalarFloat = 1.0,
+    waist_0: ScalarFloat = 1e-3,
+    include_gouy_phase: bool = True,
+    cone_angle: ScalarFloat = 0.01,
+    period: ScalarFloat = 1e-4,
+    direction: ScalarFloat = 0.0,
+    p: ScalarInteger = 0,
+    l: ScalarInteger = 0,
+    n: ScalarInteger = 0,
+    m: ScalarInteger = 0,
+) -> PropagatingWavefront:
+    """Generate a beam at multiple z positions as a PropagatingWavefront.
+
+    Parameters
+    ----------
+    beam_type : str
+        Type of beam to generate. One of:
+        - "plane_wave": Uniform plane wave with optional tilt
+        - "sinusoidal_wave": Sinusoidal interference pattern
+        - "collimated_gaussian": Collimated Gaussian beam with flat phase
+        - "converging_gaussian": Gaussian beam converging to a focus
+        - "diverging_gaussian": Gaussian beam diverging from a source
+        - "gaussian_beam": General Gaussian beam at arbitrary z from waist
+        - "bessel_beam": Bessel beam with specified cone angle
+        - "laguerre_gaussian": Laguerre-Gaussian modes
+        - "hermite_gaussian": Hermite-Gaussian modes
+    z_positions : Float[Array, " zz"]
+        Array of z positions at which to evaluate the beam (meters).
+        For "gaussian_beam", these are distances from the waist.
+        For other beam types, these set the z_position attribute.
+    wavelength : ScalarFloat
+        Wavelength of light in meters.
+    dx : ScalarFloat
+        Spatial sampling interval (pixel size) in meters.
+    grid_size : Union[Int[Array, " 2"], Tuple[ScalarInteger, ScalarInteger]]
+        Size of the computational grid as (height, width).
+    waist : ScalarFloat
+        Beam waist (1/e² intensity radius) in meters. Used by
+        collimated_gaussian, converging_gaussian, diverging_gaussian,
+        laguerre_gaussian, hermite_gaussian. Default is 1e-3.
+    amplitude : ScalarFloat
+        Peak amplitude, by default 1.0.
+    center : Tuple[ScalarFloat, ScalarFloat]
+        Center position (x0, y0) in meters, by default (0.0, 0.0).
+    tilt_x : ScalarFloat
+        Tilt angle along x-axis in radians for plane_wave, by default 0.0.
+    tilt_y : ScalarFloat
+        Tilt angle along y-axis in radians for plane_wave, by default 0.0.
+    focus_distance : ScalarFloat
+        Distance to focus for converging_gaussian (meters). Default is 1.0.
+    source_distance : ScalarFloat
+        Distance from source for diverging_gaussian (meters). Default is 1.0.
+    waist_0 : ScalarFloat
+        Beam waist at the waist position for gaussian_beam (meters).
+        Default is 1e-3.
+    include_gouy_phase : bool
+        Whether to include Gouy phase for gaussian_beam, by default True.
+    cone_angle : ScalarFloat
+        Cone half-angle in radians for bessel_beam. Default is 0.01.
+    period : ScalarFloat
+        Spatial period for sinusoidal_wave (meters). Default is 1e-4.
+    direction : ScalarFloat
+        Direction angle for sinusoidal_wave (radians). Default is 0.0.
+    p : ScalarInteger
+        Radial mode index for laguerre_gaussian, by default 0.
+    l : ScalarInteger
+        Azimuthal mode index for laguerre_gaussian, by default 0.
+    n : ScalarInteger
+        Mode index in x direction for hermite_gaussian, by default 0.
+    m : ScalarInteger
+        Mode index in y direction for hermite_gaussian, by default 0.
+
+    Returns
+    -------
+    propagating_wavefront : PropagatingWavefront
+        A PropagatingWavefront containing the beam at all specified z
+        positions.
+
+    Raises
+    ------
+    ValueError
+        If beam_type is not recognized.
+
+    Notes
+    -----
+    This function uses jax.vmap to efficiently generate the beam at all
+    z positions in parallel. The resulting PropagatingWavefront can be
+    used to visualize beam evolution or as input to propagation algorithms.
+
+    For "gaussian_beam", the z_positions represent distances from the beam
+    waist, allowing visualization of beam evolution through focus.
+    For other beam types, z_positions sets the z_position attribute but
+    the field profile remains constant (as these are evaluated at a
+    single plane).
+    """
+    z_positions_arr = jnp.asarray(z_positions, dtype=jnp.float64)
+
+    if beam_type == "plane_wave":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = plane_wave(
+                wavelength=wavelength,
+                dx=dx,
+                grid_size=grid_size,
+                amplitude=amplitude,
+                tilt_x=tilt_x,
+                tilt_y=tilt_y,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "sinusoidal_wave":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = sinusoidal_wave(
+                wavelength=wavelength,
+                dx=dx,
+                grid_size=grid_size,
+                period=period,
+                direction=direction,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "collimated_gaussian":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = collimated_gaussian(
+                wavelength=wavelength,
+                waist=waist,
+                dx=dx,
+                grid_size=grid_size,
+                center=center,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "converging_gaussian":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = converging_gaussian(
+                wavelength=wavelength,
+                waist=waist,
+                focus_distance=focus_distance,
+                dx=dx,
+                grid_size=grid_size,
+                center=center,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "diverging_gaussian":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = diverging_gaussian(
+                wavelength=wavelength,
+                waist=waist,
+                source_distance=source_distance,
+                dx=dx,
+                grid_size=grid_size,
+                center=center,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "gaussian_beam":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = gaussian_beam(
+                wavelength=wavelength,
+                waist_0=waist_0,
+                z_from_waist=z,
+                dx=dx,
+                grid_size=grid_size,
+                center=center,
+                amplitude=amplitude,
+                z_position=z,
+                include_gouy_phase=include_gouy_phase,
+            )
+            return wf.field
+
+    elif beam_type == "bessel_beam":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = bessel_beam(
+                wavelength=wavelength,
+                cone_angle=cone_angle,
+                dx=dx,
+                grid_size=grid_size,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "laguerre_gaussian":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = laguerre_gaussian(
+                wavelength=wavelength,
+                waist=waist,
+                p=p,
+                l=l,
+                dx=dx,
+                grid_size=grid_size,
+                center=center,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    elif beam_type == "hermite_gaussian":
+
+        def _make_beam(z: Float[Array, " "]) -> Complex[Array, " hh ww"]:
+            wf = hermite_gaussian(
+                wavelength=wavelength,
+                waist=waist,
+                n=n,
+                m=m,
+                dx=dx,
+                grid_size=grid_size,
+                center=center,
+                amplitude=amplitude,
+                z_position=z,
+            )
+            return wf.field
+
+    else:
+        raise ValueError(
+            f"Unknown beam_type: {beam_type}. Must be one of: "
+            "plane_wave, sinusoidal_wave, collimated_gaussian, "
+            "converging_gaussian, diverging_gaussian, gaussian_beam, "
+            "bessel_beam, laguerre_gaussian, hermite_gaussian"
+        )
+
+    fields: Complex[Array, " zz hh ww"] = jax.vmap(_make_beam)(z_positions_arr)
+
+    return make_propagating_wavefront(
+        field=fields,
+        wavelength=wavelength,
+        dx=dx,
+        z_positions=z_positions_arr,
+        polarization=False,
+    )

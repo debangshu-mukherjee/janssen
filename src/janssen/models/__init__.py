@@ -43,6 +43,10 @@ laguerre_gaussian : function
     Creates Laguerre-Gaussian modes
 plane_wave : function
     Creates a uniform plane wave with optional tilt
+propagate_beam : function
+    Generates a beam at multiple z positions as a PropagatingWavefront
+sinusoidal_wave : function
+    Creates a sinusoidal interference pattern
 spherical_inclusion : function
     Creates a material with spherical inclusion
 uniform_material : function
@@ -65,6 +69,8 @@ from .beams import (
     hermite_gaussian,
     laguerre_gaussian,
     plane_wave,
+    propagate_beam,
+    sinusoidal_wave,
 )
 from .material_models import (
     biological_cell,
@@ -94,6 +100,8 @@ __all__: list[str] = [
     "layered_material",
     "laguerre_gaussian",
     "plane_wave",
+    "propagate_beam",
+    "sinusoidal_wave",
     "spherical_inclusion",
     "uniform_material",
 ]
