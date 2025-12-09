@@ -8,6 +8,7 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    :caption: Tutorial Notebooks
 
    DifferentBeams
+   PolarBeams
    Diffractogram
    USAF_1951_Synthetic
 

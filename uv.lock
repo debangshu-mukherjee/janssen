@@ -879,7 +879,7 @@ wheels = [
 
 [[package]]
 name = "janssen"
-version = "2025.10.1"
+version = "2025.10.2"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
