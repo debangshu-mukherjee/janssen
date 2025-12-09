@@ -10,6 +10,8 @@ beams
     Beam generation functions
 material_models
     Material models for optical simulations
+polar_beams
+    Polarized beam generators for vector optics
 usaf_pattern
     USAF test pattern generation
 
@@ -45,6 +47,20 @@ plane_wave : function
     Creates a uniform plane wave with optional tilt
 propagate_beam : function
     Generates a beam at multiple z positions as a PropagatingWavefront
+radially_polarized_beam : function
+    Generate a radially polarized beam
+azimuthally_polarized_beam : function
+    Generate an azimuthally polarized beam
+linear_polarized_beam : function
+    Generate a linearly polarized beam with arbitrary angle
+x_polarized_beam : function
+    Generate an x-polarized beam
+y_polarized_beam : function
+    Generate a y-polarized beam
+circular_polarized_beam : function
+    Generate a circularly polarized beam
+generalized_cylindrical_vector_beam : function
+    Generate a generalized cylindrical vector beam
 sinusoidal_wave : function
     Creates a sinusoidal interference pattern
 spherical_inclusion : function
@@ -72,6 +88,15 @@ from .beams import (
     propagate_beam,
     sinusoidal_wave,
 )
+from .polar_beams import (
+    azimuthally_polarized_beam,
+    circular_polarized_beam,
+    generalized_cylindrical_vector_beam,
+    linear_polarized_beam,
+    radially_polarized_beam,
+    x_polarized_beam,
+    y_polarized_beam,
+)
 from .material_models import (
     biological_cell,
     gradient_index_material,
@@ -86,22 +111,29 @@ from .usaf_pattern import (
 )
 
 __all__: list[str] = [
+    "azimuthally_polarized_beam",
     "bessel_beam",
     "biological_cell",
+    "circular_polarized_beam",
     "collimated_gaussian",
     "converging_gaussian",
     "create_bar_triplet",
     "create_element",
     "diverging_gaussian",
     "gaussian_beam",
+    "generalized_cylindrical_vector_beam",
     "generate_usaf_pattern",
     "gradient_index_material",
     "hermite_gaussian",
     "layered_material",
     "laguerre_gaussian",
+    "linear_polarized_beam",
     "plane_wave",
     "propagate_beam",
+    "radially_polarized_beam",
     "sinusoidal_wave",
     "spherical_inclusion",
     "uniform_material",
+    "x_polarized_beam",
+    "y_polarized_beam",
 ]

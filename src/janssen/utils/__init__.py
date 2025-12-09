@@ -14,6 +14,8 @@ factory
     Factory functions for creating data structures
 types
     Type definitions and PyTrees
+vector_types
+    Vector wavefront types for high-NA optics
 
 Routine Listings
 ----------------
@@ -43,6 +45,12 @@ make_sample_function : function
     Factory function for SampleFunction creation
 make_sliced_material_function : function
     Factory function for SlicedMaterialFunction creation
+make_vector_wavefront_3d : function
+    Factory function for VectorWavefront3D creation
+jones_to_vector3d : function
+    Convert Jones field to 3-component vector field
+vector3d_to_jones : function
+    Extract transverse components as Jones field
 shard_batch : function
     Shards array data across the batch dimension for parallel processing
 Diffractogram : PyTree
@@ -77,6 +85,8 @@ ScalarNumeric : TypeAlias
     Type alias for any scalar numeric value
 SlicedMaterialFunction : PyTree
     PyTree for 3D sliced material with complex refractive index
+VectorWavefront3D : PyTree
+    PyTree for full 3-component vector electric field
 
 Notes
 -----
@@ -121,6 +131,12 @@ from .types import (
     ScalarNumeric,
     SlicedMaterialFunction,
 )
+from .vector_types import (
+    VectorWavefront3D,
+    jones_to_vector3d,
+    make_vector_wavefront_3d,
+    vector3d_to_jones,
+)
 
 __all__: list[str] = [
     "create_mesh",
@@ -135,6 +151,9 @@ __all__: list[str] = [
     "make_ptychography_params",
     "make_sample_function",
     "make_sliced_material_function",
+    "make_vector_wavefront_3d",
+    "jones_to_vector3d",
+    "vector3d_to_jones",
     "optical2propagating",
     "shard_batch",
     "Diffractogram",
@@ -153,4 +172,5 @@ __all__: list[str] = [
     "ScalarInteger",
     "ScalarNumeric",
     "SlicedMaterialFunction",
+    "VectorWavefront3D",
 ]
