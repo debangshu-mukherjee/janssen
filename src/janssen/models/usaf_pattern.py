@@ -31,7 +31,6 @@ Each successive group increases resolution by a factor of 2.
 
 import math
 
-import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional, Tuple
@@ -359,8 +358,8 @@ def generate_usaf_pattern(
 
     The loop over groups is unrolled at Python trace time since
     groups_list is known before tracing. Python-level conditionals
-    for bounds checking and scaling are also evaluated at trace time.
-    The final phase normalization uses jax.lax.cond for JAX safety.
+    for bounds checking, scaling, and phase normalization are evaluated
+    at trace time since all controlling values are Python scalars.
 
     Examples
     --------
@@ -422,17 +421,17 @@ def generate_usaf_pattern(
             canvas = canvas.at[
                 y_pos : y_pos + gh_clipped, x_pos : x_pos + gw_clipped
             ].set(scaled_pattern)
-    scale_denom: float = foreground - background
-    normalized_pattern: Float[Array, " h w"] = jax.lax.cond(
-        scale_denom != 0.0,
-        lambda c: (c - background) / scale_denom,
-        lambda c: jnp.zeros_like(c),
-        canvas,
-    )
-    phase_pattern: Float[Array, " h w"] = normalized_pattern * max_phase
+    if foreground != background:
+        normalized_pattern = (canvas - background) / (foreground - background)
+    else:
+        normalized_pattern = jnp.zeros_like(canvas)
+    
+    phase_pattern = normalized_pattern * max_phase
+    
     complex_field = canvas.astype(jnp.complex64) * jnp.exp(
         1j * phase_pattern.astype(jnp.complex64)
     )
+    
     pattern: SampleFunction = make_sample_function(
         complex_field, dx_calculated
     )
