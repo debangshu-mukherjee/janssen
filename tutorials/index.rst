@@ -10,6 +10,7 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    DifferentBeams
    Diffractogram
    PolarBeams
+   SimpleMicroscopeSimulation
    USAF_1951_Synthetic
 
 .. note::
