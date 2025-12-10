@@ -56,9 +56,10 @@ class TestMultislicePropagation(chex.TestCase, parameterized.TestCase):
         var_multislice = self.variant(multislice_propagation)
 
         glass_n = 1.5 + 0.0j
-        material_array = jnp.ones(
-            (self.ny, self.nx, self.nz), dtype=jnp.complex128
-        ) * glass_n
+        material_array = (
+            jnp.ones((self.ny, self.nx, self.nz), dtype=jnp.complex128)
+            * glass_n
+        )
 
         material = var_make_material(
             material=material_array, dx=self.dx, tz=self.tz
@@ -133,11 +134,13 @@ class TestMultislicePropagation(chex.TestCase, parameterized.TestCase):
         var_make_material = self.variant(make_sliced_material_function)
         var_multislice = self.variant(multislice_propagation)
 
-        material_array = jnp.ones(
-            (self.ny, self.nx, nz), dtype=jnp.complex128
-        ) * 1.5
+        material_array = (
+            jnp.ones((self.ny, self.nx, nz), dtype=jnp.complex128) * 1.5
+        )
 
-        material = var_make_material(material=material_array, dx=self.dx, tz=tz)
+        material = var_make_material(
+            material=material_array, dx=self.dx, tz=tz
+        )
 
         output = var_multislice(self.test_wavefront, material)
 
@@ -187,9 +190,9 @@ class TestMultislicePropagation(chex.TestCase, parameterized.TestCase):
             z_position=0.0,
         )
 
-        material_array = jnp.ones(
-            (self.ny, self.nx, self.nz), dtype=jnp.complex128
-        ) * 1.5
+        material_array = (
+            jnp.ones((self.ny, self.nx, self.nz), dtype=jnp.complex128) * 1.5
+        )
         material = var_make_material(
             material=material_array, dx=self.dx, tz=self.tz
         )
@@ -214,9 +217,9 @@ class TestMultislicePropagation(chex.TestCase, parameterized.TestCase):
             z_position=0.0,
         )
 
-        material_array = jnp.ones(
-            (self.ny, self.nx, self.nz), dtype=jnp.complex128
-        ) * 1.5
+        material_array = (
+            jnp.ones((self.ny, self.nx, self.nz), dtype=jnp.complex128) * 1.5
+        )
         material = var_make_material(
             material=material_array, dx=self.dx, tz=self.tz
         )
@@ -259,9 +262,10 @@ class TestMultislicePropagation(chex.TestCase, parameterized.TestCase):
         var_make_material = self.variant(make_sliced_material_function)
         var_multislice = self.variant(multislice_propagation)
 
-        material_array = jnp.ones(
-            (self.ny, self.nx, self.nz), dtype=jnp.complex128
-        ) * refractive_index
+        material_array = (
+            jnp.ones((self.ny, self.nx, self.nz), dtype=jnp.complex128)
+            * refractive_index
+        )
 
         material = var_make_material(
             material=material_array, dx=self.dx, tz=self.tz
@@ -284,9 +288,9 @@ class TestComputeOpticalPathLength(chex.TestCase, parameterized.TestCase):
         self.dx = 1e-6
         self.tz = 5e-6
 
-        material_array = jnp.ones(
-            (self.ny, self.nx, self.nz), dtype=jnp.complex128
-        ) * 1.5
+        material_array = (
+            jnp.ones((self.ny, self.nx, self.nz), dtype=jnp.complex128) * 1.5
+        )
         self.uniform_material = make_sliced_material_function(
             material=material_array, dx=self.dx, tz=self.tz
         )
@@ -385,9 +389,9 @@ class TestComputeTotalTransmission(chex.TestCase):
         var_make_material = self.variant(make_sliced_material_function)
         var_compute_transmission = self.variant(total_transmit)
 
-        transparent_material = jnp.ones(
-            (self.ny, self.nx, self.nz), dtype=jnp.complex128
-        ) * 1.5
+        transparent_material = (
+            jnp.ones((self.ny, self.nx, self.nz), dtype=jnp.complex128) * 1.5
+        )
 
         material = var_make_material(
             material=transparent_material, dx=self.dx, tz=self.tz

@@ -21,6 +21,8 @@ bessel_beam : function
     Creates a Bessel beam with specified cone angle
 biological_cell : function
     Creates a biological cell model with nucleus
+calculate_usaf_group_range : function
+    Calculates the viable USAF group range for given parameters
 collimated_gaussian : function
     Creates a collimated Gaussian beam with flat phase
 converging_gaussian : function
@@ -109,6 +111,7 @@ from .polar_beams import (
     y_polarized_beam,
 )
 from .usaf_pattern import (
+    calculate_usaf_group_range,
     create_bar_triplet,
     create_element_pattern,
     create_group_pattern,
@@ -120,6 +123,7 @@ __all__: list[str] = [
     "azimuthally_polarized_beam",
     "bessel_beam",
     "biological_cell",
+    "calculate_usaf_group_range",
     "circular_polarized_beam",
     "collimated_gaussian",
     "converging_gaussian",

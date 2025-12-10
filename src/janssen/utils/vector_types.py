@@ -147,8 +147,7 @@ class VectorWavefront3D(NamedTuple):
     def intensity_transverse(self) -> Float[Array, " hh ww"]:
         """Return the transverse intensity |Ex|² + |Ey|²."""
         return (
-            jnp.abs(self.field[..., 0]) ** 2
-            + jnp.abs(self.field[..., 1]) ** 2
+            jnp.abs(self.field[..., 0]) ** 2 + jnp.abs(self.field[..., 1]) ** 2
         )
 
     @property

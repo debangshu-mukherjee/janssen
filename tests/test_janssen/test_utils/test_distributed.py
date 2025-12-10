@@ -6,7 +6,11 @@ import jax.numpy as jnp
 import pytest
 from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 
-from janssen.utils.distributed import create_mesh, get_device_count, shard_batch
+from janssen.utils.distributed import (
+    create_mesh,
+    get_device_count,
+    shard_batch,
+)
 
 
 class TestGetDeviceCount(chex.TestCase):

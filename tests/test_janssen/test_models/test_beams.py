@@ -86,7 +86,9 @@ class TestPlaneWave(chex.TestCase, parameterized.TestCase):
         )
         field_amplitude = jnp.abs(result.field)
         chex.assert_trees_all_close(
-            field_amplitude, jnp.ones_like(field_amplitude) * amplitude, rtol=1e-10
+            field_amplitude,
+            jnp.ones_like(field_amplitude) * amplitude,
+            rtol=1e-10,
         )
 
 
@@ -171,14 +173,12 @@ class TestGaussianBeam(chex.TestCase, parameterized.TestCase):
         center_intensity = jnp.abs(result.field[ny // 2, nx // 2]) ** 2
         w0_idx = int(self.w0 / self.dx)
         if w0_idx < nx // 2:
-            w0_intensity = jnp.abs(
-                result.field[ny // 2, nx // 2 + w0_idx]
-            ) ** 2
+            w0_intensity = (
+                jnp.abs(result.field[ny // 2, nx // 2 + w0_idx]) ** 2
+            )
             expected_ratio = jnp.exp(-2.0)  # 1/e²
             actual_ratio = w0_intensity / center_intensity
-            chex.assert_trees_all_close(
-                actual_ratio, expected_ratio, rtol=0.1
-            )
+            chex.assert_trees_all_close(actual_ratio, expected_ratio, rtol=0.1)
 
     @chex.variants(without_jit=True)
     def test_gaussian_beam_array_grid_size(self):
@@ -419,6 +419,7 @@ class TestJAXTransformations(chex.TestCase):
             to parameters like waist_0 for optimization applications.
             Grid size must be static (Python tuple) for JIT compatibility.
         """
+
         def loss_fn(w0_val):
             beam = gaussian_beam(
                 wavelength=self.wavelength,

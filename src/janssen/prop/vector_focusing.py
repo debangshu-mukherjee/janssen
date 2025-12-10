@@ -451,11 +451,7 @@ def high_na_focus(
         jnp.fft.fft2(jnp.fft.ifftshift(ez_integrand))
     )
     scale_factor: Complex[Array, " "] = (
-        -1j
-        * wavenumber
-        * focal_length
-        / (2.0 * jnp.pi)
-        * (pupil_field.dx**2)
+        -1j * wavenumber * focal_length / (2.0 * jnp.pi) * (pupil_field.dx**2)
     )
     ex_focal = ex_focal * scale_factor
     ey_focal = ey_focal * scale_factor

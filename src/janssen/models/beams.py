@@ -198,9 +198,9 @@ def sinusoidal_wave(
         direction, dtype=jnp.float64
     )
 
-    spatial_coord: Float[Array, " ny nx"] = (
-        xx * jnp.cos(direction_arr) + yy * jnp.sin(direction_arr)
-    )
+    spatial_coord: Float[Array, " ny nx"] = xx * jnp.cos(
+        direction_arr
+    ) + yy * jnp.sin(direction_arr)
     sinusoid: Float[Array, " ny nx"] = jnp.cos(
         2.0 * jnp.pi * spatial_coord / period_arr
     )

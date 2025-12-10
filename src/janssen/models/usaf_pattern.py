@@ -8,6 +8,8 @@ and positioned groups and elements.
 
 Routine Listings
 ----------------
+calculate_usaf_group_range : function
+    Calculates the viable USAF group range for given parameters
 create_bar_triplet : function
     Creates 3 parallel bars (horizontal or vertical)
 create_element_pattern : function
@@ -174,9 +176,9 @@ def create_element_pattern(
         (element_height, element_width), dtype=jnp.float32
     )
     h_y_offset: int = (element_height - h_height) // 2
-    element = element.at[
-        h_y_offset : h_y_offset + h_height, :h_width
-    ].set(h_triplet)
+    element = element.at[h_y_offset : h_y_offset + h_height, :h_width].set(
+        h_triplet
+    )
     v_y_offset: int = (element_height - v_height) // 2
     v_x_offset: int = h_width + gap
     element = element.at[
@@ -361,6 +363,10 @@ def generate_usaf_pattern(
     for bounds checking, scaling, and phase normalization are evaluated
     at trace time since all controlling values are Python scalars.
 
+    A global scale factor is computed from the largest (coarsest) group
+    to ensure all groups fit within their grid cells while preserving
+    the correct relative size ratios between groups.
+
     Examples
     --------
     >>> from janssen.models import generate_usaf_pattern
@@ -395,18 +401,23 @@ def generate_usaf_pattern(
     usable_size: int = image_size - 2 * margin
     cell_width: int = usable_size // grid_cols
     cell_height: int = usable_size // grid_rows
+
+    # Calculate global scale based on largest (coarsest) group
+    # This ensures relative sizes between groups are preserved
+    largest_group: int = min(groups_list)
+    largest_pattern, _ = create_group_pattern(largest_group, pixels_per_mm)
+    lg_h: int = int(largest_pattern.shape[0])
+    lg_w: int = int(largest_pattern.shape[1])
+    global_scale: float = min(cell_width / lg_w, cell_height / lg_h) * 0.85
+    if global_scale < 1.0:
+        pixels_per_mm = pixels_per_mm * global_scale
+
     for idx, group in enumerate(groups_list):
         row: int = idx // grid_cols
         col: int = idx % grid_cols
         group_pattern, _ = create_group_pattern(group, pixels_per_mm)
         gh: int = int(group_pattern.shape[0])
         gw: int = int(group_pattern.shape[1])
-        max_scale: float = min(cell_width / gw, cell_height / gh) * 0.85
-        if max_scale < 1.0:
-            scaled_ppm: float = pixels_per_mm * max_scale
-            group_pattern, _ = create_group_pattern(group, scaled_ppm)
-            gh = int(group_pattern.shape[0])
-            gw = int(group_pattern.shape[1])
         cell_x: int = margin + col * cell_width
         cell_y: int = margin + row * cell_height
         x_pos: int = cell_x + (cell_width - gw) // 2
@@ -421,18 +432,87 @@ def generate_usaf_pattern(
             canvas = canvas.at[
                 y_pos : y_pos + gh_clipped, x_pos : x_pos + gw_clipped
             ].set(scaled_pattern)
+
     if foreground != background:
-        normalized_pattern = (canvas - background) / (foreground - background)
+        normalized_pattern: Float[Array, " h w"] = (canvas - background) / (
+            foreground - background
+        )
     else:
         normalized_pattern = jnp.zeros_like(canvas)
-    
-    phase_pattern = normalized_pattern * max_phase
-    
+    phase_pattern: Float[Array, " h w"] = normalized_pattern * max_phase
     complex_field = canvas.astype(jnp.complex64) * jnp.exp(
         1j * phase_pattern.astype(jnp.complex64)
     )
-    
     pattern: SampleFunction = make_sample_function(
         complex_field, dx_calculated
     )
     return pattern
+
+
+@jaxtyped(typechecker=beartype)
+def calculate_usaf_group_range(
+    image_size: int,
+    pixel_size: float,
+    min_bar_pixels: int = 2,
+    grid_fill_fraction: float = 0.85,
+) -> dict:
+    """Calculate the viable USAF group range for given parameters.
+
+    Parameters
+    ----------
+    image_size : int
+        Image size in pixels (square)
+    pixel_size : float
+        Pixel size in meters
+    min_bar_pixels : int
+        Minimum bar width in pixels for visibility (default 2)
+    grid_fill_fraction : float
+        How much of each cell the largest group should fill (default 0.85)
+
+    Returns
+    -------
+    dict with:
+        - max_group: finest group where bars are still >= min_bar_pixels
+        - min_group: coarsest group that fits in image
+        - recommended_range: suggested range() for generate_usaf_pattern
+        - num_groups: how many groups in recommended range
+        - group_info: dict with bar width in pixels for each group
+    """
+    pixels_per_mm = 1e-3 / pixel_size
+    max_group = int(
+        math.floor(math.log2(pixels_per_mm / (2 * min_bar_pixels)) - 5 / 6)
+    )
+
+    def get_group_size(g: int) -> int:
+        """Estimate group pattern size in pixels."""
+        bar_width = pixels_per_mm / (2 * (2**g))
+        return int(15 * bar_width)
+
+    min_group = -10
+    for g in range(-10, max_group + 1):
+        group_size = get_group_size(g)
+        min_cell_size = image_size / 5 * grid_fill_fraction
+        if group_size <= min_cell_size:
+            min_group = g
+            break
+
+    group_info = {}
+    for g in range(min_group, max_group + 1):
+        bar_width_e1 = pixels_per_mm / (2 * (2**g))
+        bar_width_e6 = pixels_per_mm / (2 * (2 ** (g + 5 / 6)))
+        group_info[g] = {
+            "bar_width_element1": round(bar_width_e1, 1),
+            "bar_width_element6": round(bar_width_e6, 1),
+            "group_size_approx": get_group_size(g),
+        }
+
+    recommended_range = range(min_group, max_group + 1)
+
+    return {
+        "max_group": max_group,
+        "min_group": min_group,
+        "recommended_range": recommended_range,
+        "num_groups": len(recommended_range),
+        "pixels_per_mm": pixels_per_mm,
+        "group_info": group_info,
+    }

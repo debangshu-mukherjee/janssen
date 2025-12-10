@@ -7,6 +7,7 @@ Run this script whenever new notebooks are added to the tutorials directory.
 import os
 from pathlib import Path
 
+
 def update_tutorials_index():
     """Update the tutorials/index.rst file with all notebooks found."""
 
@@ -51,12 +52,13 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
 """
 
     # Write the file
-    with open(index_file, 'w') as f:
+    with open(index_file, "w") as f:
         f.write(content)
 
     print(f"Updated {index_file} with {len(notebooks)} notebooks:")
     for notebook in notebooks:
         print(f"  - {notebook}")
+
 
 if __name__ == "__main__":
     update_tutorials_index()

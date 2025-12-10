@@ -66,7 +66,9 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = k * (deflect_x * self.xx + deflect_y * self.yy)
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
+        chex.assert_trees_all_close(
+            actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_prism_phase_ramp_spatial_freq(self) -> None:
@@ -80,7 +82,9 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = kx * self.xx + ky * self.yy
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
+        chex.assert_trees_all_close(
+            actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -157,7 +161,9 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = depth * jnp.sin(2.0 * jnp.pi * self.xx / period)
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
+        chex.assert_trees_all_close(
+            actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -177,7 +183,9 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = depth * jnp.sin(2.0 * jnp.pi * uu / period)
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
+        chex.assert_trees_all_close(
+            actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     @parameterized.named_parameters(
@@ -216,7 +224,9 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_phase = depth * frac
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
+        chex.assert_trees_all_close(
+            actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_apply_phase_mask(self) -> None:
@@ -402,7 +412,9 @@ class TestElements(chex.TestCase, parameterized.TestCase):
             expected_phase = depth * fu
         actual_phase = jnp.angle(output.field / self.field)
         wrapped_expected = jnp.angle(jnp.exp(1j * expected_phase))
-        chex.assert_trees_all_close(actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14)
+        chex.assert_trees_all_close(
+            actual_phase, wrapped_expected, rtol=1e-5, atol=1e-14
+        )
 
     def test_vmap_on_elements(self) -> None:
         """Test vmap on optical elements."""

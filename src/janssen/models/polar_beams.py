@@ -200,9 +200,7 @@ def radially_polarized_beam(
     )
 
     if apodization == "gaussian":
-        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(
-            -(rr**2) / (w**2)
-        )
+        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(-(rr**2) / (w**2))
     elif apodization == "uniform":
         amplitude_envelope = jnp.where(rr <= w, 1.0, 0.0)
     elif apodization == "bessel":
@@ -217,12 +215,12 @@ def radially_polarized_beam(
     amp: Float[Array, " "] = jnp.asarray(amplitude, dtype=jnp.float64)
     scaled_envelope: Float[Array, " ny nx"] = amp * amplitude_envelope
 
-    ex: Complex[Array, " ny nx"] = (
-        scaled_envelope * jnp.cos(phi)
-    ).astype(jnp.complex128)
-    ey: Complex[Array, " ny nx"] = (
-        scaled_envelope * jnp.sin(phi)
-    ).astype(jnp.complex128)
+    ex: Complex[Array, " ny nx"] = (scaled_envelope * jnp.cos(phi)).astype(
+        jnp.complex128
+    )
+    ey: Complex[Array, " ny nx"] = (scaled_envelope * jnp.sin(phi)).astype(
+        jnp.complex128
+    )
 
     field: Complex[Array, " ny nx 2"] = jnp.stack([ex, ey], axis=-1)
 
@@ -321,9 +319,7 @@ def azimuthally_polarized_beam(
     )
 
     if apodization == "gaussian":
-        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(
-            -(rr**2) / (w**2)
-        )
+        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(-(rr**2) / (w**2))
     elif apodization == "uniform":
         amplitude_envelope = jnp.where(rr <= w, 1.0, 0.0)
     else:
@@ -332,12 +328,12 @@ def azimuthally_polarized_beam(
     amp: Float[Array, " "] = jnp.asarray(amplitude, dtype=jnp.float64)
     scaled_envelope: Float[Array, " ny nx"] = amp * amplitude_envelope
 
-    ex: Complex[Array, " ny nx"] = (
-        -scaled_envelope * jnp.sin(phi)
-    ).astype(jnp.complex128)
-    ey: Complex[Array, " ny nx"] = (
-        scaled_envelope * jnp.cos(phi)
-    ).astype(jnp.complex128)
+    ex: Complex[Array, " ny nx"] = (-scaled_envelope * jnp.sin(phi)).astype(
+        jnp.complex128
+    )
+    ey: Complex[Array, " ny nx"] = (scaled_envelope * jnp.cos(phi)).astype(
+        jnp.complex128
+    )
 
     field: Complex[Array, " ny nx 2"] = jnp.stack([ex, ey], axis=-1)
 
@@ -428,9 +424,7 @@ def linear_polarized_beam(
     )
 
     if apodization == "gaussian":
-        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(
-            -(rr**2) / (w**2)
-        )
+        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(-(rr**2) / (w**2))
     elif apodization == "uniform":
         amplitude_envelope = jnp.where(rr <= w, 1.0, 0.0)
     else:
@@ -442,12 +436,12 @@ def linear_polarized_beam(
     )
     scaled_envelope: Float[Array, " ny nx"] = amp * amplitude_envelope
 
-    ex: Complex[Array, " ny nx"] = (
-        scaled_envelope * jnp.cos(theta)
-    ).astype(jnp.complex128)
-    ey: Complex[Array, " ny nx"] = (
-        scaled_envelope * jnp.sin(theta)
-    ).astype(jnp.complex128)
+    ex: Complex[Array, " ny nx"] = (scaled_envelope * jnp.cos(theta)).astype(
+        jnp.complex128
+    )
+    ey: Complex[Array, " ny nx"] = (scaled_envelope * jnp.sin(theta)).astype(
+        jnp.complex128
+    )
 
     field: Complex[Array, " ny nx 2"] = jnp.stack([ex, ey], axis=-1)
 
@@ -633,9 +627,7 @@ def circular_polarized_beam(
     )
 
     if apodization == "gaussian":
-        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(
-            -(rr**2) / (w**2)
-        )
+        amplitude_envelope: Float[Array, " ny nx"] = jnp.exp(-(rr**2) / (w**2))
     else:
         amplitude_envelope = jnp.exp(-(rr**2) / (w**2))
 
@@ -646,9 +638,9 @@ def circular_polarized_beam(
 
     if handedness.lower() == "right":
         ex: Complex[Array, " ny nx"] = scaled_envelope.astype(jnp.complex128)
-        ey: Complex[Array, " ny nx"] = (
-            -1j * scaled_envelope
-        ).astype(jnp.complex128)
+        ey: Complex[Array, " ny nx"] = (-1j * scaled_envelope).astype(
+            jnp.complex128
+        )
     else:
         ex = scaled_envelope.astype(jnp.complex128)
         ey = (1j * scaled_envelope).astype(jnp.complex128)

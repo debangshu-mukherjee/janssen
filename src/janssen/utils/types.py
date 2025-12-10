@@ -265,6 +265,7 @@ class OpticalWavefront(NamedTuple):
         """Unflatten the OpticalWavefront from a tuple of its components."""
         return cls(*children)
 
+
 @register_pytree_node_class
 class PropagatingWavefront(NamedTuple):
     """PyTree structure for representing an propagating optical wavefront.
@@ -331,6 +332,7 @@ class PropagatingWavefront(NamedTuple):
     ) -> "PropagatingWavefront":
         """Unflatten the PropagatingWavefront from tuple of its components."""
         return cls(*children)
+
 
 @register_pytree_node_class
 class MicroscopeData(NamedTuple):

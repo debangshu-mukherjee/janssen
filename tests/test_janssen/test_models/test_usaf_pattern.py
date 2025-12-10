@@ -309,7 +309,10 @@ class TestGenerateUsafPattern:
         foreground_mask = amp > 0.9
         if jnp.any(foreground_mask):
             # |phase| should be close to pi
-            assert jnp.mean(jnp.abs(jnp.abs(phase[foreground_mask]) - jnp.pi)) < 0.2
+            assert (
+                jnp.mean(jnp.abs(jnp.abs(phase[foreground_mask]) - jnp.pi))
+                < 0.2
+            )
 
     def test_returns_sample_function(self) -> None:
         """Test output is SampleFunction type."""
