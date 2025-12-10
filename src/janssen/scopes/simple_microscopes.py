@@ -140,8 +140,9 @@ def diffractogram_noscale(
         light=lightwave,
     )
     zoomed_wave: OpticalWavefront = optical_zoom(at_sample_plane, zoom_factor)
+    center_to_use = aperture_center if aperture_center is not None else 0.0
     after_aperture: OpticalWavefront = circular_aperture(
-        zoomed_wave, aperture_diameter, aperture_center
+        zoomed_wave, aperture_diameter, center_to_use
     )
     at_camera: OpticalWavefront = fraunhofer_prop(
         after_aperture, travel_distance
@@ -209,8 +210,9 @@ def simple_diffractogram(
         light=lightwave,
     )
     zoomed_wave: OpticalWavefront = optical_zoom(at_sample_plane, zoom_factor)
+    center_to_use = aperture_center if aperture_center is not None else 0.0
     after_aperture: OpticalWavefront = circular_aperture(
-        zoomed_wave, aperture_diameter, aperture_center
+        zoomed_wave, aperture_diameter, center_to_use
     )
     at_camera: OpticalWavefront = fraunhofer_prop(
         after_aperture, travel_distance
