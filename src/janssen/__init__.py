@@ -46,6 +46,7 @@ and consider using the provided factory functions for data validation.
 """
 
 import os
+from importlib.metadata import version
 
 # Enable multi-threaded CPU execution for JAX (must be set before importing JAX)
 os.environ.setdefault(
@@ -55,7 +56,10 @@ os.environ.setdefault(
 
 from . import invert, lenses, models, optics, plots, prop, scopes, utils
 
+__version__: str = version("janssen")
+
 __all__: list[str] = [
+    "__version__",
     "invert",
     "lenses",
     "models",
