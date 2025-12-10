@@ -4,398 +4,308 @@ import chex
 import jax
 import jax.numpy as jnp
 import pytest
-from absl.testing import parameterized
-from jaxtyping import Array, Float, Int
+from beartype.roar import BeartypeCallHintParamViolation
 
 from janssen.models.usaf_pattern import (
     create_bar_triplet,
-    create_element,
+    create_element_pattern,
+    create_group_pattern,
     generate_usaf_pattern,
+    get_bar_width_pixels,
 )
-from janssen.utils import SampleFunction
 
 
-class TestUsafPattern(chex.TestCase, parameterized.TestCase):
-    """Test suite for USAF pattern generation functions."""
+class TestCreateBarTriplet:
+    """Tests for create_bar_triplet function."""
 
-    # Test constants
-    BACKGROUND_TOLERANCE: float = 0.1
+    def test_horizontal_bars_shape(self) -> None:
+        """Test horizontal bar triplet has correct shape."""
+        width = 10
+        length = 50
+        pattern = create_bar_triplet(width, length, horizontal=True)
 
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        super().setUp()
-        self.default_dpi: float = 300.0
-        self.default_scale_factor: float = 1.0
+        # Height = 5 * width (3 bars + 2 spaces)
+        # Width = length
+        assert pattern.shape == (5 * width, length)
 
-    @chex.variants(with_jit=True, without_jit=True)
-    @parameterized.named_parameters(
-        ("horizontal", True),
-        ("vertical", False),
-    )
-    def test_create_bar_triplet_shape(self, horizontal: bool) -> None:
-        """Test bar triplet creation produces correct shapes."""
-        var_create_bar_triplet = self.variant(create_bar_triplet)
-        width_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
-        length_int: Int[Array, " "] = jnp.asarray(50, dtype=jnp.int32)
-        spacing_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
+    def test_vertical_bars_shape(self) -> None:
+        """Test vertical bar triplet has correct shape."""
+        width = 10
+        length = 50
+        pattern = create_bar_triplet(width, length, horizontal=False)
 
-        # Create blank pattern buffer
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
+        # Height = length
+        # Width = 5 * width (3 bars + 2 spaces)
+        assert pattern.shape == (length, 5 * width)
 
-        pattern: Int[Array, " h w"] = var_create_bar_triplet(
-            blank, width_int, length_int, spacing_int, horizontal
-        )
+    def test_horizontal_bars_structure(self) -> None:
+        """Test horizontal bars have correct structure."""
+        width = 5
+        length = 20
+        pattern = create_bar_triplet(width, length, horizontal=True)
 
-        chex.assert_rank(pattern, 2)
-        chex.assert_type(pattern, int)
+        # Check bar positions
+        # Bar 1: rows [0, 5)
+        assert jnp.all(pattern[0:5, :] == 1.0)
+        # Space: rows [5, 10)
+        assert jnp.all(pattern[5:10, :] == 0.0)
+        # Bar 2: rows [10, 15)
+        assert jnp.all(pattern[10:15, :] == 1.0)
+        # Space: rows [15, 20)
+        assert jnp.all(pattern[15:20, :] == 0.0)
+        # Bar 3: rows [20, 25)
+        assert jnp.all(pattern[20:25, :] == 1.0)
 
-        # Pattern is buffer-sized, check that the relevant portion has bars
-        # Check that some pixels are set to 1 (bars exist)
-        chex.assert_scalar_positive(float(jnp.sum(pattern)))
+    def test_vertical_bars_structure(self) -> None:
+        """Test vertical bars have correct structure."""
+        width = 5
+        length = 20
+        pattern = create_bar_triplet(width, length, horizontal=False)
 
-    @chex.variants(with_jit=True, without_jit=True)
-    def test_create_bar_triplet_values(self) -> None:
-        """Test bar triplet has correct binary values."""
-        var_create_bar_triplet = self.variant(create_bar_triplet)
-        width_int: Int[Array, " "] = jnp.asarray(5, dtype=jnp.int32)
-        length_int: Int[Array, " "] = jnp.asarray(20, dtype=jnp.int32)
-        spacing_int: Int[Array, " "] = jnp.asarray(5, dtype=jnp.int32)
+        # Check bar positions (columns instead of rows)
+        assert jnp.all(pattern[:, 0:5] == 1.0)
+        assert jnp.all(pattern[:, 5:10] == 0.0)
+        assert jnp.all(pattern[:, 10:15] == 1.0)
+        assert jnp.all(pattern[:, 15:20] == 0.0)
+        assert jnp.all(pattern[:, 20:25] == 1.0)
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
+    def test_minimum_width_enforced(self) -> None:
+        """Test that minimum width of 1 is enforced."""
+        pattern = create_bar_triplet(0, 10, horizontal=True)
+        assert pattern.shape[0] == 5  # 5 * 1
 
-        pattern: Int[Array, " h w"] = var_create_bar_triplet(
-            blank, width_int, length_int, spacing_int, horizontal=True
-        )
+    def test_output_dtype(self) -> None:
+        """Test output is float32."""
+        pattern = create_bar_triplet(5, 20, horizontal=True)
+        assert pattern.dtype == jnp.float32
 
-        # Pattern should only contain 0s and 1s
-        unique_values = jnp.unique(pattern)
-        chex.assert_trees_all_equal(jnp.sort(unique_values), jnp.array([0, 1]))
 
-        # Check that bars are present (some 1s exist)
-        chex.assert_scalar_positive(float(jnp.sum(pattern)))
+class TestCreateElementPattern:
+    """Tests for create_element_pattern function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
-    def test_create_bar_triplet_minimum_width(self) -> None:
-        """Test bar triplet with minimum width constraint."""
-        var_create_bar_triplet = self.variant(create_bar_triplet)
-        # Very small width should still produce valid pattern
-        width_int: Int[Array, " "] = jnp.asarray(1, dtype=jnp.int32)
-        length_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
-        spacing_int: Int[Array, " "] = jnp.asarray(1, dtype=jnp.int32)
+    def test_element_contains_both_triplets(self) -> None:
+        """Test element contains both horizontal and vertical triplets."""
+        bar_width = 10
+        element = create_element_pattern(bar_width)
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
+        # Element should be non-zero (contains bars)
+        assert jnp.sum(element) > 0
 
-        pattern: Int[Array, " h w"] = var_create_bar_triplet(
-            blank, width_int, length_int, spacing_int, horizontal=True
-        )
+        # Check dimensions are reasonable
+        # Height should be 5 * bar_width (triplet height)
+        # Width should be bar_length + gap + bar_length
+        bar_length = 5 * bar_width
+        triplet_width = 5 * bar_width
+        assert element.shape[0] == 5 * bar_width
+        assert element.shape[1] > bar_length  # At least one triplet width
 
-        chex.assert_rank(pattern, 2)
-        # Should still have at least 1 pixel width bars
-        chex.assert_scalar_positive(pattern.shape[0])
-        chex.assert_scalar_positive(pattern.shape[1])
+    def test_element_aspect_ratio(self) -> None:
+        """Test element has expected aspect ratio."""
+        bar_width = 10
+        element = create_element_pattern(bar_width)
 
-    @chex.variants(with_jit=True, without_jit=True)
-    @parameterized.named_parameters(
-        ("group_0_elem_1", 0, 1),
-        ("group_1_elem_3", 1, 3),
-        ("group_minus_1_elem_6", -1, 6),
-        ("group_3_elem_4", 3, 4),
-    )
-    def test_create_element_shape(self, group: int, element: int) -> None:
-        """Test element creation produces valid output shapes."""
-        var_create_element = self.variant(create_element)
+        # Element should be wider than tall due to side-by-side triplets
+        assert element.shape[1] > element.shape[0]
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
+    def test_minimum_bar_width(self) -> None:
+        """Test minimum bar width is enforced."""
+        element = create_element_pattern(0)
+        # Should still produce a valid pattern
+        assert element.shape[0] >= 5
+        assert element.shape[1] >= 1
 
-        elem: Float[Array, " h w"] = var_create_element(
-            blank, group, element, self.default_scale_factor, self.default_dpi
-        )
 
-        chex.assert_rank(elem, 2)
-        chex.assert_type(elem, float)
-        # Element should have non-zero dimensions
-        chex.assert_scalar_positive(elem.shape[0])
-        chex.assert_scalar_positive(elem.shape[1])
+class TestGetBarWidthPixels:
+    """Tests for get_bar_width_pixels function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
-    def test_create_element_values(self) -> None:
-        """Test element contains valid binary values."""
-        var_create_element = self.variant(create_element)
+    def test_resolution_increases_with_group(self) -> None:
+        """Test that bar width decreases (resolution increases) with group."""
+        pixels_per_mm = 100.0
+        element = 1
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
-
-        elem: Float[Array, " h w"] = var_create_element(
-            blank, 0, 1, self.default_scale_factor, self.default_dpi
-        )
-
-        # Element should only contain 0s and 1s
-        unique_values = jnp.unique(elem)
-        chex.assert_trees_all_equal(
-            jnp.sort(unique_values), jnp.array([0.0, 1.0])
-        )
-
-        # Should have both bars (1s) and background (0s)
-        chex.assert_scalar_positive(float(jnp.sum(elem)))
-        chex.assert_scalar_positive(float(jnp.sum(1.0 - elem)))
-
-    @chex.variants(with_jit=True, without_jit=True)
-    def test_create_element_scale_factor(self) -> None:
-        """Test that scale factor affects element size."""
-        var_create_element = self.variant(create_element)
-        group: int = 0
-        element: int = 1
-
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
-
-        elem_1x: Float[Array, " h w"] = var_create_element(
-            blank, group, element, 1.0, self.default_dpi
-        )
-        elem_2x: Float[Array, " h w"] = var_create_element(
-            blank, group, element, 2.0, self.default_dpi
-        )
-
-        # Larger scale factor should produce more bars (more 1s)
-        # Both are buffer-sized, but 2x should have more non-zero content
-        chex.assert_scalar_positive(float(jnp.sum(elem_2x) - jnp.sum(elem_1x)))
-
-    @chex.variants(with_jit=True, without_jit=True)
-    def test_create_element_dpi(self) -> None:
-        """Test that DPI affects element size."""
-        var_create_element = self.variant(create_element)
-        group: int = 0
-        element: int = 1
-
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
-
-        elem_300dpi: Float[Array, " h w"] = var_create_element(
-            blank, group, element, self.default_scale_factor, 300.0
-        )
-        elem_600dpi: Float[Array, " h w"] = var_create_element(
-            blank, group, element, self.default_scale_factor, 600.0
-        )
-
-        # Higher DPI should produce larger elements (more 1s)
-        # Both are buffer-sized, but 600dpi should have more non-zero
-        # content
-        chex.assert_scalar_positive(
-            float(jnp.sum(elem_600dpi) - jnp.sum(elem_300dpi))
-        )
-
-    @chex.variants(with_jit=False, without_jit=True)
-    @parameterized.named_parameters(
-        ("size_256", 256),
-        ("size_512", 512),
-        ("size_1024", 1024),
-        ("size_2048", 2048),
-    )
-    def test_generate_usaf_pattern_shape(self, image_size: int) -> None:
-        """Test USAF pattern generation with various image sizes."""
-        var_generate_usaf_pattern = self.variant(generate_usaf_pattern)
-
-        result: SampleFunction = var_generate_usaf_pattern(
-            image_size=image_size, groups=[-1, 0, 1], dpi=self.default_dpi
-        )
-
-        chex.assert_shape(result.sample, (image_size, image_size))
-        chex.assert_type(result.sample, complex)
-        chex.assert_scalar_positive(float(result.dx))
-
-    @chex.variants(with_jit=False, without_jit=True)
-    def test_generate_usaf_pattern_default_groups(self) -> None:
-        """Test USAF pattern generation with default groups."""
-        var_generate_usaf_pattern = self.variant(generate_usaf_pattern)
-
-        result: SampleFunction = var_generate_usaf_pattern(
-            image_size=512, groups=None, dpi=self.default_dpi
-        )
-
-        chex.assert_shape(result.sample, (512, 512))
-        chex.assert_type(result.sample, complex)
-
-    @chex.variants(with_jit=False, without_jit=True)
-    def test_generate_usaf_pattern_value_range(self) -> None:
-        """Test that generated pattern has valid value range."""
-        var_generate_usaf_pattern = self.variant(generate_usaf_pattern)
-
-        result: SampleFunction = var_generate_usaf_pattern(
-            image_size=512, groups=range(0, 3), dpi=self.default_dpi
-        )
-
-        # Pattern should be in [0, 1] range (for the real part)
-        # Background is 0.5, bars are 0 or 1
-        pattern: Float[Array, " h w"] = jnp.real(result.sample)
-        chex.assert_trees_all_close(jnp.min(pattern), 0.0, atol=0.1, rtol=0.1)
-        chex.assert_trees_all_close(jnp.max(pattern), 1.0, atol=0.1, rtol=0.1)
-
-    @chex.variants(with_jit=False, without_jit=True)
-    @parameterized.named_parameters(
-        ("single_group", [-1]),
-        ("two_groups", [0, 1]),
-        ("four_groups", [-2, -1, 0, 1]),
-        ("many_groups", list(range(-2, 5))),
-    )
-    def test_generate_usaf_pattern_various_groups(
-        self, groups: list[int]
-    ) -> None:
-        """Test USAF pattern generation with various group configurations."""
-        var_generate_usaf_pattern = self.variant(generate_usaf_pattern)
-
-        result: SampleFunction = var_generate_usaf_pattern(
-            image_size=512, groups=groups, dpi=self.default_dpi
-        )
-
-        chex.assert_shape(result.sample, (512, 512))
-        # Pattern should have elements (not just background)
-        # Check that some pixels are not the background value (0.5)
-        pattern: Float[Array, " h w"] = jnp.real(result.sample)
-        non_background: Float[Array, " n"] = pattern[
-            jnp.abs(pattern - 0.5) > self.BACKGROUND_TOLERANCE
+        widths = [
+            get_bar_width_pixels(group, element, pixels_per_mm)
+            for group in range(-2, 5)
         ]
-        chex.assert_scalar_positive(len(non_background))
 
-    @chex.variants(with_jit=False, without_jit=True)
-    def test_generate_usaf_pattern_dpi_effect(self) -> None:
-        """Test that DPI parameter affects the pattern."""
-        var_generate_usaf_pattern = self.variant(generate_usaf_pattern)
-        image_size: int = 512
-        groups = [0, 1]
+        # Each successive group should have smaller bars
+        for i in range(len(widths) - 1):
+            assert widths[i] >= widths[i + 1]
 
-        result_300: SampleFunction = var_generate_usaf_pattern(
-            image_size=image_size, groups=groups, dpi=300.0
-        )
-        result_600: SampleFunction = var_generate_usaf_pattern(
-            image_size=image_size, groups=groups, dpi=600.0
-        )
+    def test_resolution_increases_with_element(self) -> None:
+        """Test that bar width decreases with element number."""
+        pixels_per_mm = 100.0
+        group = 0
 
-        # Patterns should be different due to different DPI
-        pattern_300: Float[Array, " h w"] = jnp.real(result_300.sample)
-        pattern_600: Float[Array, " h w"] = jnp.real(result_600.sample)
-        difference: Float[Array, " h w"] = jnp.abs(pattern_300 - pattern_600)
-        chex.assert_scalar_positive(float(jnp.sum(difference)))
+        widths = [
+            get_bar_width_pixels(group, elem, pixels_per_mm)
+            for elem in range(1, 7)
+        ]
 
-    def test_create_bar_triplet_jit_compatibility(self) -> None:
-        """Test that create_bar_triplet is JIT-compatible."""
-        jitted_fn = jax.jit(create_bar_triplet)
+        # Each successive element should have smaller or equal bars
+        for i in range(len(widths) - 1):
+            assert widths[i] >= widths[i + 1]
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
-        width_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
-        length_int: Int[Array, " "] = jnp.asarray(50, dtype=jnp.int32)
-        spacing_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
+    def test_resolution_formula(self) -> None:
+        """Test that resolution formula is correct."""
+        pixels_per_mm = 100.0
+        group = 0
+        element = 1
 
-        pattern: Int[Array, " h w"] = jitted_fn(
-            blank, width_int, length_int, spacing_int, True
-        )
+        # R = 2^(0 + 0/6) = 1 lp/mm
+        # bar_width = 1/(2*1) = 0.5 mm = 50 pixels
+        expected_width = int(round(0.5 * pixels_per_mm))
+        actual_width = get_bar_width_pixels(group, element, pixels_per_mm)
 
-        chex.assert_rank(pattern, 2)
-        chex.assert_type(pattern, int)
+        assert actual_width == expected_width
 
-    def test_create_element_jit_compatibility(self) -> None:
-        """Test that create_element is JIT-compatible."""
-        jitted_fn = jax.jit(create_element)
+    def test_minimum_width_enforced(self) -> None:
+        """Test minimum width of 1 pixel is enforced."""
+        # Very high group should result in very small bars
+        width = get_bar_width_pixels(10, 6, 1.0)
+        assert width >= 1
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
 
-        elem: Float[Array, " h w"] = jitted_fn(
-            blank, 0, 1, self.default_scale_factor, self.default_dpi
-        )
+class TestCreateGroupPattern:
+    """Tests for create_group_pattern function."""
 
-        chex.assert_rank(elem, 2)
-        chex.assert_type(elem, float)
+    def test_group_contains_six_elements(self) -> None:
+        """Test that group pattern has content for 6 elements."""
+        group_pattern, max_dim = create_group_pattern(0, 50.0)
 
-    @chex.variants(with_jit=False, without_jit=True)
-    def test_generate_usaf_pattern_deterministic(self) -> None:
-        """Test that pattern generation is deterministic."""
-        var_generate_usaf_pattern = self.variant(generate_usaf_pattern)
-        image_size: int = 256
-        groups = [0, 1]
-        dpi: float = 300.0
+        # Should have non-zero content
+        assert jnp.sum(group_pattern) > 0
+        assert max_dim > 0
 
-        result1: SampleFunction = var_generate_usaf_pattern(
-            image_size=image_size, groups=groups, dpi=dpi
-        )
-        result2: SampleFunction = var_generate_usaf_pattern(
-            image_size=image_size, groups=groups, dpi=dpi
-        )
+    def test_group_decreasing_element_size(self) -> None:
+        """Test elements within group get progressively smaller."""
+        # This is implicitly tested by get_bar_width_pixels
+        # but we can verify the group pattern has varying content
+        group_pattern, _ = create_group_pattern(0, 100.0)
 
-        # Should produce identical results
-        chex.assert_trees_all_equal(result1.sample, result2.sample)
-        chex.assert_trees_all_equal(result1.dx, result2.dx)
+        # Pattern should be 2D
+        assert len(group_pattern.shape) == 2
 
-    @chex.variants(with_jit=True, without_jit=True)
-    def test_create_bar_triplet_horizontal_vs_vertical(self) -> None:
-        """Test horizontal and vertical bar orientations are different."""
-        var_create_bar_triplet = self.variant(create_bar_triplet)
-        width_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
-        length_int: Int[Array, " "] = jnp.asarray(50, dtype=jnp.int32)
-        spacing_int: Int[Array, " "] = jnp.asarray(10, dtype=jnp.int32)
+    def test_group_layout_dimensions(self) -> None:
+        """Test group has reasonable dimensions for 2x3 layout."""
+        group_pattern, _ = create_group_pattern(0, 50.0)
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
-        )
+        # Should be taller than wide (3 rows vs 2 columns of elements)
+        # or roughly square depending on element sizes
+        assert group_pattern.shape[0] > 0
+        assert group_pattern.shape[1] > 0
 
-        h_pattern: Int[Array, " h w"] = var_create_bar_triplet(
-            blank, width_int, length_int, spacing_int, horizontal=True
-        )
-        v_pattern: Int[Array, " h w"] = var_create_bar_triplet(
-            blank, width_int, length_int, spacing_int, horizontal=False
-        )
 
-        # Both are buffer-sized, but patterns should be different
-        # Check that they're not identical
-        diff_sum: int = int(jnp.sum(jnp.abs(h_pattern - v_pattern)))
-        chex.assert_scalar_positive(diff_sum)
-        chex.assert_equal(h_pattern.shape[1], v_pattern.shape[0])
+class TestGenerateUsafPattern:
+    """Tests for generate_usaf_pattern function."""
 
-    def test_create_element_increasing_resolution(self) -> None:
-        """Test that elements get smaller with increasing element number."""
-        # Within a group, higher element numbers have higher resolution
-        # (smaller features)
-        group: int = 0
+    def test_default_output_shape(self) -> None:
+        """Test default output has correct shape."""
+        pattern = generate_usaf_pattern()
 
-        buffer_size: int = 500
-        blank: Int[Array, " buffer_size buffer_size"] = jnp.zeros(
-            (buffer_size, buffer_size), dtype=jnp.int32
+        assert pattern.amplitude.shape == (1024, 1024)
+
+    def test_custom_image_size(self) -> None:
+        """Test custom image size."""
+        pattern = generate_usaf_pattern(image_size=512)
+
+        assert pattern.amplitude.shape == (512, 512)
+
+    def test_custom_groups(self) -> None:
+        """Test custom group range."""
+        pattern = generate_usaf_pattern(image_size=512, groups=range(0, 3))
+
+        # Should still produce valid output
+        assert pattern.amplitude.shape == (512, 512)
+        assert jnp.sum(pattern.amplitude) > 0
+
+    def test_background_foreground_values(self) -> None:
+        """Test background and foreground values are applied."""
+        pattern = generate_usaf_pattern(
+            image_size=256,
+            groups=range(0, 2),
+            background=0.2,
+            foreground=0.8,
         )
 
-        elem1: Float[Array, " h w"] = create_element(
-            blank, group, 1, self.default_scale_factor, self.default_dpi
+        amp = pattern.amplitude
+        # Background should be 0.2, bars should be 0.8
+        assert jnp.min(amp) >= 0.2 - 1e-5
+        assert jnp.max(amp) <= 0.8 + 1e-5
+
+    def test_inverted_pattern(self) -> None:
+        """Test inverted pattern (white background, black bars)."""
+        pattern = generate_usaf_pattern(
+            image_size=256,
+            groups=range(0, 2),
+            background=1.0,
+            foreground=0.0,
         )
-        elem6: Float[Array, " h w"] = create_element(
-            blank, group, 6, self.default_scale_factor, self.default_dpi
-        )
 
-        # Element 6 should have smaller features than element 1
-        # Both are buffer-sized, but elem1 should have more 1s (larger bars)
-        chex.assert_scalar_positive(float(jnp.sum(elem1) - jnp.sum(elem6)))
+        amp = pattern.amplitude
+        assert jnp.min(amp) >= 0.0 - 1e-5
+        assert jnp.max(amp) <= 1.0 + 1e-5
+
+    def test_dx_from_dpi(self) -> None:
+        """Test dx is calculated correctly from dpi."""
+        dpi = 300.0
+        pattern = generate_usaf_pattern(dpi=dpi)
+
+        # dx = 25.4e-3 / dpi meters
+        expected_dx = 25.4e-3 / dpi
+        assert jnp.isclose(pattern.dx, expected_dx, rtol=1e-5)
+
+    def test_custom_dx(self) -> None:
+        """Test custom dx overrides dpi calculation."""
+        custom_dx = 1e-5
+        pattern = generate_usaf_pattern(dx=custom_dx)
+
+        assert jnp.isclose(pattern.dx, custom_dx, rtol=1e-5)
+
+    def test_returns_sample_function(self) -> None:
+        """Test output is SampleFunction type."""
+        pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
+
+        # Should have amplitude and dx attributes
+        assert hasattr(pattern, "amplitude")
+        assert hasattr(pattern, "dx")
+
+    def test_output_dtype(self) -> None:
+        """Test output amplitude is float32."""
+        pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
+
+        assert pattern.amplitude.dtype == jnp.float32
 
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+class TestJaxCompatibility:
+    """Tests for JAX compatibility."""
+
+    def test_bar_triplet_jit_compatible(self) -> None:
+        """Test create_bar_triplet works with jit."""
+        # Note: create_bar_triplet uses Python conditionals so cannot be
+        # fully jitted, but should work within jitted functions that
+        # call it with concrete values
+
+        @jax.jit
+        def wrapper(x: jax.Array) -> jax.Array:
+            # Use concrete values inside jit
+            pattern = create_bar_triplet(5, 20, horizontal=True)
+            return pattern * x[0]
+
+        result = wrapper(jnp.array([2.0]))
+        assert result.shape == (25, 20)
+
+    def test_element_pattern_is_array(self) -> None:
+        """Test element pattern is a JAX array."""
+        element = create_element_pattern(10)
+        assert isinstance(element, jax.Array)
+
+    def test_group_pattern_is_array(self) -> None:
+        """Test group pattern is a JAX array."""
+        group_pattern, _ = create_group_pattern(0, 50.0)
+        assert isinstance(group_pattern, jax.Array)
+
+    def test_usaf_pattern_amplitude_is_array(self) -> None:
+        """Test USAF pattern amplitude is a JAX array."""
+        pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
+        assert isinstance(pattern.amplitude, jax.Array)

@@ -27,14 +27,18 @@ converging_gaussian : function
     Creates a Gaussian beam converging to a focus
 create_bar_triplet : function
     Creates 3 parallel bars (horizontal or vertical)
-create_element : function
-    Creates a single element (horizontal + vertical bars)
+create_element_pattern : function
+    Creates a single element pattern (horizontal + vertical bars)
+create_group_pattern : function
+    Creates a group pattern with multiple elements
 diverging_gaussian : function
     Creates a Gaussian beam diverging from a virtual source
 gaussian_beam : function
     Creates a Gaussian beam from complex beam parameter q
 generate_usaf_pattern : function
     Generates USAF 1951 resolution test pattern
+get_bar_width_pixels : function
+    Calculate bar width in pixels for a given group and element
 gradient_index_material : function
     Creates a gradient-index (GRIN) material with radial profile
 hermite_gaussian : function
@@ -88,6 +92,13 @@ from .beams import (
     propagate_beam,
     sinusoidal_wave,
 )
+from .material_models import (
+    biological_cell,
+    gradient_index_material,
+    layered_material,
+    spherical_inclusion,
+    uniform_material,
+)
 from .polar_beams import (
     azimuthally_polarized_beam,
     circular_polarized_beam,
@@ -97,17 +108,12 @@ from .polar_beams import (
     x_polarized_beam,
     y_polarized_beam,
 )
-from .material_models import (
-    biological_cell,
-    gradient_index_material,
-    layered_material,
-    spherical_inclusion,
-    uniform_material,
-)
 from .usaf_pattern import (
     create_bar_triplet,
-    create_element,
+    create_element_pattern,
+    create_group_pattern,
     generate_usaf_pattern,
+    get_bar_width_pixels,
 )
 
 __all__: list[str] = [
@@ -118,11 +124,13 @@ __all__: list[str] = [
     "collimated_gaussian",
     "converging_gaussian",
     "create_bar_triplet",
-    "create_element",
+    "create_element_pattern",
+    "create_group_pattern",
     "diverging_gaussian",
     "gaussian_beam",
     "generalized_cylindrical_vector_beam",
     "generate_usaf_pattern",
+    "get_bar_width_pixels",
     "gradient_index_material",
     "hermite_gaussian",
     "layered_material",
