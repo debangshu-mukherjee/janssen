@@ -31,6 +31,7 @@ Each successive group increases resolution by a factor of 2.
 
 import math
 
+import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional, Tuple
@@ -82,49 +83,45 @@ def create_bar_triplet(
     - Bar 2: rows [2*width, 3*width)
     - Space: rows [3*width, 4*width)
     - Bar 3: rows [4*width, 5*width)
+
+    Both horizontal and vertical patterns are computed, then selected
+    based on the horizontal flag. This is JAX-safe since the flag is
+    a static Python bool that doesn't change during tracing.
     """
     width_val: int = max(1, width)
     length_val: int = max(1, length)
-
-    # Total extent: 3 bars + 2 spaces = 5 × width
     total_bar_extent: int = 5 * width_val
-
-    if horizontal:
-        # Horizontal bars: height = 5*width, width = length
-        h: int = total_bar_extent
-        w: int = length_val
-        y_coords: Float[Array, " h 1"] = jnp.arange(h, dtype=jnp.float32)[
-            :, None
-        ]
-
-        # Bars at: [0, width), [2*width, 3*width), [4*width, 5*width)
-        bar1: Float[Array, " h 1"] = (y_coords < width_val).astype(jnp.float32)
-        bar2: Float[Array, " h 1"] = (
-            (y_coords >= 2 * width_val) & (y_coords < 3 * width_val)
-        ).astype(jnp.float32)
-        bar3: Float[Array, " h 1"] = (y_coords >= 4 * width_val).astype(
-            jnp.float32
-        )
-
-        pattern: Float[Array, " h w"] = jnp.broadcast_to(
-            bar1 + bar2 + bar3, (h, w)
-        )
-    else:
-        # Vertical bars: height = length, width = 5*width
-        h = length_val
-        w = total_bar_extent
-        x_coords: Float[Array, " 1 w"] = jnp.arange(w, dtype=jnp.float32)[
-            None, :
-        ]
-
-        bar1 = (x_coords < width_val).astype(jnp.float32)
-        bar2 = (
-            (x_coords >= 2 * width_val) & (x_coords < 3 * width_val)
-        ).astype(jnp.float32)
-        bar3 = (x_coords >= 4 * width_val).astype(jnp.float32)
-
-        pattern = jnp.broadcast_to(bar1 + bar2 + bar3, (h, w))
-
+    h_h: int = total_bar_extent
+    h_w: int = length_val
+    y_coords: Float[Array, " h 1"] = jnp.arange(h_h, dtype=jnp.float32)[
+        :, None
+    ]
+    bar1_h: Float[Array, " h 1"] = (y_coords < width_val).astype(jnp.float32)
+    bar2_h: Float[Array, " h 1"] = (
+        (y_coords >= 2 * width_val) & (y_coords < 3 * width_val)
+    ).astype(jnp.float32)
+    bar3_h: Float[Array, " h 1"] = (y_coords >= 4 * width_val).astype(
+        jnp.float32
+    )
+    pattern_h: Float[Array, " h w"] = jnp.broadcast_to(
+        bar1_h + bar2_h + bar3_h, (h_h, h_w)
+    )
+    v_h: int = length_val
+    v_w: int = total_bar_extent
+    x_coords: Float[Array, " 1 w"] = jnp.arange(v_w, dtype=jnp.float32)[
+        None, :
+    ]
+    bar1_v: Float[Array, " 1 w"] = (x_coords < width_val).astype(jnp.float32)
+    bar2_v: Float[Array, " 1 w"] = (
+        (x_coords >= 2 * width_val) & (x_coords < 3 * width_val)
+    ).astype(jnp.float32)
+    bar3_v: Float[Array, " 1 w"] = (x_coords >= 4 * width_val).astype(
+        jnp.float32
+    )
+    pattern_v: Float[Array, " h w"] = jnp.broadcast_to(
+        bar1_v + bar2_v + bar3_v, (v_h, v_w)
+    )
+    pattern: Float[Array, "..."] = pattern_h if horizontal else pattern_v
     return pattern
 
 
@@ -156,46 +153,36 @@ def create_element_pattern(
 
     The element is composed as:
     [horizontal triplet] [gap] [vertical triplet]
+
+    Triplets are centered vertically within the element canvas.
     """
     bar_width: int = max(1, bar_width_px)
-    bar_length: int = 5 * bar_width  # Standard 5:1 aspect ratio
-
-    # Create triplets
+    bar_length: int = 5 * bar_width
     h_triplet: Float[Array, " hh hw"] = create_bar_triplet(
         bar_width, bar_length, horizontal=True
     )
     v_triplet: Float[Array, " vh vw"] = create_bar_triplet(
         bar_width, bar_length, horizontal=False
     )
-
     gap: int = max(1, int(bar_width * gap_factor))
-
     h_height: int = h_triplet.shape[0]
     h_width: int = h_triplet.shape[1]
     v_height: int = v_triplet.shape[0]
     v_width: int = v_triplet.shape[1]
-
     element_height: int = max(h_height, v_height)
     element_width: int = h_width + gap + v_width
-
-    # Create element canvas
     element: Float[Array, " eh ew"] = jnp.zeros(
         (element_height, element_width), dtype=jnp.float32
     )
-
-    # Center and place horizontal triplet
     h_y_offset: int = (element_height - h_height) // 2
-    element = element.at[h_y_offset : h_y_offset + h_height, :h_width].set(
-        h_triplet
-    )
-
-    # Center and place vertical triplet
+    element = element.at[
+        h_y_offset : h_y_offset + h_height, :h_width
+    ].set(h_triplet)
     v_y_offset: int = (element_height - v_height) // 2
     v_x_offset: int = h_width + gap
     element = element.at[
         v_y_offset : v_y_offset + v_height, v_x_offset : v_x_offset + v_width
     ].set(v_triplet)
-
     return element
 
 
@@ -264,64 +251,56 @@ def create_group_pattern(
 
     Elements within a group progressively decrease in size
     following the 2^((element-1)/6) scaling.
+
+    The loop over 6 elements is unrolled at trace time since
+    the element count is fixed.
     """
     elements: list[Float[Array, "..."]] = []
-
+    element_heights: list[int] = []
+    element_widths: list[int] = []
     for elem in range(1, 7):
         bar_width: int = get_bar_width_pixels(group, elem, pixels_per_mm)
         element: Float[Array, "..."] = create_element_pattern(bar_width)
         elements.append(element)
-
-    # Find dimensions for layout
-    max_elem_width: int = max(int(e.shape[1]) for e in elements)
-
-    # Spacing between elements within group
+        element_heights.append(int(element.shape[0]))
+        element_widths.append(int(element.shape[1]))
+    max_elem_width: int = max(element_widths)
     elem_spacing: int = max(2, int(max_elem_width * 0.2))
-
-    # Layout: 2 columns × 3 rows
-    col1_elements: list[Float[Array, "..."]] = elements[0:3]
-    col2_elements: list[Float[Array, "..."]] = elements[3:6]
-
-    col1_height: int = (
-        sum(int(e.shape[0]) for e in col1_elements) + elem_spacing * 2
-    )
-    col2_height: int = (
-        sum(int(e.shape[0]) for e in col2_elements) + elem_spacing * 2
-    )
+    col1_heights: list[int] = element_heights[0:3]
+    col2_heights: list[int] = element_heights[3:6]
+    col1_widths: list[int] = element_widths[0:3]
+    col2_widths: list[int] = element_widths[3:6]
+    col1_height: int = sum(col1_heights) + elem_spacing * 2
+    col2_height: int = sum(col2_heights) + elem_spacing * 2
     total_height: int = max(col1_height, col2_height)
-
-    col1_width: int = max(int(e.shape[1]) for e in col1_elements)
-    col2_width: int = max(int(e.shape[1]) for e in col2_elements)
+    col1_width: int = max(col1_widths)
+    col2_width: int = max(col2_widths)
     col_gap: int = max(2, int(col1_width * 0.4))
     total_width: int = col1_width + col_gap + col2_width
-
     group_pattern: Float[Array, " h w"] = jnp.zeros(
         (total_height, total_width), dtype=jnp.float32
     )
-
-    # Place column 1 (elements 1, 2, 3)
     y_pos: int = 0
-    for elem in col1_elements:
-        eh: int = elem.shape[0]
-        ew: int = elem.shape[1]
+    for i in range(3):
+        elem = elements[i]
+        eh: int = element_heights[i]
+        ew: int = element_widths[i]
         x_offset: int = (col1_width - ew) // 2
         group_pattern = group_pattern.at[
             y_pos : y_pos + eh, x_offset : x_offset + ew
         ].set(elem)
         y_pos += eh + elem_spacing
-
-    # Place column 2 (elements 4, 5, 6)
     y_pos = 0
     x_base: int = col1_width + col_gap
-    for elem in col2_elements:
-        eh = elem.shape[0]
-        ew = elem.shape[1]
+    for i in range(3, 6):
+        elem = elements[i]
+        eh = element_heights[i]
+        ew = element_widths[i]
         x_offset = x_base + (col2_width - ew) // 2
         group_pattern = group_pattern.at[
             y_pos : y_pos + eh, x_offset : x_offset + ew
         ].set(elem)
         y_pos += eh + elem_spacing
-
     max_dimension: int = max(total_height, total_width)
     return group_pattern, max_dimension
 
@@ -330,10 +309,10 @@ def create_group_pattern(
 def generate_usaf_pattern(
     image_size: int = 1024,
     groups: Optional[range] = None,
-    dpi: ScalarFloat = 300.0,
-    dx: Optional[ScalarFloat] = None,
+    pixel_size: ScalarFloat = 1.0e-6,
     background: float = 0.0,
     foreground: float = 1.0,
+    max_phase: float = 0.0,
 ) -> SampleFunction:
     """Generate USAF 1951 resolution test pattern.
 
@@ -343,19 +322,22 @@ def generate_usaf_pattern(
         Size of the output image (square), by default 1024
     groups : range, optional
         Range of groups to include, by default range(-2, 8)
-    dpi : ScalarFloat, optional
-        Dots per inch for scaling, by default 300.0
-    dx : ScalarFloat, optional
-        Spatial sampling interval in meters. If None, calculated from dpi.
+    pixel_size : ScalarFloat, optional
+        Physical size of each pixel in meters, by default 1.0e-6 (1 µm)
     background : float, optional
         Background value, by default 0.0 (black)
     foreground : float, optional
         Foreground (bar) value, by default 1.0 (white)
+    max_phase : float, optional
+        Maximum phase shift in radians applied to the bars, by default 0.0.
+        The phase pattern follows the same structure as the amplitude,
+        scaling from 0 (at background) to max_phase (at foreground).
 
     Returns
     -------
     pattern : SampleFunction
-        SampleFunction PyTree containing the USAF test pattern
+        SampleFunction PyTree containing the USAF test pattern as a
+        complex array with both amplitude and phase information.
 
     Notes
     -----
@@ -372,84 +354,86 @@ def generate_usaf_pattern(
     - 3 vertical bars (bar triplet)
     with bar length = 5 × bar width.
 
+    The output is a complex field: amplitude * exp(i * phase), where
+    the phase follows the same spatial pattern as the amplitude.
+
+    The loop over groups is unrolled at Python trace time since
+    groups_list is known before tracing. Python-level conditionals
+    for bounds checking and scaling are also evaluated at trace time.
+    The final phase normalization uses jax.lax.cond for JAX safety.
+
     Examples
     --------
     >>> from janssen.models import generate_usaf_pattern
-    >>> pattern = generate_usaf_pattern(image_size=1024, dpi=300)
+    >>> pattern = generate_usaf_pattern(image_size=1024, pixel_size=1e-6)
     >>> pattern.amplitude.shape
     (1024, 1024)
+
+    >>> # Camera with 6.5 µm pixels
+    >>> pattern = generate_usaf_pattern(pixel_size=6.5e-6)
 
     >>> # White background with black bars (typical)
     >>> pattern = generate_usaf_pattern(background=1.0, foreground=0.0)
 
+    >>> # Phase object with π phase shift on bars
+    >>> pattern = generate_usaf_pattern(max_phase=jnp.pi)
+
     >>> # Specific group range
     >>> pattern = generate_usaf_pattern(groups=range(0, 5))
     """
-    if groups is None:
-        groups = range(-2, 8)
-    groups_list: list[int] = list(groups)
-
-    # Calculate spatial sampling
-    mm_per_inch: float = 25.4
-    if dx is None:
-        dx_calculated: ScalarFloat = (mm_per_inch * 1e-3) / float(dpi)
-    else:
-        dx_calculated = dx
-
-    pixels_per_mm: float = float(dpi) / mm_per_inch
-
-    # Create canvas
+    groups_list: list[int] = (
+        list(groups) if groups is not None else list(range(-2, 8))
+    )
+    dx_calculated: ScalarFloat = float(pixel_size)
+    pixels_per_mm: float = 1.0e-3 / float(pixel_size)
     canvas: Float[Array, " h w"] = jnp.full(
         (image_size, image_size), background, dtype=jnp.float32
     )
-
     num_groups: int = len(groups_list)
     grid_cols: int = int(math.ceil(math.sqrt(num_groups)))
     grid_rows: int = int(math.ceil(num_groups / grid_cols))
-
     margin: int = image_size // 20
     usable_size: int = image_size - 2 * margin
     cell_width: int = usable_size // grid_cols
     cell_height: int = usable_size // grid_rows
-
     for idx, group in enumerate(groups_list):
         row: int = idx // grid_cols
         col: int = idx % grid_cols
-
         group_pattern, _ = create_group_pattern(group, pixels_per_mm)
-        gh: int = group_pattern.shape[0]
-        gw: int = group_pattern.shape[1]
-
-        # Scale group if it doesn't fit in cell
+        gh: int = int(group_pattern.shape[0])
+        gw: int = int(group_pattern.shape[1])
         max_scale: float = min(cell_width / gw, cell_height / gh) * 0.85
         if max_scale < 1.0:
             scaled_ppm: float = pixels_per_mm * max_scale
             group_pattern, _ = create_group_pattern(group, scaled_ppm)
-            gh = group_pattern.shape[0]
-            gw = group_pattern.shape[1]
-
-        # Calculate position (centered in cell)
+            gh = int(group_pattern.shape[0])
+            gw = int(group_pattern.shape[1])
         cell_x: int = margin + col * cell_width
         cell_y: int = margin + row * cell_height
         x_pos: int = cell_x + (cell_width - gw) // 2
         y_pos: int = cell_y + (cell_height - gh) // 2
-
-        # Bounds check
-        if y_pos + gh > image_size:
-            gh = image_size - y_pos
-        if x_pos + gw > image_size:
-            gw = image_size - x_pos
-
-        if gh > 0 and gw > 0 and y_pos >= 0 and x_pos >= 0:
-            # Scale pattern values from [0, 1] to [background, foreground]
+        gh_clipped: int = min(gh, image_size - y_pos) if y_pos >= 0 else 0
+        gw_clipped: int = min(gw, image_size - x_pos) if x_pos >= 0 else 0
+        if gh_clipped > 0 and gw_clipped > 0 and y_pos >= 0 and x_pos >= 0:
+            clipped_group = group_pattern[:gh_clipped, :gw_clipped]
             scaled_pattern: Float[Array, " gh gw"] = (
-                background + group_pattern[:gh, :gw] * (foreground - background)
+                background + clipped_group * (foreground - background)
             )
-            canvas = canvas.at[y_pos : y_pos + gh, x_pos : x_pos + gw].set(
-                scaled_pattern
-            )
-
-    # Create SampleFunction PyTree
-    pattern: SampleFunction = make_sample_function(canvas, dx_calculated)
-
+            canvas = canvas.at[
+                y_pos : y_pos + gh_clipped, x_pos : x_pos + gw_clipped
+            ].set(scaled_pattern)
+    scale_denom: float = foreground - background
+    normalized_pattern: Float[Array, " h w"] = jax.lax.cond(
+        scale_denom != 0.0,
+        lambda c: (c - background) / scale_denom,
+        lambda c: jnp.zeros_like(c),
+        canvas,
+    )
+    phase_pattern: Float[Array, " h w"] = normalized_pattern * max_phase
+    complex_field = canvas.astype(jnp.complex64) * jnp.exp(
+        1j * phase_pattern.astype(jnp.complex64)
+    )
+    pattern: SampleFunction = make_sample_function(
+        complex_field, dx_calculated
+    )
     return pattern

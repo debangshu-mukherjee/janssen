@@ -246,21 +246,70 @@ class TestGenerateUsafPattern:
         assert jnp.min(amp) >= 0.0 - 1e-5
         assert jnp.max(amp) <= 1.0 + 1e-5
 
-    def test_dx_from_dpi(self) -> None:
-        """Test dx is calculated correctly from dpi."""
-        dpi = 300.0
-        pattern = generate_usaf_pattern(dpi=dpi)
+    def test_dx_equals_pixel_size(self) -> None:
+        """Test dx equals the provided pixel_size."""
+        pixel_size = 2.5e-6
+        pattern = generate_usaf_pattern(pixel_size=pixel_size)
 
-        # dx = 25.4e-3 / dpi meters
-        expected_dx = 25.4e-3 / dpi
-        assert jnp.isclose(pattern.dx, expected_dx, rtol=1e-5)
+        assert jnp.isclose(pattern.dx, pixel_size, rtol=1e-5)
 
-    def test_custom_dx(self) -> None:
-        """Test custom dx overrides dpi calculation."""
-        custom_dx = 1e-5
-        pattern = generate_usaf_pattern(dx=custom_dx)
+    def test_default_pixel_size(self) -> None:
+        """Test default pixel size is 1 µm."""
+        pattern = generate_usaf_pattern()
 
-        assert jnp.isclose(pattern.dx, custom_dx, rtol=1e-5)
+        assert jnp.isclose(pattern.dx, 1.0e-6, rtol=1e-5)
+
+    def test_output_is_complex(self) -> None:
+        """Test output amplitude is complex."""
+        pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
+
+        assert jnp.iscomplexobj(pattern.amplitude)
+
+    def test_zero_phase_gives_real_values(self) -> None:
+        """Test that max_phase=0 gives purely real output."""
+        pattern = generate_usaf_pattern(
+            image_size=128, groups=range(0, 2), max_phase=0.0
+        )
+
+        # Imaginary part should be zero (or very close)
+        assert jnp.allclose(jnp.imag(pattern.amplitude), 0.0, atol=1e-6)
+
+    def test_nonzero_phase_adds_imaginary_component(self) -> None:
+        """Test that max_phase > 0 adds imaginary component."""
+        pattern = generate_usaf_pattern(
+            image_size=256,
+            groups=range(0, 2),
+            max_phase=jnp.pi / 2,
+            background=0.0,
+            foreground=1.0,
+        )
+
+        # Where there are bars (foreground), there should be phase
+        # Imaginary part should be non-zero somewhere
+        assert jnp.max(jnp.abs(jnp.imag(pattern.amplitude))) > 0.1
+
+    def test_phase_follows_amplitude_pattern(self) -> None:
+        """Test that phase pattern matches amplitude pattern."""
+        pattern = generate_usaf_pattern(
+            image_size=256,
+            groups=range(0, 2),
+            max_phase=jnp.pi,
+            background=0.0,
+            foreground=1.0,
+        )
+
+        amp = jnp.abs(pattern.amplitude)
+        phase = jnp.angle(pattern.amplitude)
+
+        # Where amplitude is zero (background), phase is undefined but
+        # the complex value is 0, so we skip those points
+
+        # Where amplitude is high (foreground), phase should be ~pi or ~-pi
+        # (they are equivalent due to angle wrapping)
+        foreground_mask = amp > 0.9
+        if jnp.any(foreground_mask):
+            # |phase| should be close to pi
+            assert jnp.mean(jnp.abs(jnp.abs(phase[foreground_mask]) - jnp.pi)) < 0.2
 
     def test_returns_sample_function(self) -> None:
         """Test output is SampleFunction type."""
@@ -271,10 +320,10 @@ class TestGenerateUsafPattern:
         assert hasattr(pattern, "dx")
 
     def test_output_dtype(self) -> None:
-        """Test output amplitude is float32."""
+        """Test output amplitude is complex64."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
 
-        assert pattern.amplitude.dtype == jnp.float32
+        assert pattern.amplitude.dtype == jnp.complex64
 
 
 class TestJaxCompatibility:
