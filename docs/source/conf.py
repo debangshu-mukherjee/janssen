@@ -91,7 +91,7 @@ napoleon_custom_sections = [
     ("Algorithm", "notes_style"),
 ]
 
-nbsphinx_execute = "never"
+nbsphinx_execute = "auto"
 nbsphinx_allow_errors = True
 
 autodoc_mock_imports = [
