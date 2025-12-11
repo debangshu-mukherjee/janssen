@@ -8,8 +8,6 @@ and positioned groups and elements.
 
 Routine Listings
 ----------------
-calculate_usaf_group_range : function
-    Calculates the viable USAF group range for given parameters
 create_bar_triplet : function
     Creates 3 parallel bars (horizontal or vertical)
 create_element_pattern : function
@@ -176,9 +174,9 @@ def create_element_pattern(
         (element_height, element_width), dtype=jnp.float32
     )
     h_y_offset: int = (element_height - h_height) // 2
-    element = element.at[h_y_offset : h_y_offset + h_height, :h_width].set(
-        h_triplet
-    )
+    element = element.at[
+        h_y_offset : h_y_offset + h_height, :h_width
+    ].set(h_triplet)
     v_y_offset: int = (element_height - v_height) // 2
     v_x_offset: int = h_width + gap
     element = element.at[
@@ -307,6 +305,152 @@ def create_group_pattern(
 
 
 @jaxtyped(typechecker=beartype)
+def calculate_usaf_group_range(
+    image_size: int,
+    pixel_size: float,
+    min_bar_pixels: int = 2,
+    grid_fill_fraction: float = 0.95,
+) -> dict:
+    """Calculate the viable USAF group range for given parameters.
+
+    Parameters
+    ----------
+    image_size : int
+        Image size in pixels (square)
+    pixel_size : float
+        Pixel size in meters
+    min_bar_pixels : int, optional
+        Minimum bar width in pixels for visibility, by default 2
+    grid_fill_fraction : float, optional
+        Scale factor for fitting largest group, by default 0.95
+
+    Returns
+    -------
+    result : dict
+        Dictionary containing:
+        - max_group: finest group where bars are still >= min_bar_pixels
+        - min_group: coarsest group that fits in image
+        - recommended_range: suggested range() for generate_usaf_pattern
+        - num_groups: how many groups in recommended range
+        - pixels_per_mm: calculated pixel density
+        - group_info: dict with bar width info for each group
+
+    Notes
+    -----
+    This function maximizes the number of groups that can fit in the image
+    using variable-density row packing (smaller groups pack more per row).
+
+    Examples
+    --------
+    >>> result = calculate_usaf_group_range(
+    ...     image_size=8192,
+    ...     pixel_size=0.5e-6,
+    ... )
+    >>> print(f"Use: groups=range({result['min_group']}, {result['max_group'] + 1})")
+    """
+    pixels_per_mm: float = 1e-3 / pixel_size
+
+    # Max group: bars must be at least min_bar_pixels wide
+    # For element 6 (finest in group): bar_width = pixels_per_mm / (2 * 2^(g + 5/6))
+    max_group: int = int(math.floor(
+        math.log2(pixels_per_mm / (2 * min_bar_pixels)) - 5 / 6
+    ))
+
+    def get_group_size(g: int, ppm: float) -> Tuple[int, int]:
+        """Estimate group pattern size in pixels.
+        
+        Returns (height, width) of the group pattern.
+        """
+        bar_width: float = ppm / (2 * (2 ** g))
+        bar_width = max(1, bar_width)
+        elem_height: float = 5 * bar_width
+        elem_width: float = 10.5 * bar_width
+        elem_spacing: float = 0.2 * elem_width
+        col_height: float = 3 * elem_height + 2 * elem_spacing
+        col_gap: float = 0.4 * elem_width
+        total_width: float = 2 * elem_width + col_gap
+        return max(1, int(col_height)), max(1, int(total_width))
+
+    def simulate_packing(groups: list[int], ppm: float, img_size: int) -> int:
+        """Simulate row-packing and return how many groups fit."""
+        margin: int = img_size // 40
+        usable: int = img_size - 2 * margin
+        spacing_h: int = max(5, img_size // 200)
+        spacing_v: int = max(20, img_size // 80)
+        
+        # Check if largest group fits
+        largest_g: int = min(groups)
+        largest_h, largest_w = get_group_size(largest_g, ppm)
+        
+        effective_ppm: float = ppm
+        if largest_h > usable or largest_w > usable:
+            scale: float = min(usable / largest_h, usable / largest_w) * grid_fill_fraction
+            effective_ppm = ppm * scale
+        
+        # Simulate packing
+        current_x: int = margin
+        current_y: int = margin
+        row_max_h: int = 0
+        count: int = 0
+        
+        for g in groups:
+            gh, gw = get_group_size(g, effective_ppm)
+            
+            if current_x + gw > img_size - margin:
+                current_x = margin
+                current_y += row_max_h + spacing_v
+                row_max_h = 0
+            
+            if current_y + gh > img_size - margin:
+                break
+            
+            current_x += gw + spacing_h
+            row_max_h = max(row_max_h, gh)
+            count += 1
+        
+        return count
+
+    # Find min_group that maximizes the number of groups that fit
+    best_min_group: int = max_group
+    best_count: int = 1
+    
+    for candidate_min in range(-10, max_group + 1):
+        groups_to_try: list[int] = list(range(candidate_min, max_group + 1))
+        count: int = simulate_packing(groups_to_try, pixels_per_mm, image_size)
+        
+        if count >= len(groups_to_try):
+            # All groups fit
+            if len(groups_to_try) > best_count:
+                best_count = len(groups_to_try)
+                best_min_group = candidate_min
+    
+    min_group: int = best_min_group
+
+    # Build group info
+    group_info: dict = {}
+    for g in range(min_group, max_group + 1):
+        bar_width_e1: float = pixels_per_mm / (2 * (2 ** g))
+        bar_width_e6: float = pixels_per_mm / (2 * (2 ** (g + 5 / 6)))
+        gh, gw = get_group_size(g, pixels_per_mm)
+        group_info[g] = {
+            "bar_width_element1": round(bar_width_e1, 1),
+            "bar_width_element6": round(bar_width_e6, 1),
+            "group_size_approx": f"{gh}x{gw}",
+        }
+
+    recommended_range: range = range(min_group, max_group + 1)
+
+    return {
+        "max_group": max_group,
+        "min_group": min_group,
+        "recommended_range": recommended_range,
+        "num_groups": len(recommended_range),
+        "pixels_per_mm": pixels_per_mm,
+        "group_info": group_info,
+    }
+
+
+@jaxtyped(typechecker=beartype)
 def generate_usaf_pattern(
     image_size: int = 1024,
     groups: Optional[range] = None,
@@ -314,6 +458,8 @@ def generate_usaf_pattern(
     background: float = 0.0,
     foreground: float = 1.0,
     max_phase: float = 0.0,
+    auto: bool = False,
+    min_bar_pixels: int = 2,
 ) -> SampleFunction:
     """Generate USAF 1951 resolution test pattern.
 
@@ -322,7 +468,8 @@ def generate_usaf_pattern(
     image_size : int, optional
         Size of the output image (square), by default 1024
     groups : range, optional
-        Range of groups to include, by default range(-2, 8)
+        Range of groups to include, by default range(-2, 8).
+        Ignored if auto=True.
     pixel_size : ScalarFloat, optional
         Physical size of each pixel in meters, by default 1.0e-6 (1 µm)
     background : float, optional
@@ -333,6 +480,13 @@ def generate_usaf_pattern(
         Maximum phase shift in radians applied to the bars, by default 0.0.
         The phase pattern follows the same structure as the amplitude,
         scaling from 0 (at background) to max_phase (at foreground).
+    auto : bool, optional
+        If True, automatically calculate the optimal group range to
+        fill the image based on image_size and pixel_size. Overrides
+        the groups parameter. By default False.
+    min_bar_pixels : int, optional
+        Minimum bar width in pixels for visibility when auto=True,
+        by default 2. Ignored if auto=False.
 
     Returns
     -------
@@ -362,7 +516,7 @@ def generate_usaf_pattern(
     groups_list is known before tracing. Python-level conditionals
     for bounds checking, scaling, and phase normalization are evaluated
     at trace time since all controlling values are Python scalars.
-
+    
     A global scale factor is computed from the largest (coarsest) group
     to ensure all groups fit within their grid cells while preserving
     the correct relative size ratios between groups.
@@ -371,8 +525,11 @@ def generate_usaf_pattern(
     --------
     >>> from janssen.models import generate_usaf_pattern
     >>> pattern = generate_usaf_pattern(image_size=1024, pixel_size=1e-6)
-    >>> pattern.amplitude.shape
+    >>> pattern.sample.shape
     (1024, 1024)
+
+    >>> # Auto mode: fill the image optimally
+    >>> pattern = generate_usaf_pattern(image_size=8192, pixel_size=0.5e-6, auto=True)
 
     >>> # Camera with 6.5 µm pixels
     >>> pattern = generate_usaf_pattern(pixel_size=6.5e-6)
@@ -386,53 +543,128 @@ def generate_usaf_pattern(
     >>> # Specific group range
     >>> pattern = generate_usaf_pattern(groups=range(0, 5))
     """
-    groups_list: list[int] = (
-        list(groups) if groups is not None else list(range(-2, 8))
-    )
+    # Handle auto mode
+    if auto:
+        range_info = calculate_usaf_group_range(
+            image_size=image_size,
+            pixel_size=float(pixel_size),
+            min_bar_pixels=min_bar_pixels,
+        )
+        groups_list: list[int] = list(range_info["recommended_range"])
+    else:
+        groups_list = (
+            list(groups) if groups is not None else list(range(-2, 8))
+        )
     dx_calculated: ScalarFloat = float(pixel_size)
     pixels_per_mm: float = 1.0e-3 / float(pixel_size)
     canvas: Float[Array, " h w"] = jnp.full(
         (image_size, image_size), background, dtype=jnp.float32
     )
-    num_groups: int = len(groups_list)
-    grid_cols: int = int(math.ceil(math.sqrt(num_groups)))
-    grid_rows: int = int(math.ceil(num_groups / grid_cols))
-    margin: int = image_size // 20
+    
+    margin: int = image_size // 40  # Smaller margin for more space
     usable_size: int = image_size - 2 * margin
-    cell_width: int = usable_size // grid_cols
-    cell_height: int = usable_size // grid_rows
-
-    # Calculate global scale based on largest (coarsest) group
-    # This ensures relative sizes between groups are preserved
+    spacing_h: int = max(5, image_size // 200)  # Horizontal spacing (tight)
+    
+    # Helper to estimate group size without generating full pattern
+    def estimate_group_size(group: int, ppm: float) -> Tuple[int, int]:
+        """Estimate group size without generating full pattern."""
+        bar_width: int = get_bar_width_pixels(group, 1, ppm)
+        bar_length: int = 5 * bar_width
+        elem_height: int = 5 * bar_width
+        elem_width: int = bar_length + max(1, int(bar_width * 0.5)) + 5 * bar_width
+        elem_spacing: int = max(2, int(elem_width * 0.2))
+        col_height: int = 3 * elem_height + 2 * elem_spacing
+        col_gap: int = max(2, int(elem_width * 0.4))
+        total_width: int = 2 * elem_width + col_gap
+        return col_height, total_width
+    
+    # Check if largest (coarsest) group fits in usable area
     largest_group: int = min(groups_list)
-    largest_pattern, _ = create_group_pattern(largest_group, pixels_per_mm)
-    lg_h: int = int(largest_pattern.shape[0])
-    lg_w: int = int(largest_pattern.shape[1])
-    global_scale: float = min(cell_width / lg_w, cell_height / lg_h) * 0.85
-    if global_scale < 1.0:
-        pixels_per_mm = pixels_per_mm * global_scale
-
-    for idx, group in enumerate(groups_list):
-        row: int = idx // grid_cols
-        col: int = idx % grid_cols
-        group_pattern, _ = create_group_pattern(group, pixels_per_mm)
-        gh: int = int(group_pattern.shape[0])
-        gw: int = int(group_pattern.shape[1])
-        cell_x: int = margin + col * cell_width
-        cell_y: int = margin + row * cell_height
-        x_pos: int = cell_x + (cell_width - gw) // 2
-        y_pos: int = cell_y + (cell_height - gh) // 2
-        gh_clipped: int = min(gh, image_size - y_pos) if y_pos >= 0 else 0
-        gw_clipped: int = min(gw, image_size - x_pos) if x_pos >= 0 else 0
-        if gh_clipped > 0 and gw_clipped > 0 and y_pos >= 0 and x_pos >= 0:
-            clipped_group = group_pattern[:gh_clipped, :gw_clipped]
-            scaled_pattern: Float[Array, " gh gw"] = (
-                background + clipped_group * (foreground - background)
-            )
-            canvas = canvas.at[
-                y_pos : y_pos + gh_clipped, x_pos : x_pos + gw_clipped
-            ].set(scaled_pattern)
-
+    largest_h, largest_w = estimate_group_size(largest_group, pixels_per_mm)
+    
+    # Only scale if the largest group doesn't fit at all
+    effective_ppm: float = pixels_per_mm
+    if largest_h > usable_size or largest_w > usable_size:
+        scale: float = min(usable_size / largest_h, usable_size / largest_w) * 0.95
+        effective_ppm = pixels_per_mm * scale
+    
+    # First pass: determine rows and their heights (dry run)
+    rows: list[list[Tuple[int, int, int]]] = []  # Each row: list of (group, gh, gw)
+    current_row: list[Tuple[int, int, int]] = []
+    current_x: int = margin
+    
+    for group in groups_list:
+        gh, gw = estimate_group_size(group, effective_ppm)
+        
+        if current_x + gw > image_size - margin and current_row:
+            # Start new row
+            rows.append(current_row)
+            current_row = []
+            current_x = margin
+        
+        current_row.append((group, gh, gw))
+        current_x += gw + spacing_h
+    
+    if current_row:
+        rows.append(current_row)
+    
+    # Calculate row heights
+    row_heights: list[int] = []
+    for row in rows:
+        max_h = max(gh for _, gh, _ in row)
+        row_heights.append(max_h)
+    
+    # Calculate total row height and distribute vertical space equally
+    total_row_height: int = sum(row_heights)
+    num_gaps: int = len(rows) + 1  # gaps above first row, between rows, after last row
+    total_free_space: int = image_size - total_row_height
+    spacing_v: int = total_free_space // num_gaps if num_gaps > 0 else margin
+    
+    # Second pass: actually place the groups with calculated spacing
+    current_y: int = spacing_v
+    
+    for row_idx, row in enumerate(rows):
+        row_height: int = row_heights[row_idx]
+        current_x = margin
+        
+        # Calculate total row width to center the row
+        row_width: int = sum(gw for _, _, gw in row) + spacing_h * (len(row) - 1)
+        current_x = (image_size - row_width) // 2  # Center the row
+        
+        for group, gh_est, gw_est in row:
+            # Check if we've run out of vertical space
+            if current_y + row_height > image_size - spacing_v // 2:
+                break
+            
+            # Generate actual pattern
+            pattern, _ = create_group_pattern(group, effective_ppm)
+            gh: int = int(pattern.shape[0])
+            gw: int = int(pattern.shape[1])
+            
+            # Vertically center within row
+            y_offset: int = (row_height - gh) // 2
+            x_pos: int = current_x
+            y_pos: int = current_y + y_offset
+            
+            # Clip if necessary
+            gh_clipped: int = min(gh, image_size - y_pos)
+            gw_clipped: int = min(gw, image_size - x_pos)
+            
+            if gh_clipped > 0 and gw_clipped > 0 and y_pos >= 0 and x_pos >= 0:
+                clipped_pattern = pattern[:gh_clipped, :gw_clipped]
+                scaled_pattern: Float[Array, " gh gw"] = (
+                    background + clipped_pattern * (foreground - background)
+                )
+                canvas = canvas.at[
+                    y_pos : y_pos + gh_clipped, x_pos : x_pos + gw_clipped
+                ].set(scaled_pattern)
+            
+            current_x += gw + spacing_h
+        
+        current_y += row_height + spacing_v
+    
+    # Normalize canvas to [0, 1] for phase calculation
+    # Use Python conditional since foreground/background are known at trace time
     if foreground != background:
         normalized_pattern: Float[Array, " h w"] = (canvas - background) / (
             foreground - background
@@ -447,72 +679,3 @@ def generate_usaf_pattern(
         complex_field, dx_calculated
     )
     return pattern
-
-
-@jaxtyped(typechecker=beartype)
-def calculate_usaf_group_range(
-    image_size: int,
-    pixel_size: float,
-    min_bar_pixels: int = 2,
-    grid_fill_fraction: float = 0.85,
-) -> dict:
-    """Calculate the viable USAF group range for given parameters.
-
-    Parameters
-    ----------
-    image_size : int
-        Image size in pixels (square)
-    pixel_size : float
-        Pixel size in meters
-    min_bar_pixels : int
-        Minimum bar width in pixels for visibility (default 2)
-    grid_fill_fraction : float
-        How much of each cell the largest group should fill (default 0.85)
-
-    Returns
-    -------
-    dict with:
-        - max_group: finest group where bars are still >= min_bar_pixels
-        - min_group: coarsest group that fits in image
-        - recommended_range: suggested range() for generate_usaf_pattern
-        - num_groups: how many groups in recommended range
-        - group_info: dict with bar width in pixels for each group
-    """
-    pixels_per_mm = 1e-3 / pixel_size
-    max_group = int(
-        math.floor(math.log2(pixels_per_mm / (2 * min_bar_pixels)) - 5 / 6)
-    )
-
-    def get_group_size(g: int) -> int:
-        """Estimate group pattern size in pixels."""
-        bar_width = pixels_per_mm / (2 * (2**g))
-        return int(15 * bar_width)
-
-    min_group = -10
-    for g in range(-10, max_group + 1):
-        group_size = get_group_size(g)
-        min_cell_size = image_size / 5 * grid_fill_fraction
-        if group_size <= min_cell_size:
-            min_group = g
-            break
-
-    group_info = {}
-    for g in range(min_group, max_group + 1):
-        bar_width_e1 = pixels_per_mm / (2 * (2**g))
-        bar_width_e6 = pixels_per_mm / (2 * (2 ** (g + 5 / 6)))
-        group_info[g] = {
-            "bar_width_element1": round(bar_width_e1, 1),
-            "bar_width_element6": round(bar_width_e6, 1),
-            "group_size_approx": get_group_size(g),
-        }
-
-    recommended_range = range(min_group, max_group + 1)
-
-    return {
-        "max_group": max_group,
-        "min_group": min_group,
-        "recommended_range": recommended_range,
-        "num_groups": len(recommended_range),
-        "pixels_per_mm": pixels_per_mm,
-        "group_info": group_info,
-    }
