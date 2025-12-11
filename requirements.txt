@@ -65,6 +65,8 @@ click==8.2.1
     #   black
     #   interrogate
     #   pydoclint
+cmocean==4.0.3
+    # via janssen (pyproject.toml)
 colorama==0.4.6
     # via interrogate
 comm==0.2.3
@@ -261,6 +263,7 @@ markupsafe==3.0.2
 matplotlib==3.10.6
     # via
     #   janssen (pyproject.toml)
+    #   cmocean
     #   matplotlib-scalebar
 matplotlib-inline==0.1.7
     # via
@@ -316,6 +319,7 @@ numpy==2.3.2
     # via
     #   janssen (pyproject.toml)
     #   chex
+    #   cmocean
     #   contourpy
     #   jax
     #   jaxlib
@@ -365,6 +369,7 @@ optax==0.2.5
 packaging==25.0
     # via
     #   black
+    #   cmocean
     #   ipykernel
     #   jupyter-events
     #   jupyter-server

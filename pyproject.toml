@@ -27,6 +27,7 @@ dependencies = [
     "scipy >= 1.0.0",
     "matplotlib >= 2.2.0",
     "matplotlib-scalebar>=0.5.0",
+    "cmocean>=4.0.3",
     "tqdm >= 4.66.0",
     "jaxtyping>0.3.2",
     "chex >= 0.1.85",
@@ -70,7 +71,11 @@ docs = [
     "interrogate>=1.7.0",
     "pandoc>=2.4",
 ]
-notebooks = ["ipywidgets>=8.1.0", "ipykernel>=6.29.5", "nbconvert>=7.16.6"]
+notebooks = [
+    "ipywidgets>=8.1.0", 
+    "ipykernel>=6.29.5", 
+    "nbconvert>=7.16.6", 
+]
 test = [
     "pytest>=8.3.5",
     "pytest-cov>=4.0.0",
