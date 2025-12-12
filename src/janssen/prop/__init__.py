@@ -32,6 +32,8 @@ digital_zoom : function
     Digital zoom transformation for optical fields.
 fraunhofer_prop : function
     Fraunhofer (far-field) propagation.
+fraunhofer_prop_scaled : function
+    Fraunhofer propagation with output at specified pixel size.
 fresnel_prop : function
     Fresnel (near-field) propagation.
 high_na_focus : function
@@ -61,6 +63,7 @@ from .free_space_prop import (
     correct_propagator,
     digital_zoom,
     fraunhofer_prop,
+    fraunhofer_prop_scaled,
     fresnel_prop,
     lens_propagation,
     optical_zoom,
@@ -86,6 +89,7 @@ __all__: list[str] = [
     "debye_wolf_focus",
     "digital_zoom",
     "fraunhofer_prop",
+    "fraunhofer_prop_scaled",
     "fresnel_prop",
     "high_na_focus",
     "lens_propagation",

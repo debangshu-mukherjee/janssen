@@ -36,7 +36,7 @@ from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
 from janssen.optics.apertures import circular_aperture
 from janssen.optics.helper import field_intensity
-from janssen.prop import fraunhofer_prop, optical_zoom
+from janssen.prop import fraunhofer_prop, fraunhofer_prop_scaled, optical_zoom
 from janssen.utils import (
     Diffractogram,
     MicroscopeData,
@@ -158,16 +158,14 @@ def simple_diffractogram(
     aperture_diameter: ScalarFloat,
     travel_distance: ScalarFloat,
     camera_pixel_size: ScalarFloat,
-    detector_shape: Tuple[int, int] = (256, 256),
     aperture_center: Optional[Float[Array, " 2"]] = None,
 ) -> Diffractogram:
     """Calculate the diffractogram of a sample using a simple model.
 
     The lightwave interacts with the sample linearly, and is then
     zoomed optically. Following this it interacts with a circular
-    aperture before propagating to the camera plane.
-    The wavefront is then resized to the detector shape and pixel size.
-    The diffractogram is created from the camera image.
+    aperture before propagating to the camera plane using scaled
+    Fraunhofer propagation to match the detector pixel size.
 
     Parameters
     ----------
@@ -183,29 +181,26 @@ def simple_diffractogram(
     travel_distance : ScalarFloat
         The distance traveled by the light in meters
     camera_pixel_size : ScalarFloat
-        The pixel size of the camera in meters
-    detector_shape : Tuple[int, int], optional
-        The shape of the detector in pixels (height, width).
-        Defaults to (256, 256).
+        The pixel size of the detector/camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
         The center of the aperture in pixels
 
     Returns
     -------
     Diffractogram
-        The calculated diffractogram of the sample
+        The calculated diffractogram of the sample. Output shape
+        matches the input lightwave field shape.
 
     Notes
     -----
     Algorithm:
 
     - Propagate the lightwave through the sample using linear
-    interaction
+      interaction
     - Apply optical zoom to the wavefront
     - Apply a circular aperture to the zoomed wavefront
-    - Propagate the wavefront to the camera plane using Fraunhofer
-    propagation
-    - Resize to detector shape and pixel size
+    - Propagate to the camera plane using scaled Fraunhofer propagation
+      which outputs at the specified camera pixel size
     - Calculate the field intensity of the camera image
     - Create a diffractogram from the camera image
     """
@@ -218,50 +213,18 @@ def simple_diffractogram(
     after_aperture: OpticalWavefront = circular_aperture(
         zoomed_wave, aperture_diameter, center_to_use
     )
-    at_camera: OpticalWavefront = fraunhofer_prop(
-        after_aperture, travel_distance
+
+    # Use scaled Fraunhofer propagation - output is same shape as input
+    # but with the specified camera pixel size
+    at_camera: OpticalWavefront = fraunhofer_prop_scaled(
+        after_aperture, travel_distance, camera_pixel_size
     )
 
-    # Fit wavefront to detector shape (JAX-safe: always pad then crop)
-    # 1. Pad field to at least detector size (handles detector > field)
-    # 2. Crop to exact detector size (handles detector < field)
-    field_h, field_w = at_camera.field.shape
-    det_h, det_w = detector_shape
-
-    # Calculate padding needed (0 if field already large enough)
-    pad_h = max(0, (det_h - field_h + 1) // 2)
-    pad_w = max(0, (det_w - field_w + 1) // 2)
-    padded_field: Complex[Array, " H W"] = jnp.pad(
-        at_camera.field,
-        ((pad_h, pad_h), (pad_w, pad_w)),
-        mode="constant",
-        constant_values=0.0,
-    )
-
-    # Crop to exact detector size from center
-    padded_h, padded_w = field_h + 2 * pad_h, field_w + 2 * pad_w
-    start_h = (padded_h - det_h) // 2
-    start_w = (padded_w - det_w) // 2
-    resized_field: Complex[Array, " H W"] = jax.lax.dynamic_slice(
-        padded_field,
-        (start_h, start_w),
-        (det_h, det_w),
-    )
-
-    at_camera_resized: OpticalWavefront = make_optical_wavefront(
-        field=resized_field,
-        wavelength=at_camera.wavelength,
-        dx=camera_pixel_size,
-        z_position=at_camera.z_position,
-    )
-
-    scaled_camera_image: Float[Array, " H W"] = field_intensity(
-        at_camera_resized.field
-    )
+    camera_image: Float[Array, " H W"] = field_intensity(at_camera.field)
     diffractogram: Diffractogram = make_diffractogram(
-        image=scaled_camera_image,
-        wavelength=at_camera_resized.wavelength,
-        dx=at_camera_resized.dx,
+        image=camera_image,
+        wavelength=at_camera.wavelength,
+        dx=at_camera.dx,
     )
     return diffractogram
 
@@ -275,7 +238,6 @@ def simple_microscope(
     aperture_diameter: ScalarFloat,
     travel_distance: ScalarFloat,
     camera_pixel_size: ScalarFloat,
-    detector_shape: Tuple[int, int] = (256, 256),
     aperture_center: Optional[Float[Array, " 2"]] = None,
 ) -> MicroscopeData:
     """Calculate the 3D diffractograms of the entire imaging.
@@ -302,9 +264,6 @@ def simple_microscope(
         The distance traveled by the light in meters
     camera_pixel_size : ScalarFloat
         The pixel size of the camera in meters
-    detector_shape : Tuple[int, int], optional
-        The shape of the detector in pixels (height, width).
-        Defaults to (256, 256).
     aperture_center : Optional[Float[Array, " 2"]], optional
         The center of the aperture in pixels
 
@@ -312,7 +271,8 @@ def simple_microscope(
     -------
     MicroscopeData
         The calculated diffractograms of the sample at the specified
-        positions
+        positions. Output diffractogram shape matches the lightwave
+        field shape.
 
     Notes
     -----
@@ -321,7 +281,7 @@ def simple_microscope(
     - Get the size of the lightwave field
     - Calculate the pixel positions in the sample plane
     - For each position, cut out the sample and calculate the
-    diffractogram
+      diffractogram
     - Combine the diffractograms into a single MicroscopeData object
     - Return the MicroscopeData object
     """
@@ -353,7 +313,6 @@ def simple_microscope(
             aperture_diameter=aperture_diameter,
             travel_distance=travel_distance,
             camera_pixel_size=camera_pixel_size,
-            detector_shape=detector_shape,
             aperture_center=aperture_center,
         )
         return this_diffractogram.image

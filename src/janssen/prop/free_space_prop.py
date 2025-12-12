@@ -266,14 +266,19 @@ def fraunhofer_prop(
     the aperture function. This is the limiting case of Fresnel diffraction
     when the propagation distance is very large.
 
-    The Fraunhofer diffraction integral gives:
-    U(x',y') = exp(i*k*z) / (i*lambda*z) * FT{U(x,y)} * dx^2
+    The full Fraunhofer diffraction integral gives:
+    U(x',y') = exp(i*k*z)/(i*lambda*z) * exp(i*k*(x'^2+y'^2)/(2*z)) *
+               FT{U(x,y)} * dx^2
 
     where FT denotes the Fourier transform and the output coordinates are
     related to spatial frequencies by x' = lambda*z*fx, y' = lambda*z*fy.
 
+    The quadratic phase term exp(i*k*(x'^2+y'^2)/(2*z)) represents the
+    spherical wavefront curvature in the output plane and is essential
+    for coherent imaging and phase-sensitive applications.
+
     The output pixel size changes according to the Fraunhofer scaling
-    relation is dx_out = lambda * z / (N * dx_in), where N is the array size.
+    relation: dx_out = lambda * z / (N * dx_in), where N is the array size.
 
     The Fraunhofer approximation is valid when the Fresnel number F = a^2/(λz)
     is small (typically F < 1), where a is the characteristic aperture size.
@@ -283,31 +288,200 @@ def fraunhofer_prop(
     ---------
 
     1. Compute centered FFT of input field using ifftshift/fft2/fftshift
-    2. Apply global phase factor exp(i*k*z)
-    3. Apply amplitude scaling 1/(i*lambda*z) and area element dx^2
-    4. Compute output pixel size dx_out = lambda*z/(N*dx_in)
-    5. Return propagated wavefront with new dx and updated z_position
+    2. Compute output pixel size dx_out = lambda*z/(N*dx_in)
+    3. Create output coordinate grid and compute quadratic phase
+    4. Apply global phase factor exp(i*k*z)
+    5. Apply amplitude scaling 1/(i*lambda*z) and area element dx^2
+    6. Multiply by quadratic phase term
+    7. Return propagated wavefront with new dx and updated z_position
     """
+    ny: ScalarInteger = incoming.field.shape[0]
     nx: ScalarInteger = incoming.field.shape[1]
     k: Float[Array, " "] = 2 * jnp.pi / incoming.wavelength
     path_length: Float[Array, " "] = refractive_index * z_move
+
+    # Compute output pixel size first (needed for quadratic phase)
+    dx_out: Float[Array, " "] = (
+        incoming.wavelength * path_length / (nx * incoming.dx)
+    )
+
+    # FFT of input field (centered)
     field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
         jnp.fft.fft2(jnp.fft.ifftshift(incoming.field))
     )
+
+    # Create output coordinate grid for quadratic phase
+    x_out: Float[Array, " ww"] = (jnp.arange(nx) - nx / 2) * dx_out
+    y_out: Float[Array, " hh"] = (jnp.arange(ny) - ny / 2) * dx_out
+    x_mesh: Float[Array, " hh ww"]
+    y_mesh: Float[Array, " hh ww"]
+    x_mesh, y_mesh = jnp.meshgrid(x_out, y_out)
+
+    # Quadratic phase term: exp(i*k*(x'^2 + y'^2)/(2*z))
+    quadratic_phase: Complex[Array, " hh ww"] = jnp.exp(
+        1j * k * (x_mesh**2 + y_mesh**2) / (2 * path_length)
+    )
+
+    # Global phase and amplitude scaling
     global_phase: Complex[Array, " "] = jnp.exp(1j * k * path_length)
     scale_factor: Complex[Array, " "] = 1 / (
         1j * incoming.wavelength * path_length
     )
+
+    # Combine all terms
     propagated_field: Complex[Array, " hh ww"] = (
-        global_phase * scale_factor * field_ft * (incoming.dx**2)
+        global_phase * scale_factor * quadratic_phase * field_ft *
+        (incoming.dx**2)
     )
-    dx_out: Float[Array, " "] = (
-        incoming.wavelength * path_length / (nx * incoming.dx)
-    )
+
     propagated: OpticalWavefront = make_optical_wavefront(
         field=propagated_field,
         wavelength=incoming.wavelength,
         dx=dx_out,
+        z_position=incoming.z_position + path_length,
+    )
+    return propagated
+
+
+@jaxtyped(typechecker=beartype)
+def fraunhofer_prop_scaled(
+    incoming: OpticalWavefront,
+    z_move: ScalarNumeric,
+    output_dx: ScalarFloat,
+    refractive_index: ScalarNumeric = 1.0,
+) -> OpticalWavefront:
+    """Propagate using Fraunhofer with output at specified pixel size.
+
+    Performs Fraunhofer propagation with the output sampled at the
+    desired pixel size. The output array has the same shape as the input.
+
+    Parameters
+    ----------
+    incoming : OpticalWavefront
+        Input optical wavefront.
+    z_move : ScalarNumeric
+        Propagation distance in meters.
+    output_dx : ScalarFloat
+        Desired output pixel size in meters.
+    refractive_index : ScalarNumeric, optional
+        Index of refraction. Default is 1.0 (vacuum).
+
+    Returns
+    -------
+    propagated : OpticalWavefront
+        Propagated wavefront with specified output pixel size.
+        Output array shape equals input array shape.
+
+    Notes
+    -----
+    The standard Fraunhofer relation is:
+        U(x') = C * FT{U(x)} evaluated at fx = x'/(λz)
+
+    where C includes phase and amplitude factors.
+
+    For output pixel n (centered), we want x'_n = (n - N/2) * output_dx.
+    This corresponds to spatial frequency fx_n = x'_n/(λz).
+
+    We achieve this by using a chirp-z transform (CZT) approach:
+    instead of FFT which samples at fx = n/(N*dx_in), we use
+    interpolation in Fourier space to sample at the desired frequencies.
+
+    The key insight is that the DFT samples at frequencies:
+        fx_fft[n] = (n - N/2) / (N * dx_in)
+
+    And we want to sample at:
+        fx_out[n] = (n - N/2) * output_dx / (λz)
+
+    The ratio is: fx_out / fx_fft = output_dx * N * dx_in / (λz)
+
+    This is equivalent to scaling the output coordinates, which we
+    implement by interpolating the FFT result.
+    """
+    ny: ScalarInteger = incoming.field.shape[0]
+    nx: ScalarInteger = incoming.field.shape[1]
+    k: Float[Array, " "] = 2 * jnp.pi / incoming.wavelength
+    path_length: Float[Array, " "] = refractive_index * z_move
+
+    # Standard Fraunhofer dx for reference
+    dx_fraunhofer: Float[Array, " "] = (
+        incoming.wavelength * path_length / (nx * incoming.dx)
+    )
+
+    # Scaling factor: how much to zoom the FFT result
+    # scale > 1 means output_dx > dx_fraunhofer (zoom out / larger pixels)
+    # scale < 1 means output_dx < dx_fraunhofer (zoom in / smaller pixels)
+    scale: Float[Array, " "] = output_dx / dx_fraunhofer
+
+    # FFT of input field (centered)
+    field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
+        jnp.fft.fft2(jnp.fft.ifftshift(incoming.field))
+    )
+
+    # Create interpolation coordinates to resample FFT at scaled frequencies
+    # Original FFT is sampled at indices 0..N-1 (after fftshift, centered)
+    # We want to sample at scaled positions
+    center_y: Float[Array, " "] = (ny - 1) / 2.0
+    center_x: Float[Array, " "] = (nx - 1) / 2.0
+
+    # Output indices (0 to N-1)
+    out_y: Float[Array, " hh"] = jnp.arange(ny, dtype=jnp.float64)
+    out_x: Float[Array, " ww"] = jnp.arange(nx, dtype=jnp.float64)
+
+    # Map output indices to input FFT indices via scaling
+    # (out - center) * scale + center = input_index
+    in_y: Float[Array, " hh"] = (out_y - center_y) * scale + center_y
+    in_x: Float[Array, " ww"] = (out_x - center_x) * scale + center_x
+
+    # Create meshgrid for 2D interpolation
+    in_y_mesh: Float[Array, " hh ww"]
+    in_x_mesh: Float[Array, " hh ww"]
+    in_y_mesh, in_x_mesh = jnp.meshgrid(in_y, in_x, indexing="ij")
+
+    # Interpolate FFT (real and imaginary separately)
+    scaled_ft_real: Float[Array, " hh ww"] = jax.scipy.ndimage.map_coordinates(
+        field_ft.real,
+        [in_y_mesh, in_x_mesh],
+        order=1,
+        mode="constant",
+        cval=0.0,
+    )
+    scaled_ft_imag: Float[Array, " hh ww"] = jax.scipy.ndimage.map_coordinates(
+        field_ft.imag,
+        [in_y_mesh, in_x_mesh],
+        order=1,
+        mode="constant",
+        cval=0.0,
+    )
+    scaled_ft: Complex[Array, " hh ww"] = scaled_ft_real + 1j * scaled_ft_imag
+
+    # Output coordinate grid for quadratic phase
+    x_out: Float[Array, " ww"] = (jnp.arange(nx) - nx / 2) * output_dx
+    y_out: Float[Array, " hh"] = (jnp.arange(ny) - ny / 2) * output_dx
+    x_mesh: Float[Array, " hh ww"]
+    y_mesh: Float[Array, " hh ww"]
+    x_mesh, y_mesh = jnp.meshgrid(x_out, y_out)
+
+    # Quadratic phase term: exp(i*k*(x'^2 + y'^2)/(2*z))
+    quadratic_phase: Complex[Array, " hh ww"] = jnp.exp(
+        1j * k * (x_mesh**2 + y_mesh**2) / (2 * path_length)
+    )
+
+    # Global phase and amplitude scaling
+    global_phase: Complex[Array, " "] = jnp.exp(1j * k * path_length)
+    scale_factor: Complex[Array, " "] = 1 / (
+        1j * incoming.wavelength * path_length
+    )
+
+    # Combine all terms
+    propagated_field: Complex[Array, " hh ww"] = (
+        global_phase * scale_factor * quadratic_phase * scaled_ft *
+        (incoming.dx**2)
+    )
+
+    propagated: OpticalWavefront = make_optical_wavefront(
+        field=propagated_field,
+        wavelength=incoming.wavelength,
+        dx=output_dx,
         z_position=incoming.z_position + path_length,
     )
     return propagated
