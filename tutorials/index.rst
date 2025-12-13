@@ -10,7 +10,12 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    DifferentBeams
    Diffractogram
    PolarBeams
-   SimpleMicroscopeSimulation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Simulated Microscopes
+
+   Simulated Microscopes/index
 
 .. note::
 
