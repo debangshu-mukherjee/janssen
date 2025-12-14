@@ -50,8 +50,6 @@ from janssen.utils import (
     make_lens_params,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def lens_thickness_profile(

@@ -71,7 +71,6 @@ from janssen.utils import (
     make_vector_wavefront_3d,
 )
 
-jax.config.update("jax_enable_x64", True)
 
 SAFE_DIVIDE_FLOOR: float = 1e-15
 POLARIZED_FIELD_NDIM: int = 3

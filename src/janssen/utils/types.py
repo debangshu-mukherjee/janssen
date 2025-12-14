@@ -52,7 +52,6 @@ from beartype.typing import NamedTuple, Optional, Tuple, TypeAlias, Union
 from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array, Bool, Complex, Float, Int, Num
 
-jax.config.update("jax_enable_x64", True)
 
 NonJaxNumber: TypeAlias = Union[int, float, complex]
 ScalarBool: TypeAlias = Union[bool, Bool[Array, " "]]
@@ -589,61 +588,75 @@ class PtychographyParams(NamedTuple):
 
     Attributes
     ----------
-    zoom_factor : Float[Array, " "]
-        Optical zoom factor for magnification
-    aperture_diameter : Float[Array, " "]
-        Diameter of the aperture in meters
-    travel_distance : Float[Array, " "]
-        Light propagation distance in meters
-    aperture_center : Float[Array, " 2"]
-        Center position of the aperture (x, y) in meters
     camera_pixel_size : Float[Array, " "]
         Camera pixel size in meters (typically fixed)
+    num_iterations : Int[Array, " "]
+        Number of optimization iterations per call
     learning_rate : Float[Array, " "]
         Learning rate for optimization
-    num_iterations : Int[Array, " "]
-        Number of optimization iterations
+    loss_type : Int[Array, " "]
+        Loss function type (0=mse, 1=mae, 2=poisson)
+    optimizer_type : Int[Array, " "]
+        Optimizer type (0=adam, 1=adagrad, 2=rmsprop, 3=sgd)
+    zoom_factor_bounds : Float[Array, " 2"]
+        Lower and upper bounds for zoom factor [lower, upper]
+    aperture_diameter_bounds : Float[Array, " 2"]
+        Lower and upper bounds for aperture diameter [lower, upper]
+    travel_distance_bounds : Float[Array, " 2"]
+        Lower and upper bounds for travel distance [lower, upper]
+    aperture_center_bounds : Float[Array, " 2 2"]
+        Lower and upper bounds for aperture center [[lower_x, lower_y],
+        [upper_x, upper_y]]
 
     Notes
     -----
-    This class encapsulates all the optical and optimization parameters
-    used in ptychographic reconstruction. It is registered as a PyTree
-    node to enable JAX transformations and gradient-based optimization
-    of these parameters.
+    This class encapsulates all the optimization parameters used in
+    ptychographic reconstruction. Optical parameters (zoom_factor,
+    aperture_diameter, etc.) are stored in PtychographyReconstruction.
+    It is registered as a PyTree node to enable JAX transformations.
+
+    Loss types: 0=mse, 1=mae, 2=poisson
+    Optimizer types: 0=adam, 1=adagrad, 2=rmsprop, 3=sgd
     """
 
-    zoom_factor: Float[Array, " "]
-    aperture_diameter: Float[Array, " "]
-    travel_distance: Float[Array, " "]
-    aperture_center: Float[Array, " 2"]
     camera_pixel_size: Float[Array, " "]
-    learning_rate: Float[Array, " "]
     num_iterations: Int[Array, " "]
+    learning_rate: Float[Array, " "]
+    loss_type: Int[Array, " "]
+    optimizer_type: Int[Array, " "]
+    zoom_factor_bounds: Float[Array, " 2"]
+    aperture_diameter_bounds: Float[Array, " 2"]
+    travel_distance_bounds: Float[Array, " 2"]
+    aperture_center_bounds: Float[Array, " 2 2"]
 
     def tree_flatten(
         self,
     ) -> Tuple[
         Tuple[
             Float[Array, " "],
-            Float[Array, " "],
-            Float[Array, " "],
-            Float[Array, " 2"],
-            Float[Array, " "],
+            Int[Array, " "],
             Float[Array, " "],
             Int[Array, " "],
+            Int[Array, " "],
+            Float[Array, " 2"],
+            Float[Array, " 2"],
+            Float[Array, " 2"],
+            Float[Array, " 2 2"],
         ],
         None,
     ]:
         """Flatten the PtychographyParams into a tuple of its components."""
         return (
             (
-                self.zoom_factor,
-                self.aperture_diameter,
-                self.travel_distance,
-                self.aperture_center,
                 self.camera_pixel_size,
-                self.learning_rate,
                 self.num_iterations,
+                self.learning_rate,
+                self.loss_type,
+                self.optimizer_type,
+                self.zoom_factor_bounds,
+                self.aperture_diameter_bounds,
+                self.travel_distance_bounds,
+                self.aperture_center_bounds,
             ),
             None,
         )
@@ -654,12 +667,14 @@ class PtychographyParams(NamedTuple):
         _aux_data: None,
         children: Tuple[
             Float[Array, " "],
-            Float[Array, " "],
-            Float[Array, " "],
-            Float[Array, " 2"],
-            Float[Array, " "],
+            Int[Array, " "],
             Float[Array, " "],
             Int[Array, " "],
+            Int[Array, " "],
+            Float[Array, " 2"],
+            Float[Array, " 2"],
+            Float[Array, " 2"],
+            Float[Array, " 2 2"],
         ],
     ) -> "PtychographyParams":
         """Unflatten the PtychographyParams from a tuple of its components."""
@@ -676,6 +691,8 @@ class PtychographyReconstruction(NamedTuple):
         Final reconstructed sample covering the scanned FOV
     lightwave : OpticalWavefront
         Final reconstructed probe/lightwave
+    translated_positions : Float[Array, " N 2"]
+        Scan positions translated to FOV coordinates (in meters)
     zoom_factor : Float[Array, " "]
         Final optimized zoom factor
     aperture_diameter : Float[Array, " "]
@@ -704,11 +721,13 @@ class PtychographyReconstruction(NamedTuple):
     This class encapsulates all results from ptychographic reconstruction,
     including both final optimized values and intermediate results saved
     during the optimization process. It is registered as a PyTree node
-    to enable JAX transformations.
+    to enable JAX transformations. The structure can be used to resume
+    reconstruction from a previous state.
     """
 
     sample: "SampleFunction"
     lightwave: "OpticalWavefront"
+    translated_positions: Float[Array, " N 2"]
     zoom_factor: Float[Array, " "]
     aperture_diameter: Float[Array, " "]
     aperture_center: Optional[Float[Array, " 2"]]
@@ -727,6 +746,7 @@ class PtychographyReconstruction(NamedTuple):
         Tuple[
             "SampleFunction",
             "OpticalWavefront",
+            Float[Array, " N 2"],
             Float[Array, " "],
             Float[Array, " "],
             Optional[Float[Array, " 2"]],
@@ -746,6 +766,7 @@ class PtychographyReconstruction(NamedTuple):
             (
                 self.sample,
                 self.lightwave,
+                self.translated_positions,
                 self.zoom_factor,
                 self.aperture_diameter,
                 self.aperture_center,
@@ -768,6 +789,7 @@ class PtychographyReconstruction(NamedTuple):
         children: Tuple[
             "SampleFunction",
             "OpticalWavefront",
+            Float[Array, " N 2"],
             Float[Array, " "],
             Float[Array, " "],
             Optional[Float[Array, " 2"]],

@@ -56,8 +56,6 @@ from janssen.utils import (
     make_sample_function,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jax.jit
 @jaxtyped(typechecker=beartype)

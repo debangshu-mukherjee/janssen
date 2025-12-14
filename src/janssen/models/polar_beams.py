@@ -55,7 +55,6 @@ from janssen.utils import (
     make_optical_wavefront,
 )
 
-jax.config.update("jax_enable_x64", True)
 
 BESSEL_SAFE_FLOOR: float = 1e-10
 

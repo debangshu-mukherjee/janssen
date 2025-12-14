@@ -50,8 +50,6 @@ from janssen.utils import (
     make_optical_wavefront,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def angular_spectrum_prop(

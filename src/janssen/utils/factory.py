@@ -66,8 +66,6 @@ from .types import (
     SlicedMaterialFunction,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def make_lens_params(
@@ -1351,32 +1349,43 @@ def make_optimizer_state(
 
 @jaxtyped(typechecker=beartype)
 def make_ptychography_params(
-    zoom_factor: ScalarNumeric,
-    aperture_diameter: ScalarNumeric,
-    travel_distance: ScalarNumeric,
-    aperture_center: Optional[Float[Array, " 2"]],
     camera_pixel_size: ScalarNumeric,
-    learning_rate: ScalarNumeric,
     num_iterations: ScalarInteger,
+    learning_rate: ScalarNumeric = 1e-3,
+    loss_type: ScalarInteger = 0,
+    optimizer_type: ScalarInteger = 0,
+    zoom_factor_bounds: Optional[Float[Array, " 2"]] = None,
+    aperture_diameter_bounds: Optional[Float[Array, " 2"]] = None,
+    travel_distance_bounds: Optional[Float[Array, " 2"]] = None,
+    aperture_center_bounds: Optional[Float[Array, " 2 2"]] = None,
 ) -> PtychographyParams:
     """Create a PtychographyParams PyTree with validated parameters.
 
     Parameters
     ----------
-    zoom_factor : ScalarNumeric
-        Optical zoom factor for magnification (must be positive)
-    aperture_diameter : ScalarNumeric
-        Diameter of the aperture in meters (must be positive)
-    travel_distance : ScalarNumeric
-        Light propagation distance in meters (must be positive)
-    aperture_center : Optional[Float[Array, " 2"]]
-        Center position of the aperture (x, y) in meters, or None for centered
     camera_pixel_size : ScalarNumeric
         Camera pixel size in meters (must be positive)
-    learning_rate : ScalarNumeric
-        Learning rate for optimization (must be positive)
     num_iterations : ScalarInteger
-        Number of optimization iterations (must be positive)
+        Number of optimization iterations per call (must be positive)
+    learning_rate : ScalarNumeric, optional
+        Learning rate for optimization. Default is 1e-3.
+    loss_type : ScalarInteger, optional
+        Loss function type (0=mse, 1=mae, 2=poisson). Default is 0 (mse).
+    optimizer_type : ScalarInteger, optional
+        Optimizer type (0=adam, 1=adagrad, 2=rmsprop, 3=sgd). Default is 0.
+    zoom_factor_bounds : Float[Array, " 2"], optional
+        Lower and upper bounds for zoom factor [lower, upper].
+        Default is [-inf, inf] (no bounds).
+    aperture_diameter_bounds : Float[Array, " 2"], optional
+        Lower and upper bounds for aperture diameter [lower, upper].
+        Default is [-inf, inf] (no bounds).
+    travel_distance_bounds : Float[Array, " 2"], optional
+        Lower and upper bounds for travel distance [lower, upper].
+        Default is [-inf, inf] (no bounds).
+    aperture_center_bounds : Float[Array, " 2 2"], optional
+        Lower and upper bounds for aperture center
+        [[lower_x, lower_y], [upper_x, upper_y]].
+        Default is [[-inf, -inf], [inf, inf]] (no bounds).
 
     Returns
     -------
@@ -1389,139 +1398,64 @@ def make_ptychography_params(
     are properly formatted and within valid ranges before creating the
     PtychographyParams PyTree. All scalar inputs are converted to JAX
     arrays.
+
+    Loss types: 0=mse, 1=mae, 2=poisson
+    Optimizer types: 0=adam, 1=adagrad, 2=rmsprop, 3=sgd
     """
-    zoom_factor_array = jnp.asarray(zoom_factor, dtype=jnp.float64)
-    aperture_diameter_array = jnp.asarray(aperture_diameter, dtype=jnp.float64)
-    travel_distance_array = jnp.asarray(travel_distance, dtype=jnp.float64)
-    aperture_center_array: Optional[Float[Array, " 2"]] = (
-        jnp.asarray(aperture_center, dtype=jnp.float64)
-        if aperture_center is not None
-        else None
+    camera_pixel_size_arr: Float[Array, " "] = jnp.asarray(
+        camera_pixel_size, dtype=jnp.float64
     )
-    camera_pixel_size_array = jnp.asarray(camera_pixel_size, dtype=jnp.float64)
-    learning_rate_array = jnp.asarray(learning_rate, dtype=jnp.float64)
-    num_iterations_array = jnp.asarray(num_iterations, dtype=jnp.int64)
+    num_iterations_arr: Int[Array, " "] = jnp.asarray(
+        num_iterations, dtype=jnp.int64
+    )
+    learning_rate_arr: Float[Array, " "] = jnp.asarray(
+        learning_rate, dtype=jnp.float64
+    )
+    loss_type_arr: Int[Array, " "] = jnp.asarray(loss_type, dtype=jnp.int64)
+    optimizer_type_arr: Int[Array, " "] = jnp.asarray(
+        optimizer_type, dtype=jnp.int64
+    )
 
-    def validate_and_create() -> PtychographyParams:
-        def check_positive_zoom() -> Float[Array, " "]:
-            return lax.cond(
-                zoom_factor_array > 0,
-                lambda: zoom_factor_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: zoom_factor_array,
-                        lambda: zoom_factor_array,
-                    )
-                ),
-            )
+    inf: float = float("inf")
+    zoom_factor_bounds_arr: Float[Array, " 2"] = (
+        jnp.asarray(zoom_factor_bounds, dtype=jnp.float64)
+        if zoom_factor_bounds is not None
+        else jnp.array([-inf, inf], dtype=jnp.float64)
+    )
+    aperture_diameter_bounds_arr: Float[Array, " 2"] = (
+        jnp.asarray(aperture_diameter_bounds, dtype=jnp.float64)
+        if aperture_diameter_bounds is not None
+        else jnp.array([-inf, inf], dtype=jnp.float64)
+    )
+    travel_distance_bounds_arr: Float[Array, " 2"] = (
+        jnp.asarray(travel_distance_bounds, dtype=jnp.float64)
+        if travel_distance_bounds is not None
+        else jnp.array([-inf, inf], dtype=jnp.float64)
+    )
+    aperture_center_bounds_arr: Float[Array, " 2 2"] = (
+        jnp.asarray(aperture_center_bounds, dtype=jnp.float64)
+        if aperture_center_bounds is not None
+        else jnp.array([[-inf, -inf], [inf, inf]], dtype=jnp.float64)
+    )
 
-        def check_positive_aperture() -> Float[Array, " "]:
-            return lax.cond(
-                aperture_diameter_array > 0,
-                lambda: aperture_diameter_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: aperture_diameter_array,
-                        lambda: aperture_diameter_array,
-                    )
-                ),
-            )
-
-        def check_positive_distance() -> Float[Array, " "]:
-            return lax.cond(
-                travel_distance_array > 0,
-                lambda: travel_distance_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: travel_distance_array,
-                        lambda: travel_distance_array,
-                    )
-                ),
-            )
-
-        def check_aperture_center_shape() -> Optional[Float[Array, " 2"]]:
-            if aperture_center_array is None:
-                return None
-            return lax.cond(
-                aperture_center_array.shape == (2,),
-                lambda: aperture_center_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: aperture_center_array,
-                        lambda: aperture_center_array,
-                    )
-                ),
-            )
-
-        def check_positive_pixel_size() -> Float[Array, " "]:
-            return lax.cond(
-                camera_pixel_size_array > 0,
-                lambda: camera_pixel_size_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: camera_pixel_size_array,
-                        lambda: camera_pixel_size_array,
-                    )
-                ),
-            )
-
-        def check_positive_learning_rate() -> Float[Array, " "]:
-            return lax.cond(
-                learning_rate_array > 0,
-                lambda: learning_rate_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: learning_rate_array,
-                        lambda: learning_rate_array,
-                    )
-                ),
-            )
-
-        def check_positive_iterations() -> Int[Array, " "]:
-            return lax.cond(
-                num_iterations_array > 0,
-                lambda: num_iterations_array,
-                lambda: lax.stop_gradient(
-                    lax.cond(
-                        False,
-                        lambda: num_iterations_array,
-                        lambda: num_iterations_array,
-                    )
-                ),
-            )
-
-        check_positive_zoom()
-        check_positive_aperture()
-        check_positive_distance()
-        check_aperture_center_shape()
-        check_positive_pixel_size()
-        check_positive_learning_rate()
-        check_positive_iterations()
-
-        return PtychographyParams(
-            zoom_factor=zoom_factor_array,
-            aperture_diameter=aperture_diameter_array,
-            travel_distance=travel_distance_array,
-            aperture_center=aperture_center_array,
-            camera_pixel_size=camera_pixel_size_array,
-            learning_rate=learning_rate_array,
-            num_iterations=num_iterations_array,
-        )
-
-    validated_params: PtychographyParams = validate_and_create()
-    return validated_params
+    return PtychographyParams(
+        camera_pixel_size=camera_pixel_size_arr,
+        num_iterations=num_iterations_arr,
+        learning_rate=learning_rate_arr,
+        loss_type=loss_type_arr,
+        optimizer_type=optimizer_type_arr,
+        zoom_factor_bounds=zoom_factor_bounds_arr,
+        aperture_diameter_bounds=aperture_diameter_bounds_arr,
+        travel_distance_bounds=travel_distance_bounds_arr,
+        aperture_center_bounds=aperture_center_bounds_arr,
+    )
 
 
 @jaxtyped(typechecker=beartype)
 def make_ptychography_reconstruction(
     sample: SampleFunction,
     lightwave: OpticalWavefront,
+    translated_positions: Float[Array, " N 2"],
     zoom_factor: ScalarNumeric,
     aperture_diameter: ScalarNumeric,
     aperture_center: Optional[Float[Array, " 2"]],
@@ -1542,6 +1476,8 @@ def make_ptychography_reconstruction(
         Final reconstructed sample covering the scanned FOV
     lightwave : OpticalWavefront
         Final reconstructed probe/lightwave
+    translated_positions : Float[Array, " N 2"]
+        Scan positions translated to FOV coordinates (in meters)
     zoom_factor : ScalarNumeric
         Final optimized zoom factor
     aperture_diameter : ScalarNumeric
@@ -1605,9 +1541,14 @@ def make_ptychography_reconstruction(
     )
     losses_array = jnp.asarray(losses, dtype=jnp.float64)
 
+    translated_positions_array = jnp.asarray(
+        translated_positions, dtype=jnp.float64
+    )
+
     return PtychographyReconstruction(
         sample=sample,
         lightwave=lightwave,
+        translated_positions=translated_positions_array,
         zoom_factor=zoom_factor_array,
         aperture_diameter=aperture_diameter_array,
         aperture_center=aperture_center_array,

@@ -49,8 +49,6 @@ from janssen.utils import (
     make_sample_function,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def linear_interaction(

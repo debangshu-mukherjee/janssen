@@ -54,7 +54,21 @@ os.environ.setdefault(
     "--xla_cpu_multi_thread_eigen=true intra_op_parallelism_threads=0",
 )
 
-from . import invert, lenses, models, optics, plots, prop, scopes, utils
+# Enable 64-bit precision in JAX (must be set before importing submodules)
+import jax  # noqa: E402
+
+jax.config.update("jax_enable_x64", True)
+
+from . import ( # noqa: E402, I001
+    invert,
+    lenses,
+    models,
+    optics,
+    plots,
+    prop,
+    scopes,
+    utils,
+)
 
 __version__: str = version("janssen")
 

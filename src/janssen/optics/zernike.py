@@ -80,8 +80,6 @@ from janssen.utils import (
 
 from .helper import add_phase_screen
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def factorial(n: Int[Array, " "]) -> Int[Array, " "]:

@@ -70,8 +70,6 @@ from janssen.utils import (
 from .apertures import _arrayed_grids
 from .helper import add_phase_screen
 
-jax.config.update("jax_enable_x64", True)
-
 
 def _rotate_coords(
     xx: Num[Array, " ..."], yy: Num[Array, " ..."], theta: ScalarFloat

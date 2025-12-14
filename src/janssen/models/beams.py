@@ -58,8 +58,6 @@ from janssen.utils import (
 )
 from janssen.utils.factory import make_propagating_wavefront
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def plane_wave(

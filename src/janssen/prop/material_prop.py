@@ -39,8 +39,6 @@ from janssen.utils import (
 
 from .free_space_prop import correct_propagator, optical_zoom
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def multislice_propagation(

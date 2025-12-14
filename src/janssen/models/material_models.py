@@ -43,8 +43,6 @@ from janssen.utils import (
     make_sliced_material_function,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 @jaxtyped(typechecker=beartype)
 def uniform_material(

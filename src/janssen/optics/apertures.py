@@ -53,8 +53,6 @@ from janssen.utils import (
     make_optical_wavefront,
 )
 
-jax.config.update("jax_enable_x64", True)
-
 
 def _arrayed_grids(
     x0: Num[Array, " hh ww"],

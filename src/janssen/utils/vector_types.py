@@ -44,8 +44,6 @@ from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
 from .types import ScalarNumeric
 
-jax.config.update("jax_enable_x64", True)
-
 
 @register_pytree_node_class
 class VectorWavefront3D(NamedTuple):
