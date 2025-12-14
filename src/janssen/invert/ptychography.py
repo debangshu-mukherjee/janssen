@@ -215,23 +215,22 @@ def simple_microscope_ptychography(
     half_probe_x: int = probe_size_x // 2
     half_probe_y: int = probe_size_y // 2
 
-    # Default padding is FOV/4 + probe/2
+    # Default padding is half probe size (minimum needed for edge positions)
     if padding is None:
-        scan_fov: int = int(jnp.maximum(scan_fov_x, scan_fov_y))
-        half_probe: int = max(half_probe_x, half_probe_y)
-        padding = scan_fov // 4 + half_probe
-
-    # Normalize positions: subtract minimum so they start from padding
-    normalized_positions_x: Float[Array, " N"] = (
-        pixel_positions[:, 0] - min_pos_x + padding
-    )
-    normalized_positions_y: Float[Array, " N"] = (
-        pixel_positions[:, 1] - min_pos_y + padding
-    )
+        padding = max(half_probe_x, half_probe_y)
 
     # FOV size: scan range + probe size + padding on both sides
     fov_size_x: int = int(jnp.ceil(scan_fov_x)) + probe_size_x + 2 * padding
     fov_size_y: int = int(jnp.ceil(scan_fov_y)) + probe_size_y + 2 * padding
+
+    # Normalize positions: center them in the FOV
+    # Positions should start at (padding + half_probe) so probe fits
+    normalized_positions_x: Float[Array, " N"] = (
+        pixel_positions[:, 0] - min_pos_x + padding + half_probe_x
+    )
+    normalized_positions_y: Float[Array, " N"] = (
+        pixel_positions[:, 1] - min_pos_y + padding + half_probe_y
+    )
 
     # Convert normalized pixel positions back to meters for the forward model
     sample_dx: Float[Array, " "] = guess_lightwave.dx
@@ -241,14 +240,23 @@ def simple_microscope_ptychography(
     )
 
     # Create initial guess sample covering the full FOV
-    guess_sample_field: Complex[Array, " H W"] = jnp.ones(
-        (fov_size_y, fov_size_x), dtype=jnp.complex128
-    )
+    # Use small random perturbations to break symmetry between positions
+    key = jax.random.PRNGKey(42)
+    noise_real = jax.random.normal(key, (fov_size_y, fov_size_x)) * 0.01
+    key, subkey = jax.random.split(key)
+    noise_imag = jax.random.normal(subkey, (fov_size_y, fov_size_x)) * 0.01
+    guess_sample_field: Complex[Array, " H W"] = (
+        1.0 + noise_real + 1j * noise_imag
+    ).astype(jnp.complex128)
 
     print(f"Scan FOV: {scan_fov_y:.1f} x {scan_fov_x:.1f} pixels")
     print(f"Padding: {padding} pixels")
     print(f"Reconstruction FOV: {fov_size_y} x {fov_size_x} pixels")
     print(f"Probe size: {probe_size_y} x {probe_size_x} pixels")
+    print(f"Translated positions range X: {translated_positions[:, 0].min()} to {translated_positions[:, 0].max()}")
+    print(f"Translated positions range Y: {translated_positions[:, 1].min()} to {translated_positions[:, 1].max()}")
+    print(f"In pixels X: {translated_positions[:, 0].min()/sample_dx:.1f} to {translated_positions[:, 0].max()/sample_dx:.1f}")
+    print(f"In pixels Y: {translated_positions[:, 1].min()/sample_dx:.1f} to {translated_positions[:, 1].max()/sample_dx:.1f}")
 
     # Define bound enforcement functions
     def _enforce_bounds(
@@ -489,60 +497,63 @@ def simple_microscope_ptychography(
         )
         sample_field = optax.apply_updates(sample_field, sample_updates)
 
-        # Update lightwave
-        lightwave_updates: Array
-        lightwave_updates, lightwave_opt_state = optimizer.update(
-            grads["lightwave"], lightwave_opt_state, lightwave_field
-        )
-        lightwave_field = optax.apply_updates(
-            lightwave_field, lightwave_updates
-        )
+        # NOTE: Lightwave/probe frozen for now - it steals gradient from sample
+        # # Update lightwave
+        # lightwave_updates: Array
+        # lightwave_updates, lightwave_opt_state = optimizer.update(
+        #     grads["lightwave"], lightwave_opt_state, lightwave_field
+        # )
+        # lightwave_field = optax.apply_updates(
+        #     lightwave_field, lightwave_updates
+        # )
 
-        # Update zoom factor
-        zoom_updates: Array
-        zoom_updates, zoom_factor_opt_state = optimizer.update(
-            grads["zoom_factor"], zoom_factor_opt_state, zoom_factor
-        )
-        zoom_factor = optax.apply_updates(zoom_factor, zoom_updates)
-        zoom_factor = _enforce_bounds(zoom_factor, zoom_factor_bounds)
+        # NOTE: Optical parameters frozen for now - they steal gradient from sample
+        # TODO: Add flag to control this behavior
+        # # Update zoom factor
+        # zoom_updates: Array
+        # zoom_updates, zoom_factor_opt_state = optimizer.update(
+        #     grads["zoom_factor"], zoom_factor_opt_state, zoom_factor
+        # )
+        # zoom_factor = optax.apply_updates(zoom_factor, zoom_updates)
+        # zoom_factor = _enforce_bounds(zoom_factor, zoom_factor_bounds)
 
-        # Update aperture diameter
-        aperture_updates: Array
-        aperture_updates, aperture_diameter_opt_state = optimizer.update(
-            grads["aperture_diameter"],
-            aperture_diameter_opt_state,
-            aperture_diameter,
-        )
-        aperture_diameter = optax.apply_updates(
-            aperture_diameter, aperture_updates
-        )
-        aperture_diameter = _enforce_bounds(
-            aperture_diameter, aperture_diameter_bounds
-        )
+        # # Update aperture diameter
+        # aperture_updates: Array
+        # aperture_updates, aperture_diameter_opt_state = optimizer.update(
+        #     grads["aperture_diameter"],
+        #     aperture_diameter_opt_state,
+        #     aperture_diameter,
+        # )
+        # aperture_diameter = optax.apply_updates(
+        #     aperture_diameter, aperture_updates
+        # )
+        # aperture_diameter = _enforce_bounds(
+        #     aperture_diameter, aperture_diameter_bounds
+        # )
 
-        # Update travel distance
-        travel_updates: Array
-        travel_updates, travel_distance_opt_state = optimizer.update(
-            grads["travel_distance"],
-            travel_distance_opt_state,
-            travel_distance,
-        )
-        travel_distance = optax.apply_updates(travel_distance, travel_updates)
-        travel_distance = _enforce_bounds(
-            travel_distance, travel_distance_bounds
-        )
+        # # Update travel distance
+        # travel_updates: Array
+        # travel_updates, travel_distance_opt_state = optimizer.update(
+        #     grads["travel_distance"],
+        #     travel_distance_opt_state,
+        #     travel_distance,
+        # )
+        # travel_distance = optax.apply_updates(travel_distance, travel_updates)
+        # travel_distance = _enforce_bounds(
+        #     travel_distance, travel_distance_bounds
+        # )
 
-        # Update aperture center
-        center_updates: Array
-        center_updates, aperture_center_opt_state = optimizer.update(
-            grads["aperture_center"],
-            aperture_center_opt_state,
-            aperture_center,
-        )
-        aperture_center = optax.apply_updates(aperture_center, center_updates)
-        aperture_center = _enforce_bounds_2d(
-            aperture_center, aperture_center_bounds
-        )
+        # # Update aperture center
+        # center_updates: Array
+        # center_updates, aperture_center_opt_state = optimizer.update(
+        #     grads["aperture_center"],
+        #     aperture_center_opt_state,
+        #     aperture_center,
+        # )
+        # aperture_center = optax.apply_updates(aperture_center, center_updates)
+        # aperture_center = _enforce_bounds_2d(
+        #     aperture_center, aperture_center_bounds
+        # )
 
         return (
             sample_field,
