@@ -1354,7 +1354,7 @@ def make_ptychography_params(
     zoom_factor: ScalarNumeric,
     aperture_diameter: ScalarNumeric,
     travel_distance: ScalarNumeric,
-    aperture_center: Float[Array, " 2"],
+    aperture_center: Optional[Float[Array, " 2"]],
     camera_pixel_size: ScalarNumeric,
     learning_rate: ScalarNumeric,
     num_iterations: ScalarInteger,
@@ -1369,8 +1369,8 @@ def make_ptychography_params(
         Diameter of the aperture in meters (must be positive)
     travel_distance : ScalarNumeric
         Light propagation distance in meters (must be positive)
-    aperture_center : Float[Array, " 2"]
-        Center position of the aperture (x, y) in meters
+    aperture_center : Optional[Float[Array, " 2"]]
+        Center position of the aperture (x, y) in meters, or None for centered
     camera_pixel_size : ScalarNumeric
         Camera pixel size in meters (must be positive)
     learning_rate : ScalarNumeric
@@ -1393,7 +1393,11 @@ def make_ptychography_params(
     zoom_factor_array = jnp.asarray(zoom_factor, dtype=jnp.float64)
     aperture_diameter_array = jnp.asarray(aperture_diameter, dtype=jnp.float64)
     travel_distance_array = jnp.asarray(travel_distance, dtype=jnp.float64)
-    aperture_center_array = jnp.asarray(aperture_center, dtype=jnp.float64)
+    aperture_center_array: Optional[Float[Array, " 2"]] = (
+        jnp.asarray(aperture_center, dtype=jnp.float64)
+        if aperture_center is not None
+        else None
+    )
     camera_pixel_size_array = jnp.asarray(camera_pixel_size, dtype=jnp.float64)
     learning_rate_array = jnp.asarray(learning_rate, dtype=jnp.float64)
     num_iterations_array = jnp.asarray(num_iterations, dtype=jnp.int64)
@@ -1438,7 +1442,9 @@ def make_ptychography_params(
                 ),
             )
 
-        def check_aperture_center_shape() -> Float[Array, " 2"]:
+        def check_aperture_center_shape() -> Optional[Float[Array, " 2"]]:
+            if aperture_center_array is None:
+                return None
             return lax.cond(
                 aperture_center_array.shape == (2,),
                 lambda: aperture_center_array,
@@ -1520,12 +1526,13 @@ def make_ptychography_reconstruction(
     aperture_diameter: ScalarNumeric,
     aperture_center: Optional[Float[Array, " 2"]],
     travel_distance: ScalarNumeric,
-    intermediate_samples: Complex[Array, " H W S"],
-    intermediate_lightwaves: Complex[Array, " H W S"],
+    intermediate_samples: Complex[Array, " Hs Ws S"],
+    intermediate_lightwaves: Complex[Array, " Hp Wp S"],
     intermediate_zoom_factors: Float[Array, " S"],
     intermediate_aperture_diameters: Float[Array, " S"],
     intermediate_aperture_centers: Float[Array, " 2 S"],
     intermediate_travel_distances: Float[Array, " S"],
+    losses: Float[Array, " N 2"],
 ) -> PtychographyReconstruction:
     """Create a PtychographyReconstruction PyTree with validated results.
 
@@ -1543,9 +1550,9 @@ def make_ptychography_reconstruction(
         Final optimized aperture center position (x, y)
     travel_distance : ScalarNumeric
         Final optimized light propagation distance in meters
-    intermediate_samples : Complex[Array, " H W S"]
+    intermediate_samples : Complex[Array, " Hs Ws S"]
         Intermediate sample reconstructions during optimization
-    intermediate_lightwaves : Complex[Array, " H W S"]
+    intermediate_lightwaves : Complex[Array, " Hp Wp S"]
         Intermediate probe reconstructions during optimization
     intermediate_zoom_factors : Float[Array, " S"]
         Intermediate zoom factors during optimization
@@ -1555,6 +1562,8 @@ def make_ptychography_reconstruction(
         Intermediate aperture centers during optimization
     intermediate_travel_distances : Float[Array, " S"]
         Intermediate travel distances during optimization
+    losses : Float[Array, " N 2"]
+        Loss history with columns [iteration, loss_value]
 
     Returns
     -------
@@ -1594,6 +1603,7 @@ def make_ptychography_reconstruction(
     intermediate_travel_distances_array = jnp.asarray(
         intermediate_travel_distances, dtype=jnp.float64
     )
+    losses_array = jnp.asarray(losses, dtype=jnp.float64)
 
     return PtychographyReconstruction(
         sample=sample,
@@ -1608,4 +1618,5 @@ def make_ptychography_reconstruction(
         intermediate_aperture_diameters=intermediate_aperture_diameters_array,
         intermediate_aperture_centers=intermediate_aperture_centers_array,
         intermediate_travel_distances=intermediate_travel_distances_array,
+        losses=losses_array,
     )

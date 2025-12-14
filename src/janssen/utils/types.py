@@ -684,9 +684,9 @@ class PtychographyReconstruction(NamedTuple):
         Final optimized aperture center position (x, y)
     travel_distance : Float[Array, " "]
         Final optimized light propagation distance in meters
-    intermediate_samples : Complex[Array, " H W S"]
+    intermediate_samples : Complex[Array, " Hs Ws S"]
         Intermediate sample reconstructions during optimization
-    intermediate_lightwaves : Complex[Array, " H W S"]
+    intermediate_lightwaves : Complex[Array, " Hp Wp S"]
         Intermediate probe reconstructions during optimization
     intermediate_zoom_factors : Float[Array, " S"]
         Intermediate zoom factors during optimization
@@ -696,6 +696,8 @@ class PtychographyReconstruction(NamedTuple):
         Intermediate aperture centers during optimization
     intermediate_travel_distances : Float[Array, " S"]
         Intermediate travel distances during optimization
+    losses : Float[Array, " N 2"]
+        Loss history with columns [iteration, loss_value]
 
     Notes
     -----
@@ -711,12 +713,13 @@ class PtychographyReconstruction(NamedTuple):
     aperture_diameter: Float[Array, " "]
     aperture_center: Optional[Float[Array, " 2"]]
     travel_distance: Float[Array, " "]
-    intermediate_samples: Complex[Array, " H W S"]
-    intermediate_lightwaves: Complex[Array, " H W S"]
+    intermediate_samples: Complex[Array, " Hs Ws S"]
+    intermediate_lightwaves: Complex[Array, " Hp Wp S"]
     intermediate_zoom_factors: Float[Array, " S"]
     intermediate_aperture_diameters: Float[Array, " S"]
     intermediate_aperture_centers: Float[Array, " 2 S"]
     intermediate_travel_distances: Float[Array, " S"]
+    losses: Float[Array, " N 2"]
 
     def tree_flatten(
         self,
@@ -728,12 +731,13 @@ class PtychographyReconstruction(NamedTuple):
             Float[Array, " "],
             Optional[Float[Array, " 2"]],
             Float[Array, " "],
-            Complex[Array, " H W S"],
-            Complex[Array, " H W S"],
+            Complex[Array, " Hs Ws S"],
+            Complex[Array, " Hp Wp S"],
             Float[Array, " S"],
             Float[Array, " S"],
             Float[Array, " 2 S"],
             Float[Array, " S"],
+            Float[Array, " N 2"],
         ],
         None,
     ]:
@@ -752,6 +756,7 @@ class PtychographyReconstruction(NamedTuple):
                 self.intermediate_aperture_diameters,
                 self.intermediate_aperture_centers,
                 self.intermediate_travel_distances,
+                self.losses,
             ),
             None,
         )
@@ -767,12 +772,13 @@ class PtychographyReconstruction(NamedTuple):
             Float[Array, " "],
             Optional[Float[Array, " 2"]],
             Float[Array, " "],
-            Complex[Array, " H W S"],
-            Complex[Array, " H W S"],
+            Complex[Array, " Hs Ws S"],
+            Complex[Array, " Hp Wp S"],
             Float[Array, " S"],
             Float[Array, " S"],
             Float[Array, " 2 S"],
             Float[Array, " S"],
+            Float[Array, " N 2"],
         ],
     ) -> "PtychographyReconstruction":
         """Unflatten PtychographyReconstruction from tuple of components."""

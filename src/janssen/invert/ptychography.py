@@ -146,6 +146,8 @@ def simple_microscope_ptychography(
             Intermediate aperture centers during optimization.
         - intermediate_travel_distances : Float[Array, " S"]
             Intermediate travel distances during optimization.
+        - losses : Float[Array, " N 2"]
+            Loss history with columns [iteration, loss_value].
 
     Notes
     -----
@@ -435,6 +437,11 @@ def simple_microscope_ptychography(
         (2, num_saves), dtype=jnp.float64
     )
 
+    # Initialize losses array to store [iteration, loss] at every iteration
+    losses: Float[Array, " N 2"] = jnp.zeros(
+        (num_iterations, 2), dtype=jnp.float64
+    )
+
     @jax.jit
     def _update_step(
         sample_field: Complex[Array, " H W"],
@@ -585,6 +592,10 @@ def simple_microscope_ptychography(
             aperture_center_opt_state,
         )
 
+        # Record loss at every iteration
+        losses = losses.at[ii, 0].set(float(ii))
+        losses = losses.at[ii, 1].set(loss)
+
         # Save intermediate results
         if ii % save_every == 0:
             print(f"Iteration {ii}, Loss: {loss}")
@@ -642,6 +653,7 @@ def simple_microscope_ptychography(
             intermediate_aperture_diameters=intermediate_aperture_diameters,
             intermediate_aperture_centers=intermediate_aperture_centers,
             intermediate_travel_distances=intermediate_travel_distances,
+            losses=losses,
         )
     )
     return full_and_intermediate
