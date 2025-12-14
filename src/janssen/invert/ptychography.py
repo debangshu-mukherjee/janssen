@@ -24,7 +24,7 @@ import jax.numpy as jnp
 import optax
 from beartype import beartype
 from beartype.typing import Callable, Dict, Optional, Tuple
-from jaxtyping import Array, Complex, Float, Int, jaxtyped
+from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.scopes import simple_microscope
 from janssen.utils import (

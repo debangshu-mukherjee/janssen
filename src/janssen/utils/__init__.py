@@ -12,6 +12,8 @@ distributed
     Multi-device utilities for scalable optical computing
 factory
     Factory functions for creating data structures
+math
+    Mathematical utilities including Wirtinger calculus
 types
     Type definitions and PyTrees
 vector_types
@@ -55,6 +57,8 @@ vector3d_to_jones : function
     Extract transverse components as Jones field
 shard_batch : function
     Shards array data across the batch dimension for parallel processing
+wirtinger_grad : function
+    Compute the Wirtinger gradient of a complex-valued function
 Diffractogram : PyTree
     PyTree for storing diffraction patterns
 GridParams : PyTree
@@ -137,6 +141,7 @@ from .types import (
     ScalarNumeric,
     SlicedMaterialFunction,
 )
+from .math import wirtinger_grad
 from .vector_types import (
     VectorWavefront3D,
     jones_to_vector3d,
@@ -163,6 +168,7 @@ __all__: list[str] = [
     "vector3d_to_jones",
     "optical2propagating",
     "shard_batch",
+    "wirtinger_grad",
     "Diffractogram",
     "GridParams",
     "LensParams",
