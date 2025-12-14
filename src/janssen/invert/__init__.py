@@ -14,8 +14,6 @@ engine
     Reconstruction engine
 ptychography
     Ptychographic algorithms
-optimizers
-    Optimization routines
 loss_functions
     Loss function definitions
 
@@ -25,12 +23,6 @@ create_loss_function : function
     Factory function for creating various loss functions
 epie_optical : function
     Extended PIE algorithm for optical ptychography
-init_adagrad : function
-    Initialize Adagrad optimizer state
-init_adam : function
-    Initialize Adam optimizer state
-init_rmsprop : function
-    Initialize RMSprop optimizer state
 simple_microscope_ptychography : function
     Main ptychography reconstruction algorithm using PtychographyParams
 single_pie_iteration : function
@@ -54,15 +46,11 @@ from .engine import (
     single_pie_vmap,
 )
 from .loss_functions import create_loss_function
-from .optimizers import init_adagrad, init_adam, init_rmsprop
 from .ptychography import simple_microscope_ptychography
 
 __all__: list[str] = [
     "create_loss_function",
     "epie_optical",
-    "init_adagrad",
-    "init_adam",
-    "init_rmsprop",
     "simple_microscope_ptychography",
     "single_pie_iteration",
     "single_pie_sequential",
