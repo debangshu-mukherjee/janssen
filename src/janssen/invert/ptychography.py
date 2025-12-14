@@ -9,8 +9,6 @@ measurements.
 
 Routine Listings
 ----------------
-get_optimizer : function
-    Returns an optimizer object based on the specified name
 simple_microscope_ptychography : function
     Performs ptychography reconstruction using a simple microscope model
 
@@ -23,8 +21,9 @@ transformations and automatic differentiation for gradient-based optimization.
 
 import jax
 import jax.numpy as jnp
+import optax
 from beartype import beartype
-from beartype.typing import Dict, Optional, Tuple
+from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.scopes import simple_microscope
@@ -40,47 +39,20 @@ from janssen.utils import (
 )
 
 from .loss_functions import create_loss_function
-from .optimizers import (
-    Optimizer,
-    adagrad_update,
-    adam_update,
-    init_adagrad,
-    init_adam,
-    init_rmsprop,
-    rmsprop_update,
-)
 
 jax.config.update("jax_enable_x64", True)
 
-OPTIMIZERS: Dict[str, Optimizer] = {
-    "adam": Optimizer(init_adam, adam_update),
-    "adagrad": Optimizer(init_adagrad, adagrad_update),
-    "rmsprop": Optimizer(init_rmsprop, rmsprop_update),
+OPTIMIZERS = {
+    "adam": optax.adam,
+    "adagrad": optax.adagrad,
+    "rmsprop": optax.rmsprop,
+    "sgd": optax.sgd,
 }
-
-
-def get_optimizer(optimizer_name: str) -> Optimizer:
-    """Get the optimizer function based on the optimizer name.
-
-    Parameters
-    ----------
-    optimizer_name : str
-        The name of the optimizer to get.
-
-    Returns
-    -------
-    Optimizer
-        The optimizer function.
-    """
-    if optimizer_name not in OPTIMIZERS:
-        raise ValueError(f"Unknown optimizer: {optimizer_name}")
-    return OPTIMIZERS[optimizer_name]
 
 
 @jaxtyped(typechecker=beartype)
 def simple_microscope_ptychography(
     experimental_data: MicroscopeData,
-    guess_sample: SampleFunction,
     guess_lightwave: OpticalWavefront,
     params: PtychographyParams,
     save_every: Optional[ScalarInteger] = 10,
@@ -92,6 +64,7 @@ def simple_microscope_ptychography(
     aperture_center_bounds: Optional[
         Tuple[Float[Array, " 2"], Float[Array, " 2"]]
     ] = None,
+    padding: Optional[ScalarInteger] = None,
 ) -> Tuple[
     Tuple[
         SampleFunction,  # final_sample
@@ -113,18 +86,18 @@ def simple_microscope_ptychography(
     """Solve the optical ptychography inverse problem.
 
     Here experimental diffraction patterns are used to reconstruct a
-    sample,
-    lightwave, and optical system parameters.
+    sample, lightwave, and optical system parameters. The reconstructed
+    sample covers the full field of view spanned by the scan positions
+    plus padding.
 
     Parameters
     ----------
     experimental_data : MicroscopeData
         The experimental diffraction patterns collected at different
-        positions.
-    guess_sample : SampleFunction
-        Initial guess for the sample properties.
+        positions. Positions should be in meters.
     guess_lightwave : OpticalWavefront
-        Initial guess for the lightwave.
+        Initial guess for the lightwave (probe). The probe size determines
+        the interaction region at each scan position.
     params : PtychographyParams
         Ptychography parameters including:
         - zoom_factor: Optical zoom factor for magnification
@@ -139,7 +112,8 @@ def simple_microscope_ptychography(
     loss_type : str, optional
         Type of loss function to use. Default is "mse".
     optimizer_name : str, optional
-        Name of the optimizer to use. Default is "adam".
+        Name of the optimizer to use ("adam", "adagrad", "rmsprop", "sgd").
+        Default is "adam".
     zoom_factor_bounds : Tuple[ScalarFloat, ScalarFloat], optional
         Lower and upper bounds for zoom factor optimization.
     aperture_diameter_bounds :
@@ -150,6 +124,10 @@ def simple_microscope_ptychography(
     aperture_center_bounds :
         Tuple[Float[Array, " 2"], Float[Array, " 2"]], optional
         Lower and upper bounds for aperture center optimization.
+    padding : ScalarInteger, optional
+        Additional padding in pixels around the scanned region. If None,
+        defaults to FOV/4 + probe/2. Only modify if you understand the
+        position normalization logic.
 
     Returns
     -------
@@ -157,9 +135,9 @@ def simple_microscope_ptychography(
         Tuple containing:
         - Final results tuple:
             - final_sample : SampleFunction
-                Optimized sample properties.
+                Optimized sample covering the scanned FOV.
             - final_lightwave : OpticalWavefront
-                Optimized lightwave.
+                Optimized lightwave (probe).
             - final_zoom_factor : ScalarFloat
                 Optimized zoom factor.
             - final_aperture_diameter : ScalarFloat
@@ -181,6 +159,20 @@ def simple_microscope_ptychography(
                 Intermediate aperture centers during optimization.
             - intermediate_travel_distances : Float[Array, " S"]
                 Intermediate travel distances during optimization.
+
+    Notes
+    -----
+    Position normalization:
+    - Input positions can start from any value (negative or high positive)
+    - Positions are normalized by subtracting the minimum x and y values
+    - Padding is then added so positions start from the pad value
+
+    The reconstruction FOV is computed as:
+    - Range of normalized scan positions (in pixels)
+    - plus half the probe size on each side
+    - plus the specified padding on each side
+
+    Default padding is a quarter of the scan FOV size.
     """
     # Extract parameters from PtychographyParams
     zoom_factor = params.zoom_factor
@@ -190,6 +182,56 @@ def simple_microscope_ptychography(
     camera_pixel_size = params.camera_pixel_size
     learning_rate = params.learning_rate
     num_iterations = params.num_iterations
+
+    # Get probe size from lightwave
+    probe_size_y, probe_size_x = guess_lightwave.field.shape
+
+    # Convert positions from meters to pixels
+    pixel_positions = experimental_data.positions / guess_lightwave.dx
+
+    # Compute the scan FOV (range of positions) before normalization
+    min_pos_x = jnp.min(pixel_positions[:, 0])
+    max_pos_x = jnp.max(pixel_positions[:, 0])
+    min_pos_y = jnp.min(pixel_positions[:, 1])
+    max_pos_y = jnp.max(pixel_positions[:, 1])
+
+    # Scan FOV is the range of positions (before adding probe size)
+    scan_fov_x = max_pos_x - min_pos_x
+    scan_fov_y = max_pos_y - min_pos_y
+
+    # Half probe sizes (positions point to probe center, extraction needs space)
+    half_probe_x = probe_size_x // 2
+    half_probe_y = probe_size_y // 2
+
+    # Default padding is FOV/4 + probe/2
+    if padding is None:
+        scan_fov = int(jnp.maximum(scan_fov_x, scan_fov_y))
+        half_probe = max(half_probe_x, half_probe_y)
+        padding = scan_fov // 4 + half_probe
+
+    # Normalize positions: subtract minimum so they start from padding
+    normalized_positions_x = pixel_positions[:, 0] - min_pos_x + padding
+    normalized_positions_y = pixel_positions[:, 1] - min_pos_y + padding
+
+    # FOV size: scan range + probe size + padding on both sides
+    fov_size_x = int(jnp.ceil(scan_fov_x)) + probe_size_x + 2 * padding
+    fov_size_y = int(jnp.ceil(scan_fov_y)) + probe_size_y + 2 * padding
+
+    # Convert normalized pixel positions back to meters for the forward model
+    sample_dx = guess_lightwave.dx
+    translated_positions = jnp.stack(
+        [normalized_positions_x, normalized_positions_y], axis=1
+    ) * sample_dx
+
+    # Create initial guess sample covering the full FOV
+    guess_sample_field = jnp.ones(
+        (int(fov_size_y), int(fov_size_x)), dtype=jnp.complex128
+    )
+
+    print(f"Scan FOV: {scan_fov_y:.1f} x {scan_fov_x:.1f} pixels")
+    print(f"Padding: {padding} pixels")
+    print(f"Reconstruction FOV: {int(fov_size_y)} x {int(fov_size_x)} pixels")
+    print(f"Probe size: {probe_size_y} x {probe_size_x} pixels")
 
     # Define bound enforcement functions
     def enforce_bounds(
@@ -221,7 +263,7 @@ def simple_microscope_ptychography(
     ) -> MicroscopeData:
         # Reconstruct PyTree objects from arrays
         sample: SampleFunction = make_sample_function(
-            sample=sample_field, dx=guess_sample.dx
+            sample=sample_field, dx=sample_dx
         )
 
         lightwave: OpticalWavefront = make_optical_wavefront(
@@ -232,9 +274,10 @@ def simple_microscope_ptychography(
         )
 
         # Generate the microscope data using the forward model
+        # Use translated positions so they index correctly into the FOV
         simulated_data: MicroscopeData = simple_microscope(
             sample=sample,
-            positions=experimental_data.positions,
+            positions=translated_positions,
             lightwave=lightwave,
             zoom_factor=zoom_factor,
             aperture_diameter=aperture_diameter,
@@ -311,21 +354,26 @@ def simple_microscope_ptychography(
             "aperture_center": grads[5],
         }
 
-    # Get the selected optimizer
-    optimizer = get_optimizer(optimizer_name)
+    # Create optax optimizer
+    if optimizer_name not in OPTIMIZERS:
+        raise ValueError(
+            f"Unknown optimizer: {optimizer_name}. "
+            f"Available: {list(OPTIMIZERS.keys())}"
+        )
+    optimizer = OPTIMIZERS[optimizer_name](learning_rate)
 
-    # Initialize optimizer states
-    sample_state = optimizer.init(guess_sample.sample.shape)
-    lightwave_state = optimizer.init(guess_lightwave.field.shape)
-    zoom_factor_state = optimizer.init(())  # Scalar param
-    aperture_diameter_state = optimizer.init(())  # Scalar param
-    travel_distance_state = optimizer.init(())  # Scalar param
-    aperture_center_state = optimizer.init(
-        (2,) if aperture_center is not None else ()
+    # Initialize optimizer states for each parameter
+    sample_opt_state = optimizer.init(guess_sample_field)
+    lightwave_opt_state = optimizer.init(guess_lightwave.field)
+    zoom_factor_opt_state = optimizer.init(zoom_factor)
+    aperture_diameter_opt_state = optimizer.init(aperture_diameter)
+    travel_distance_opt_state = optimizer.init(travel_distance)
+    aperture_center_opt_state = optimizer.init(
+        jnp.zeros(2) if aperture_center is None else aperture_center
     )
 
     # Initialize parameters
-    sample_field = guess_sample.sample
+    sample_field = guess_sample_field
     lightwave_field = guess_lightwave.field
     current_zoom_factor = zoom_factor
     current_aperture_diameter = aperture_diameter
@@ -362,12 +410,12 @@ def simple_microscope_ptychography(
         aperture_diameter,
         travel_distance,
         aperture_center,
-        sample_state,
-        lightwave_state,
-        zoom_factor_state,
-        aperture_diameter_state,
-        travel_distance_state,
-        aperture_center_state,
+        sample_opt_state,
+        lightwave_opt_state,
+        zoom_factor_opt_state,
+        aperture_diameter_opt_state,
+        travel_distance_opt_state,
+        aperture_center_opt_state,
     ):
         loss, grads = loss_and_grad(
             sample_field,
@@ -379,50 +427,55 @@ def simple_microscope_ptychography(
         )
 
         # Update sample
-        sample_field, sample_state = optimizer.update(
-            sample_field, grads["sample"], sample_state, learning_rate
+        sample_updates, sample_opt_state = optimizer.update(
+            grads["sample"], sample_opt_state, sample_field
         )
+        sample_field = optax.apply_updates(sample_field, sample_updates)
 
         # Update lightwave
-        lightwave_field, lightwave_state = optimizer.update(
-            lightwave_field, grads["lightwave"], lightwave_state, learning_rate
+        lightwave_updates, lightwave_opt_state = optimizer.update(
+            grads["lightwave"], lightwave_opt_state, lightwave_field
         )
+        lightwave_field = optax.apply_updates(lightwave_field, lightwave_updates)
 
         # Update zoom factor
-        zoom_factor, zoom_factor_state = optimizer.update(
-            zoom_factor, grads["zoom_factor"], zoom_factor_state, learning_rate
+        zoom_updates, zoom_factor_opt_state = optimizer.update(
+            grads["zoom_factor"], zoom_factor_opt_state, zoom_factor
         )
+        zoom_factor = optax.apply_updates(zoom_factor, zoom_updates)
         zoom_factor = enforce_bounds(zoom_factor, zoom_factor_bounds)
 
         # Update aperture diameter
-        aperture_diameter, aperture_diameter_state = optimizer.update(
-            aperture_diameter,
+        aperture_updates, aperture_diameter_opt_state = optimizer.update(
             grads["aperture_diameter"],
-            aperture_diameter_state,
-            learning_rate,
+            aperture_diameter_opt_state,
+            aperture_diameter,
+        )
+        aperture_diameter = optax.apply_updates(
+            aperture_diameter, aperture_updates
         )
         aperture_diameter = enforce_bounds(
             aperture_diameter, aperture_diameter_bounds
         )
 
         # Update travel distance
-        travel_distance, travel_distance_state = optimizer.update(
-            travel_distance,
+        travel_updates, travel_distance_opt_state = optimizer.update(
             grads["travel_distance"],
-            travel_distance_state,
-            learning_rate,
+            travel_distance_opt_state,
+            travel_distance,
         )
+        travel_distance = optax.apply_updates(travel_distance, travel_updates)
         travel_distance = enforce_bounds(
             travel_distance, travel_distance_bounds
         )
 
         # Update aperture center
-        aperture_center, aperture_center_state = optimizer.update(
-            aperture_center,
+        center_updates, aperture_center_opt_state = optimizer.update(
             grads["aperture_center"],
-            aperture_center_state,
-            learning_rate,
+            aperture_center_opt_state,
+            aperture_center,
         )
+        aperture_center = optax.apply_updates(aperture_center, center_updates)
         aperture_center = enforce_bounds_2d(
             aperture_center, aperture_center_bounds
         )
@@ -434,12 +487,12 @@ def simple_microscope_ptychography(
             aperture_diameter,
             travel_distance,
             aperture_center,
-            sample_state,
-            lightwave_state,
-            zoom_factor_state,
-            aperture_diameter_state,
-            travel_distance_state,
-            aperture_center_state,
+            sample_opt_state,
+            lightwave_opt_state,
+            zoom_factor_opt_state,
+            aperture_diameter_opt_state,
+            travel_distance_opt_state,
+            aperture_center_opt_state,
             loss,
         )
 
@@ -452,12 +505,12 @@ def simple_microscope_ptychography(
             current_aperture_diameter,
             current_travel_distance,
             current_aperture_center,
-            sample_state,
-            lightwave_state,
-            zoom_factor_state,
-            aperture_diameter_state,
-            travel_distance_state,
-            aperture_center_state,
+            sample_opt_state,
+            lightwave_opt_state,
+            zoom_factor_opt_state,
+            aperture_diameter_opt_state,
+            travel_distance_opt_state,
+            aperture_center_opt_state,
             loss,
         ) = update_step(
             sample_field,
@@ -466,12 +519,12 @@ def simple_microscope_ptychography(
             current_aperture_diameter,
             current_travel_distance,
             current_aperture_center,
-            sample_state,
-            lightwave_state,
-            zoom_factor_state,
-            aperture_diameter_state,
-            travel_distance_state,
-            aperture_center_state,
+            sample_opt_state,
+            lightwave_opt_state,
+            zoom_factor_opt_state,
+            aperture_diameter_opt_state,
+            travel_distance_opt_state,
+            aperture_center_opt_state,
         )
 
         # Save intermediate results
@@ -506,7 +559,7 @@ def simple_microscope_ptychography(
 
     # Create final objects
     final_sample: SampleFunction = make_sample_function(
-        sample=sample_field, dx=guess_sample.dx
+        sample=sample_field, dx=sample_dx
     )
 
     final_lightwave: OpticalWavefront = make_optical_wavefront(
