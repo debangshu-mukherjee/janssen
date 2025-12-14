@@ -330,8 +330,11 @@ def fraunhofer_prop(
 
     # Combine all terms
     propagated_field: Complex[Array, " hh ww"] = (
-        global_phase * scale_factor * quadratic_phase * field_ft *
-        (incoming.dx**2)
+        global_phase
+        * scale_factor
+        * quadratic_phase
+        * field_ft
+        * (incoming.dx**2)
     )
 
     propagated: OpticalWavefront = make_optical_wavefront(
@@ -474,8 +477,11 @@ def fraunhofer_prop_scaled(
 
     # Combine all terms
     propagated_field: Complex[Array, " hh ww"] = (
-        global_phase * scale_factor * quadratic_phase * scaled_ft *
-        (incoming.dx**2)
+        global_phase
+        * scale_factor
+        * quadratic_phase
+        * scaled_ft
+        * (incoming.dx**2)
     )
 
     propagated: OpticalWavefront = make_optical_wavefront(
