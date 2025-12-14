@@ -41,6 +41,8 @@ make_optimizer_state : function
     Factory function for OptimizerState creation
 make_ptychography_params : function
     Factory function for PtychographyParams creation
+make_ptychography_reconstruction : function
+    Factory function for PtychographyReconstruction creation
 make_sample_function : function
     Factory function for SampleFunction creation
 make_sliced_material_function : function
@@ -71,6 +73,8 @@ PropagatingWavefront : PyTree
     PyTree for propagating optical wavefront representation
 PtychographyParams : PyTree
     PyTree for ptychography reconstruction parameters
+PtychographyReconstruction : PyTree
+    PyTree for ptychography reconstruction results
 SampleFunction : PyTree
     PyTree for sample representation
 ScalarBool : TypeAlias
@@ -109,6 +113,7 @@ from .factory import (
     make_optimizer_state,
     make_propagating_wavefront,
     make_ptychography_params,
+    make_ptychography_reconstruction,
     make_sample_function,
     make_sliced_material_function,
     optical2propagating,
@@ -123,6 +128,7 @@ from .types import (
     OptimizerState,
     PropagatingWavefront,
     PtychographyParams,
+    PtychographyReconstruction,
     SampleFunction,
     ScalarBool,
     ScalarComplex,
@@ -149,6 +155,7 @@ __all__: list[str] = [
     "make_optimizer_state",
     "make_propagating_wavefront",
     "make_ptychography_params",
+    "make_ptychography_reconstruction",
     "make_sample_function",
     "make_sliced_material_function",
     "make_vector_wavefront_3d",
@@ -165,6 +172,7 @@ __all__: list[str] = [
     "OptimizerState",
     "PropagatingWavefront",
     "PtychographyParams",
+    "PtychographyReconstruction",
     "SampleFunction",
     "ScalarBool",
     "ScalarComplex",

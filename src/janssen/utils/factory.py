@@ -30,6 +30,8 @@ make_optimizer_state : function
     Creates an OptimizerState instance with runtime type checking
 make_ptychography_params : function
     Creates a PtychographyParams instance with runtime type checking
+make_ptychography_reconstruction : function
+    Creates a PtychographyReconstruction instance with runtime type checking
 
 Notes
 -----
@@ -54,6 +56,7 @@ from .types import (
     OptimizerState,
     PropagatingWavefront,
     PtychographyParams,
+    PtychographyReconstruction,
     SampleFunction,
     ScalarBool,
     ScalarComplex,
@@ -1507,3 +1510,102 @@ def make_ptychography_params(
 
     validated_params: PtychographyParams = validate_and_create()
     return validated_params
+
+
+@jaxtyped(typechecker=beartype)
+def make_ptychography_reconstruction(
+    sample: SampleFunction,
+    lightwave: OpticalWavefront,
+    zoom_factor: ScalarNumeric,
+    aperture_diameter: ScalarNumeric,
+    aperture_center: Optional[Float[Array, " 2"]],
+    travel_distance: ScalarNumeric,
+    intermediate_samples: Complex[Array, " H W S"],
+    intermediate_lightwaves: Complex[Array, " H W S"],
+    intermediate_zoom_factors: Float[Array, " S"],
+    intermediate_aperture_diameters: Float[Array, " S"],
+    intermediate_aperture_centers: Float[Array, " 2 S"],
+    intermediate_travel_distances: Float[Array, " S"],
+) -> PtychographyReconstruction:
+    """Create a PtychographyReconstruction PyTree with validated results.
+
+    Parameters
+    ----------
+    sample : SampleFunction
+        Final reconstructed sample covering the scanned FOV
+    lightwave : OpticalWavefront
+        Final reconstructed probe/lightwave
+    zoom_factor : ScalarNumeric
+        Final optimized zoom factor
+    aperture_diameter : ScalarNumeric
+        Final optimized aperture diameter in meters
+    aperture_center : Optional[Float[Array, " 2"]]
+        Final optimized aperture center position (x, y)
+    travel_distance : ScalarNumeric
+        Final optimized light propagation distance in meters
+    intermediate_samples : Complex[Array, " H W S"]
+        Intermediate sample reconstructions during optimization
+    intermediate_lightwaves : Complex[Array, " H W S"]
+        Intermediate probe reconstructions during optimization
+    intermediate_zoom_factors : Float[Array, " S"]
+        Intermediate zoom factors during optimization
+    intermediate_aperture_diameters : Float[Array, " S"]
+        Intermediate aperture diameters during optimization
+    intermediate_aperture_centers : Float[Array, " 2 S"]
+        Intermediate aperture centers during optimization
+    intermediate_travel_distances : Float[Array, " S"]
+        Intermediate travel distances during optimization
+
+    Returns
+    -------
+    PtychographyReconstruction
+        Validated ptychography reconstruction results as a PyTree
+
+    Notes
+    -----
+    This function performs runtime validation to ensure all results
+    are properly formatted before creating the PtychographyReconstruction
+    PyTree. Scalar inputs are converted to JAX arrays.
+    """
+    zoom_factor_array = jnp.asarray(zoom_factor, dtype=jnp.float64)
+    aperture_diameter_array = jnp.asarray(aperture_diameter, dtype=jnp.float64)
+    travel_distance_array = jnp.asarray(travel_distance, dtype=jnp.float64)
+    aperture_center_array = (
+        jnp.asarray(aperture_center, dtype=jnp.float64)
+        if aperture_center is not None
+        else None
+    )
+
+    intermediate_samples_array = jnp.asarray(
+        intermediate_samples, dtype=jnp.complex128
+    )
+    intermediate_lightwaves_array = jnp.asarray(
+        intermediate_lightwaves, dtype=jnp.complex128
+    )
+    intermediate_zoom_factors_array = jnp.asarray(
+        intermediate_zoom_factors, dtype=jnp.float64
+    )
+    intermediate_aperture_diameters_array = jnp.asarray(
+        intermediate_aperture_diameters, dtype=jnp.float64
+    )
+    intermediate_aperture_centers_array = jnp.asarray(
+        intermediate_aperture_centers, dtype=jnp.float64
+    )
+    intermediate_travel_distances_array = jnp.asarray(
+        intermediate_travel_distances, dtype=jnp.float64
+    )
+
+    return PtychographyReconstruction(
+        sample=sample,
+        lightwave=lightwave,
+        zoom_factor=zoom_factor_array,
+        aperture_diameter=aperture_diameter_array,
+        aperture_center=aperture_center_array,
+        travel_distance=travel_distance_array,
+        intermediate_samples=intermediate_samples_array,
+        intermediate_lightwaves=intermediate_lightwaves_array,
+        intermediate_zoom_factors=intermediate_zoom_factors_array,
+        intermediate_aperture_diameters=intermediate_aperture_diameters_array,
+        intermediate_aperture_centers=intermediate_aperture_centers_array,
+        intermediate_travel_distances=intermediate_travel_distances_array,
+    )

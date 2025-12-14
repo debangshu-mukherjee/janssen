@@ -48,7 +48,7 @@ contents.
 """
 
 import jax
-from beartype.typing import NamedTuple, Tuple, TypeAlias, Union
+from beartype.typing import NamedTuple, Optional, Tuple, TypeAlias, Union
 from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array, Bool, Complex, Float, Int, Num
 
@@ -663,4 +663,117 @@ class PtychographyParams(NamedTuple):
         ],
     ) -> "PtychographyParams":
         """Unflatten the PtychographyParams from a tuple of its components."""
+        return cls(*children)
+
+
+@register_pytree_node_class
+class PtychographyReconstruction(NamedTuple):
+    """PyTree structure for ptychography reconstruction results.
+
+    Attributes
+    ----------
+    sample : SampleFunction
+        Final reconstructed sample covering the scanned FOV
+    lightwave : OpticalWavefront
+        Final reconstructed probe/lightwave
+    zoom_factor : Float[Array, " "]
+        Final optimized zoom factor
+    aperture_diameter : Float[Array, " "]
+        Final optimized aperture diameter in meters
+    aperture_center : Optional[Float[Array, " 2"]]
+        Final optimized aperture center position (x, y)
+    travel_distance : Float[Array, " "]
+        Final optimized light propagation distance in meters
+    intermediate_samples : Complex[Array, " H W S"]
+        Intermediate sample reconstructions during optimization
+    intermediate_lightwaves : Complex[Array, " H W S"]
+        Intermediate probe reconstructions during optimization
+    intermediate_zoom_factors : Float[Array, " S"]
+        Intermediate zoom factors during optimization
+    intermediate_aperture_diameters : Float[Array, " S"]
+        Intermediate aperture diameters during optimization
+    intermediate_aperture_centers : Float[Array, " 2 S"]
+        Intermediate aperture centers during optimization
+    intermediate_travel_distances : Float[Array, " S"]
+        Intermediate travel distances during optimization
+
+    Notes
+    -----
+    This class encapsulates all results from ptychographic reconstruction,
+    including both final optimized values and intermediate results saved
+    during the optimization process. It is registered as a PyTree node
+    to enable JAX transformations.
+    """
+
+    sample: "SampleFunction"
+    lightwave: "OpticalWavefront"
+    zoom_factor: Float[Array, " "]
+    aperture_diameter: Float[Array, " "]
+    aperture_center: Optional[Float[Array, " 2"]]
+    travel_distance: Float[Array, " "]
+    intermediate_samples: Complex[Array, " H W S"]
+    intermediate_lightwaves: Complex[Array, " H W S"]
+    intermediate_zoom_factors: Float[Array, " S"]
+    intermediate_aperture_diameters: Float[Array, " S"]
+    intermediate_aperture_centers: Float[Array, " 2 S"]
+    intermediate_travel_distances: Float[Array, " S"]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            "SampleFunction",
+            "OpticalWavefront",
+            Float[Array, " "],
+            Float[Array, " "],
+            Optional[Float[Array, " 2"]],
+            Float[Array, " "],
+            Complex[Array, " H W S"],
+            Complex[Array, " H W S"],
+            Float[Array, " S"],
+            Float[Array, " S"],
+            Float[Array, " 2 S"],
+            Float[Array, " S"],
+        ],
+        None,
+    ]:
+        """Flatten the PtychographyReconstruction into tuple of components."""
+        return (
+            (
+                self.sample,
+                self.lightwave,
+                self.zoom_factor,
+                self.aperture_diameter,
+                self.aperture_center,
+                self.travel_distance,
+                self.intermediate_samples,
+                self.intermediate_lightwaves,
+                self.intermediate_zoom_factors,
+                self.intermediate_aperture_diameters,
+                self.intermediate_aperture_centers,
+                self.intermediate_travel_distances,
+            ),
+            None,
+        )
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            "SampleFunction",
+            "OpticalWavefront",
+            Float[Array, " "],
+            Float[Array, " "],
+            Optional[Float[Array, " 2"]],
+            Float[Array, " "],
+            Complex[Array, " H W S"],
+            Complex[Array, " H W S"],
+            Float[Array, " S"],
+            Float[Array, " S"],
+            Float[Array, " 2 S"],
+            Float[Array, " S"],
+        ],
+    ) -> "PtychographyReconstruction":
+        """Unflatten PtychographyReconstruction from tuple of components."""
         return cls(*children)
