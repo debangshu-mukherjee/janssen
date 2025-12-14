@@ -89,5 +89,8 @@ target/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
+# Video files
+*.mp4
+
 # Local AI assistant notes
 **/CLAUDE.local.md
