@@ -429,60 +429,56 @@ class TestMakePtychographyParams(chex.TestCase):
     def test_basic_creation(self) -> None:
         """Test basic creation with all parameters."""
         params = make_ptychography_params(
-            zoom_factor=2.0,
-            aperture_diameter=1e-3,
-            travel_distance=0.1,
-            aperture_center=jnp.array([0.0, 0.0]),
             camera_pixel_size=5e-6,
-            learning_rate=0.01,
             num_iterations=100,
+            learning_rate=0.01,
+            loss_type=0,
+            optimizer_type=0,
         )
 
         chex.assert_equal(type(params).__name__, "PtychographyParams")
-        chex.assert_shape(params.zoom_factor, ())
-        chex.assert_shape(params.aperture_diameter, ())
-        chex.assert_shape(params.travel_distance, ())
-        chex.assert_shape(params.aperture_center, (2,))
         chex.assert_shape(params.camera_pixel_size, ())
         chex.assert_shape(params.learning_rate, ())
         chex.assert_shape(params.num_iterations, ())
+        chex.assert_shape(params.loss_type, ())
+        chex.assert_shape(params.optimizer_type, ())
+        chex.assert_shape(params.zoom_factor_bounds, (2,))
+        chex.assert_shape(params.aperture_diameter_bounds, (2,))
+        chex.assert_shape(params.travel_distance_bounds, (2,))
+        chex.assert_shape(params.aperture_center_bounds, (2, 2))
 
-    def test_aperture_center_conversion(self) -> None:
-        """Test that aperture_center is converted to JAX array."""
+    def test_bounds_creation(self) -> None:
+        """Test creation with explicit bounds."""
         params = make_ptychography_params(
-            zoom_factor=1.5,
-            aperture_diameter=2e-3,
-            travel_distance=0.05,
-            aperture_center=jnp.array([1.0, 2.0]),
             camera_pixel_size=10e-6,
-            learning_rate=0.001,
             num_iterations=50,
+            learning_rate=0.001,
+            zoom_factor_bounds=jnp.array([1.0, 3.0]),
+            aperture_diameter_bounds=jnp.array([0.5e-3, 2.0e-3]),
+            travel_distance_bounds=jnp.array([0.01, 0.2]),
+            aperture_center_bounds=jnp.array([[-1.0, -1.0], [1.0, 1.0]]),
         )
 
-        chex.assert_equal(isinstance(params.aperture_center, jax.Array), True)
-        chex.assert_shape(params.aperture_center, (2,))
+        chex.assert_equal(
+            isinstance(params.zoom_factor_bounds, jax.Array), True
+        )
+        chex.assert_shape(params.zoom_factor_bounds, (2,))
+        chex.assert_shape(params.aperture_center_bounds, (2, 2))
 
     def test_type_conversion(self) -> None:
         """Test type conversion for all parameters."""
         params = make_ptychography_params(
-            zoom_factor=2.0,
-            aperture_diameter=1e-3,
-            travel_distance=0.1,
-            aperture_center=jnp.array([0.0, 0.0]),
             camera_pixel_size=5e-6,
-            learning_rate=0.01,
             num_iterations=100,
+            learning_rate=0.01,
         )
-        chex.assert_equal(isinstance(params.zoom_factor, jax.Array), True)
-        chex.assert_equal(
-            isinstance(params.aperture_diameter, jax.Array), True
-        )
-        chex.assert_equal(isinstance(params.travel_distance, jax.Array), True)
         chex.assert_equal(
             isinstance(params.camera_pixel_size, jax.Array), True
         )
         chex.assert_equal(isinstance(params.learning_rate, jax.Array), True)
         chex.assert_equal(isinstance(params.num_iterations, jax.Array), True)
+        chex.assert_equal(isinstance(params.loss_type, jax.Array), True)
+        chex.assert_equal(isinstance(params.optimizer_type, jax.Array), True)
 
 
 class TestFactoryValidation(chex.TestCase):
@@ -540,18 +536,15 @@ class TestFactoryValidation(chex.TestCase):
     def test_ptychography_params_mixed_types(self) -> None:
         """Test make_ptychography_params with mixed int/float inputs."""
         params = make_ptychography_params(
-            zoom_factor=2,  # integer
-            aperture_diameter=1e-3,
-            travel_distance=1,  # integer
-            aperture_center=jnp.array([0.0, 0.0]),
             camera_pixel_size=5e-6,
-            learning_rate=1,  # integer (unusual but valid)
             num_iterations=100,
+            learning_rate=1,  # integer (unusual but valid)
+            loss_type=0,
+            optimizer_type=0,
         )
         chex.assert_equal(type(params).__name__, "PtychographyParams")
-        chex.assert_trees_all_close(params.zoom_factor, jnp.array(2.0))
-        chex.assert_trees_all_close(params.travel_distance, jnp.array(1.0))
         chex.assert_trees_all_close(params.learning_rate, jnp.array(1.0))
+        chex.assert_trees_all_close(params.num_iterations, jnp.array(100))
 
     def test_wavefront_field_shape(self) -> None:
         """Test OpticalWavefront field shape validation."""

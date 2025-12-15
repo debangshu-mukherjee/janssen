@@ -682,6 +682,107 @@ class PtychographyParams(NamedTuple):
 
 
 @register_pytree_node_class
+class EpieData(NamedTuple):
+    """PyTree structure for FFT-compatible ePIE reconstruction data.
+
+    This structure holds preprocessed data where all physical quantities
+    have been scaled to work in an FFT-consistent coordinate system.
+    The zoom factor is absorbed by scaling pixel sizes and aperture diameter.
+
+    Attributes
+    ----------
+    diffraction_patterns : Float[Array, " N H W"]
+        Preprocessed diffraction patterns scaled to FFT-natural pixel size.
+        Shape (N, H, W) where N is number of positions, H and W are probe size.
+    probe : Complex[Array, " H W"]
+        Initial probe field (plane wave with aperture applied).
+        Same shape as diffraction patterns (H, W).
+    sample : Complex[Array, " Hs Ws"]
+        Initial sample estimate covering the full FOV.
+    positions : Float[Array, " N 2"]
+        Scan positions in pixels (in the effective coordinate system).
+    effective_dx : Float[Array, " "]
+        Effective pixel size at sample plane: camera_pixel_size / zoom_factor.
+    wavelength : Float[Array, " "]
+        Wavelength of light in meters.
+    original_camera_pixel_size : Float[Array, " "]
+        Original camera pixel size before preprocessing (for reference).
+    zoom_factor : Float[Array, " "]
+        Original zoom factor (for reference/postprocessing).
+
+    Notes
+    -----
+    The key insight is that zooming just scales all physical dimensions.
+    By dividing pixel sizes and aperture by zoom_factor, we get an
+    equivalent problem where the FFT naturally gives the correct
+    far-field coordinates. The ePIE algorithm then just does:
+
+    1. exit_wave = object_patch * probe
+    2. detector = FFT(exit_wave)
+    3. Replace amplitude with sqrt(measured_intensity)
+    4. exit_wave_new = IFFT(detector_updated)
+    5. Update object and probe using ePIE formulas
+    """
+
+    diffraction_patterns: Float[Array, " N H W"]
+    probe: Complex[Array, " H W"]
+    sample: Complex[Array, " Hs Ws"]
+    positions: Float[Array, " N 2"]
+    effective_dx: Float[Array, " "]
+    wavelength: Float[Array, " "]
+    original_camera_pixel_size: Float[Array, " "]
+    zoom_factor: Float[Array, " "]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Float[Array, " N H W"],
+            Complex[Array, " H W"],
+            Complex[Array, " Hs Ws"],
+            Float[Array, " N 2"],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+        ],
+        None,
+    ]:
+        """Flatten the EpieData into a tuple of its components."""
+        return (
+            (
+                self.diffraction_patterns,
+                self.probe,
+                self.sample,
+                self.positions,
+                self.effective_dx,
+                self.wavelength,
+                self.original_camera_pixel_size,
+                self.zoom_factor,
+            ),
+            None,
+        )
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Float[Array, " N H W"],
+            Complex[Array, " H W"],
+            Complex[Array, " Hs Ws"],
+            Float[Array, " N 2"],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+        ],
+    ) -> "EpieData":
+        """Unflatten the EpieData from a tuple of its components."""
+        return cls(*children)
+
+
+@register_pytree_node_class
 class PtychographyReconstruction(NamedTuple):
     """PyTree structure for ptychography reconstruction results.
 

@@ -9,6 +9,8 @@ initial sample estimate.
 
 Routine Listings
 ----------------
+init_simple_epie : function
+    Initialize data for FFT-compatible ePIE reconstruction.
 init_simple_microscope : function
     Initialize sample by inverting the simple microscope forward model
 compute_fov_and_positions : function
@@ -28,12 +30,14 @@ from jaxtyping import Array, Complex, Float, Int, jaxtyped
 
 from janssen.scopes import simple_microscope
 from janssen.utils import (
+    EpieData,
     MicroscopeData,
     OpticalWavefront,
     PtychographyReconstruction,
     SampleFunction,
     ScalarFloat,
     ScalarInteger,
+    make_epie_data,
     make_optical_wavefront,
     make_ptychography_reconstruction,
     make_sample_function,
@@ -86,15 +90,12 @@ def compute_fov_and_positions(
     pixel_positions: Float[Array, " N 2"] = (
         experimental_data.positions / sample_dx
     )
-
     min_pos_x: Float[Array, " "] = jnp.min(pixel_positions[:, 0])
     max_pos_x: Float[Array, " "] = jnp.max(pixel_positions[:, 0])
     min_pos_y: Float[Array, " "] = jnp.min(pixel_positions[:, 1])
     max_pos_y: Float[Array, " "] = jnp.max(pixel_positions[:, 1])
-
     scan_fov_x: Float[Array, " "] = max_pos_x - min_pos_x
     scan_fov_y: Float[Array, " "] = max_pos_y - min_pos_y
-
     half_probe_x: int = probe_size_x // 2
     half_probe_y: int = probe_size_y // 2
 
@@ -103,19 +104,16 @@ def compute_fov_and_positions(
 
     fov_size_x: int = int(jnp.ceil(scan_fov_x)) + probe_size_x + 2 * padding
     fov_size_y: int = int(jnp.ceil(scan_fov_y)) + probe_size_y + 2 * padding
-
     normalized_positions_x: Float[Array, " N"] = (
         pixel_positions[:, 0] - min_pos_x + padding + half_probe_x
     )
     normalized_positions_y: Float[Array, " N"] = (
         pixel_positions[:, 1] - min_pos_y + padding + half_probe_y
     )
-
     translated_positions: Float[Array, " N 2"] = (
         jnp.stack([normalized_positions_x, normalized_positions_y], axis=1)
         * sample_dx
     )
-
     return fov_size_y, fov_size_x, translated_positions, sample_dx
 
 
@@ -165,12 +163,10 @@ def _inverse_fraunhofer_prop_scaled(
     quadratic_phase_conj: Complex[Array, " H W"] = jnp.exp(
         -1j * k * (x_mesh**2 + y_mesh**2) / (2 * path_length)
     )
-
     global_phase_conj: Complex[Array, " "] = jnp.exp(-1j * k * path_length)
     scale_factor_inv: Complex[Array, " "] = (
         1j * at_camera.wavelength * path_length
     )
-
     field_unscaled: Complex[Array, " H W"] = (
         at_camera.field
         * global_phase_conj
@@ -178,26 +174,19 @@ def _inverse_fraunhofer_prop_scaled(
         * quadratic_phase_conj
         / (output_dx**2)
     )
-
     dx_fraunhofer: Float[Array, " "] = (
         at_camera.wavelength * path_length / (nx * output_dx)
     )
-
     scale: Float[Array, " "] = at_camera.dx / dx_fraunhofer
-
     center_y: float = (ny - 1) / 2.0
     center_x: float = (nx - 1) / 2.0
-
     out_y: Float[Array, " H"] = jnp.arange(ny, dtype=jnp.float64)
     out_x: Float[Array, " W"] = jnp.arange(nx, dtype=jnp.float64)
-
     in_y: Float[Array, " H"] = (out_y - center_y) / scale + center_y
     in_x: Float[Array, " W"] = (out_x - center_x) / scale + center_x
-
     in_y_mesh: Float[Array, " H W"]
     in_x_mesh: Float[Array, " H W"]
     in_y_mesh, in_x_mesh = jnp.meshgrid(in_y, in_x, indexing="ij")
-
     unscaled_ft_real: Float[Array, " H W"] = jax.scipy.ndimage.map_coordinates(
         field_unscaled.real,
         [in_y_mesh, in_x_mesh],
@@ -213,16 +202,9 @@ def _inverse_fraunhofer_prop_scaled(
         cval=0.0,
     )
     field_ft: Complex[Array, " H W"] = unscaled_ft_real + 1j * unscaled_ft_imag
-
-    # The forward model uses centered FFT: fftshift(fft2(ifftshift(field)))
-    # The camera field (after forward prop) is centered (DC at array center).
-    # After removing phase terms and unscaling, field_ft corresponds to the
-    # centered FFT output. To invert back to spatial domain with DC at center:
-    # Use centered IFFT: fftshift(ifft2(ifftshift(field_ft)))
     field_before: Complex[Array, " H W"] = jnp.fft.fftshift(
         jnp.fft.ifft2(jnp.fft.ifftshift(field_ft))
     )
-
     return make_optical_wavefront(
         field=field_before,
         wavelength=at_camera.wavelength,
@@ -296,17 +278,14 @@ def _get_aperture_mask(
     center: Float[Array, " 2"] = (
         aperture_center if aperture_center is not None else jnp.zeros(2)
     )
-
     x: Float[Array, " W"] = (jnp.arange(nx) - nx // 2) * dx
     y: Float[Array, " H"] = (jnp.arange(ny) - ny // 2) * dx
     xx: Float[Array, " H W"]
     yy: Float[Array, " H W"]
     xx, yy = jnp.meshgrid(x, y)
-
     r: Float[Array, " H W"] = jnp.sqrt(
         (xx - center[0]) ** 2 + (yy - center[1]) ** 2
     )
-
     mask: Float[Array, " H W"] = (r <= aperture_diameter / 2.0).astype(
         jnp.float64
     )
@@ -314,7 +293,7 @@ def _get_aperture_mask(
 
 
 @jaxtyped(typechecker=beartype)
-def init_simple_microscope(
+def init_simple_microscope( # noqa: PLR0915
     experimental_data: MicroscopeData,
     probe_lightwave: OpticalWavefront,
     zoom_factor: ScalarFloat,
@@ -330,9 +309,9 @@ def init_simple_microscope(
 
     Runs the microscope forward model in reverse to create an initial
     sample estimate from experimental diffraction patterns. This serves
-    as iteration 0 of the reconstruction, returning a PtychographyReconstruction
-    that can be passed to simple_microscope_ptychography for further
-    optimization.
+    as iteration 0 of the reconstruction, returning a 
+    PtychographyReconstruction that can be passed to 
+    simple_microscope_ptychography for further optimization.
 
     For each pattern, the algorithm:
 
@@ -395,7 +374,6 @@ def init_simple_microscope(
     travel_distance_arr: Float[Array, " "] = jnp.asarray(
         travel_distance, dtype=jnp.float64
     )
-
     fov_size_y: int
     fov_size_x: int
     translated_positions: Float[Array, " N 2"]
@@ -403,14 +381,12 @@ def init_simple_microscope(
     fov_size_y, fov_size_x, translated_positions, sample_dx = (
         compute_fov_and_positions(experimental_data, probe_lightwave, padding)
     )
-
     probe_size_y: int
     probe_size_x: int
     probe_size_y, probe_size_x = probe_lightwave.field.shape
     half_probe_x: int = probe_size_x // 2
     half_probe_y: int = probe_size_y // 2
     num_positions: int = experimental_data.image_data.shape[0]
-
     zoomed_dx: Float[Array, " "] = sample_dx * zoom_factor_arr
     aperture_mask: Float[Array, " H W"] = _get_aperture_mask(
         (probe_size_y, probe_size_x),
@@ -418,10 +394,8 @@ def init_simple_microscope(
         aperture_diameter_arr,
         aperture_center,
     )
-
     probe_intensity: Float[Array, " H W"] = jnp.abs(probe_lightwave.field) ** 2
     probe_intensity_max: Float[Array, " "] = jnp.max(probe_intensity)
-
     key: jax.Array = jax.random.PRNGKey(seed)
     random_phases: Float[Array, " N H W"] = jax.random.uniform(
         key,
@@ -430,7 +404,7 @@ def init_simple_microscope(
         maxval=jnp.pi,
     )
 
-    def invert_single_pattern(
+    def _invert_single_pattern(
         diff_pattern: Float[Array, " H W"],
         random_phase: Float[Array, " H W"],
     ) -> Complex[Array, " H W"]:
@@ -441,24 +415,20 @@ def init_simple_microscope(
         field_at_camera: Complex[Array, " H W"] = amplitude * jnp.exp(
             1j * random_phase
         )
-
         camera_wavefront: OpticalWavefront = make_optical_wavefront(
             field=field_at_camera.astype(jnp.complex128),
             wavelength=probe_lightwave.wavelength,
             dx=camera_pixel_size,
             z_position=jnp.array(0.0),
         )
-
         after_prop: OpticalWavefront = _inverse_fraunhofer_prop_scaled(
             camera_wavefront,
             travel_distance_arr,
             zoomed_dx,
         )
-
-        # Apply aperture: zero out regions outside the aperture rather than
-        # dividing (which would amplify noise outside the aperture circle)
-        after_aperture: Complex[Array, " H W"] = after_prop.field * aperture_mask
-
+        after_aperture: Complex[Array, " H W"] = (
+            after_prop.field * aperture_mask
+        )
         unzoomed_wavefront: OpticalWavefront = make_optical_wavefront(
             field=after_aperture,
             wavelength=probe_lightwave.wavelength,
@@ -468,7 +438,6 @@ def init_simple_microscope(
         at_sample: OpticalWavefront = _inverse_optical_zoom(
             unzoomed_wavefront, zoom_factor_arr
         )
-
         probe_below_reg: Float[Array, " H W"] = (
             jnp.abs(probe_lightwave.field) < regularization
         )
@@ -476,15 +445,12 @@ def init_simple_microscope(
             probe_lightwave.field + regularization * probe_below_reg
         )
         sample_estimate: Complex[Array, " H W"] = at_sample.field / probe_safe
-
         return sample_estimate
 
     sample_estimates: Complex[Array, " N H W"] = jax.vmap(
-        invert_single_pattern
+        _invert_single_pattern
     )(experimental_data.image_data, random_phases)
-
     pixel_positions: Float[Array, " N 2"] = translated_positions / sample_dx
-
     sample_sum: Complex[Array, " H W"] = jnp.zeros(
         (fov_size_y, fov_size_x), dtype=jnp.complex128
     )
@@ -492,7 +458,7 @@ def init_simple_microscope(
         (fov_size_y, fov_size_x), dtype=jnp.float64
     )
 
-    def accumulate_sample(
+    def _accumulate_sample(
         carry: Tuple[Complex[Array, " H W"], Float[Array, " H W"]],
         inputs: Tuple[Complex[Array, " h w"], Float[Array, " 2"]],
     ) -> Tuple[
@@ -507,24 +473,19 @@ def init_simple_microscope(
         estimate: Complex[Array, " h w"]
         pos: Float[Array, " 2"]
         estimate, pos = inputs
-
         pos_x: Int[Array, " "] = jnp.round(pos[0]).astype(int)
         pos_y: Int[Array, " "] = jnp.round(pos[1]).astype(int)
-
         start_y: Int[Array, " "] = pos_y - half_probe_y
         start_x: Int[Array, " "] = pos_x - half_probe_x
-
         weight_patch: Float[Array, " H W"] = probe_intensity / (
             probe_intensity_max + regularization
         )
-
         start_y_clamped: Int[Array, " "] = jnp.clip(
             start_y, 0, fov_size_y - probe_size_y
         )
         start_x_clamped: Int[Array, " "] = jnp.clip(
             start_x, 0, fov_size_x - probe_size_x
         )
-
         current_sample: Complex[Array, " h w"] = jax.lax.dynamic_slice(
             sample_acc,
             (start_y_clamped, start_x_clamped),
@@ -535,30 +496,25 @@ def init_simple_microscope(
             (start_y_clamped, start_x_clamped),
             (probe_size_y, probe_size_x),
         )
-
         new_sample: Complex[Array, " h w"] = (
             current_sample + estimate * weight_patch
         )
         new_weight: Float[Array, " h w"] = current_weight + weight_patch
-
         sample_acc = jax.lax.dynamic_update_slice(
             sample_acc, new_sample, (start_y_clamped, start_x_clamped)
         )
         weight_acc = jax.lax.dynamic_update_slice(
             weight_acc, new_weight, (start_y_clamped, start_x_clamped)
         )
-
         return (sample_acc, weight_acc), None
 
     (sample_sum, weight_sum), _ = jax.lax.scan(
-        accumulate_sample,
+        _accumulate_sample,
         (sample_sum, weight_sum),
         (sample_estimates, pixel_positions),
     )
-
     weight_safe: Float[Array, " H W"] = weight_sum + regularization
     sample_field: Complex[Array, " H W"] = sample_sum / weight_safe
-
     no_data_mask: Float[Array, " H W"] = weight_sum < regularization
     sample_field = jnp.where(no_data_mask, 1.0 + 0j, sample_field)
 
@@ -570,19 +526,15 @@ def init_simple_microscope(
         sample_field,
         sample_field / (mean_amplitude + regularization),
     )
-
     sample_function: SampleFunction = make_sample_function(
         sample=sample_field,
         dx=sample_dx,
     )
-
     probe_size_y: int
     probe_size_x: int
     probe_size_y, probe_size_x = probe_lightwave.field.shape
-
     fov_size_y: int = sample_field.shape[0]
     fov_size_x: int = sample_field.shape[1]
-
     intermediate_samples: Complex[Array, " H W 1"] = sample_field[
         :, :, jnp.newaxis
     ]
@@ -603,8 +555,6 @@ def init_simple_microscope(
     intermediate_travel_distances: Float[Array, " 1"] = travel_distance_arr[
         jnp.newaxis
     ]
-
-    # Compute initial MSE loss by running forward model
     camera_pixel_size_arr: Float[Array, " "] = jnp.asarray(
         camera_pixel_size, dtype=jnp.float64
     )
@@ -622,7 +572,6 @@ def init_simple_microscope(
         (simulated_data.image_data - experimental_data.image_data) ** 2
     )
     losses: Float[Array, " 1 2"] = jnp.array([[0.0, initial_mse]])
-
     reconstruction: PtychographyReconstruction = (
         make_ptychography_reconstruction(
             sample=sample_function,
@@ -641,5 +590,208 @@ def init_simple_microscope(
             losses=losses,
         )
     )
-
     return reconstruction
+
+
+@jaxtyped(typechecker=beartype)
+def init_simple_epie(  # noqa: PLR0915
+    experimental_data: MicroscopeData,
+    probe_size: Tuple[int, int],
+    wavelength: ScalarFloat,
+    zoom_factor: ScalarFloat,
+    aperture_diameter: ScalarFloat,
+    travel_distance: ScalarFloat,
+    camera_pixel_size: ScalarFloat,
+    padding: Optional[ScalarInteger] = None,
+) -> EpieData:
+    """Initialize data for FFT-compatible ePIE reconstruction.
+
+    Preprocesses experimental data by scaling all physical quantities to
+    work in an FFT-consistent coordinate system. The zoom factor is absorbed
+    by scaling pixel sizes and aperture diameter, so the ePIE algorithm can
+    use pure FFT for forward/backward propagation.
+
+    Parameters
+    ----------
+    experimental_data : MicroscopeData
+        Experimental diffraction patterns with positions in meters.
+        Shape of image_data: (N, H_cam, W_cam) where N is number of positions.
+    probe_size : Tuple[int, int]
+        Size of the probe array (H, W). This determines the reconstruction
+        resolution. Camera images will be scaled/cropped to this size.
+    wavelength : ScalarFloat
+        Wavelength of light in meters.
+    zoom_factor : ScalarFloat
+        Optical zoom factor (magnification) of the microscope.
+    aperture_diameter : ScalarFloat
+        Physical aperture diameter in meters (before zoom scaling).
+    travel_distance : ScalarFloat
+        Light propagation distance in meters.
+    camera_pixel_size : ScalarFloat
+        Physical size of camera pixels in meters.
+    padding : ScalarInteger, optional
+        Additional padding in pixels around the scanned region.
+        If None, defaults to half probe size.
+
+    Returns
+    -------
+    EpieData
+        Preprocessed data ready for FFT-based ePIE reconstruction containing:
+
+        - diffraction_patterns: Scaled to (N, probe_size[0], probe_size[1])
+        - probe: Plane wave with circular aperture applied
+        - sample: Initial estimate (ones) covering the FOV
+        - positions: Scan positions in pixels
+        - effective_dx: camera_pixel_size / zoom_factor
+        - wavelength, original_camera_pixel_size, zoom_factor for reference
+
+    Notes
+    -----
+    **Physics Background**
+
+    Optical zoom scales all physical dimensions uniformly. A 10x zoom with
+    1mm aperture and 16μm camera pixels is equivalent to working with a
+    100μm aperture and 1.6μm pixels with no zoom.
+
+    **Key Transformations**
+
+    1. ``effective_dx = camera_pixel_size / zoom_factor``
+    2. ``effective_aperture = aperture_diameter / zoom_factor``
+    3. Camera images scaled to match FFT-natural pixel size
+    4. Probe initialized as plane wave with effective aperture
+
+    **FFT Framework**
+
+    - Sample plane pixel size: ``effective_dx = camera_pixel_size / zoom``
+    - FFT maps to detector with pixel size:
+      ``dx_detector = λ * z / (N * effective_dx)``
+    - Camera images scaled via bilinear interpolation to match FFT-natural
+      size using ``scale_factor = camera_pixel_size / dx_fft_natural``
+
+    **Image Scaling**
+
+    - ``scale_factor > 1``: Camera pixels larger than FFT-natural, interpolate
+    - ``scale_factor < 1``: Camera pixels smaller, downsample
+
+    **Position Normalization**
+
+    Positions converted from meters to pixels in effective coordinate system,
+    then normalized so minimum position maps to ``(padding + half_probe)``
+    within the FOV array.
+    """
+    wavelength_arr: Float[Array, " "] = jnp.asarray(
+        wavelength, dtype=jnp.float64
+    )
+    zoom_factor_arr: Float[Array, " "] = jnp.asarray(
+        zoom_factor, dtype=jnp.float64
+    )
+    aperture_diameter_arr: Float[Array, " "] = jnp.asarray(
+        aperture_diameter, dtype=jnp.float64
+    )
+    travel_distance_arr: Float[Array, " "] = jnp.asarray(
+        travel_distance, dtype=jnp.float64
+    )
+    camera_pixel_size_arr: Float[Array, " "] = jnp.asarray(
+        camera_pixel_size, dtype=jnp.float64
+    )
+    probe_size_y: int = probe_size[0]
+    probe_size_x: int = probe_size[1]
+    effective_dx: Float[Array, " "] = camera_pixel_size_arr / zoom_factor_arr
+    effective_aperture: Float[Array, " "] = (
+        aperture_diameter_arr / zoom_factor_arr
+    )
+    dx_fft_natural: Float[Array, " "] = (
+        wavelength_arr * travel_distance_arr / (probe_size_x * effective_dx)
+    )
+    scale_factor: Float[Array, " "] = camera_pixel_size_arr / dx_fft_natural
+    num_positions: int = experimental_data.image_data.shape[0]  # noqa: F841
+    cam_size_y: int = experimental_data.image_data.shape[1]
+    cam_size_x: int = experimental_data.image_data.shape[2]
+
+    def scale_single_image(
+        image: Float[Array, " H_cam W_cam"],
+    ) -> Float[Array, " H W"]:
+        """Scale a single camera image to FFT-natural size via bilinear."""
+        center_out_y: float = (probe_size_y - 1) / 2.0
+        center_out_x: float = (probe_size_x - 1) / 2.0
+        center_in_y: float = (cam_size_y - 1) / 2.0
+        center_in_x: float = (cam_size_x - 1) / 2.0
+        out_y: Float[Array, " H"] = jnp.arange(probe_size_y, dtype=jnp.float64)
+        out_x: Float[Array, " W"] = jnp.arange(probe_size_x, dtype=jnp.float64)
+        in_y: Float[Array, " H"] = (
+            out_y - center_out_y
+        ) * scale_factor + center_in_y
+        in_x: Float[Array, " W"] = (
+            out_x - center_out_x
+        ) * scale_factor + center_in_x
+        in_y_mesh: Float[Array, " H W"]
+        in_x_mesh: Float[Array, " H W"]
+        in_y_mesh, in_x_mesh = jnp.meshgrid(in_y, in_x, indexing="ij")
+        scaled_image: Float[Array, " H W"] = jax.scipy.ndimage.map_coordinates(
+            image,
+            [in_y_mesh, in_x_mesh],
+            order=1,
+            mode="constant",
+            cval=0.0,
+        )
+        return scaled_image
+
+    scaled_patterns: Float[Array, " N H W"] = jax.vmap(scale_single_image)(
+        experimental_data.image_data
+    )
+    x_probe: Float[Array, " W"] = (
+        jnp.arange(probe_size_x) - probe_size_x // 2
+    ) * effective_dx
+    y_probe: Float[Array, " H"] = (
+        jnp.arange(probe_size_y) - probe_size_y // 2
+    ) * effective_dx
+    xx_probe: Float[Array, " H W"]
+    yy_probe: Float[Array, " H W"]
+    xx_probe, yy_probe = jnp.meshgrid(x_probe, y_probe)
+    r_probe: Float[Array, " H W"] = jnp.sqrt(xx_probe**2 + yy_probe**2)
+    aperture_mask: Float[Array, " H W"] = (
+        r_probe <= effective_aperture / 2.0
+    ).astype(jnp.float64)
+    initial_probe: Complex[Array, " H W"] = aperture_mask.astype(
+        jnp.complex128
+    )
+    pixel_positions: Float[Array, " N 2"] = (
+        experimental_data.positions / effective_dx
+    )
+    min_pos_x: Float[Array, " "] = jnp.min(pixel_positions[:, 0])
+    max_pos_x: Float[Array, " "] = jnp.max(pixel_positions[:, 0])
+    min_pos_y: Float[Array, " "] = jnp.min(pixel_positions[:, 1])
+    max_pos_y: Float[Array, " "] = jnp.max(pixel_positions[:, 1])
+    scan_fov_x: Float[Array, " "] = max_pos_x - min_pos_x
+    scan_fov_y: Float[Array, " "] = max_pos_y - min_pos_y
+    half_probe_x: int = probe_size_x // 2
+    half_probe_y: int = probe_size_y // 2
+
+    if padding is None:
+        padding = max(half_probe_x, half_probe_y)
+
+    fov_size_x: int = int(jnp.ceil(scan_fov_x)) + probe_size_x + 2 * padding
+    fov_size_y: int = int(jnp.ceil(scan_fov_y)) + probe_size_y + 2 * padding
+    normalized_positions_x: Float[Array, " N"] = (
+        pixel_positions[:, 0] - min_pos_x + padding + half_probe_x
+    )
+    normalized_positions_y: Float[Array, " N"] = (
+        pixel_positions[:, 1] - min_pos_y + padding + half_probe_y
+    )
+    normalized_positions: Float[Array, " N 2"] = jnp.stack(
+        [normalized_positions_x, normalized_positions_y], axis=1
+    )
+    initial_sample: Complex[Array, " Hs Ws"] = jnp.ones(
+        (fov_size_y, fov_size_x), dtype=jnp.complex128
+    )
+    epie_data: EpieData = make_epie_data(
+        diffraction_patterns=scaled_patterns,
+        probe=initial_probe,
+        sample=initial_sample,
+        positions=normalized_positions,
+        effective_dx=effective_dx,
+        wavelength=wavelength_arr,
+        original_camera_pixel_size=camera_pixel_size_arr,
+        zoom_factor=zoom_factor_arr,
+    )
+    return epie_data

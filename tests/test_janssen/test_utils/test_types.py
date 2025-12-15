@@ -664,13 +664,15 @@ class TestPtychographyParamsPyTree(chex.TestCase):
         """Set up test fixtures."""
         super().setUp()
         self.ptycho_params = make_ptychography_params(
-            zoom_factor=2.0,
-            aperture_diameter=1e-3,
-            travel_distance=0.1,
-            aperture_center=jnp.array([0.0, 0.0]),
             camera_pixel_size=5e-6,
-            learning_rate=0.01,
             num_iterations=100,
+            learning_rate=0.01,
+            loss_type=0,
+            optimizer_type=0,
+            zoom_factor_bounds=jnp.array([1.0, 5.0]),
+            aperture_diameter_bounds=jnp.array([0.5e-3, 2.0e-3]),
+            travel_distance_bounds=jnp.array([0.01, 0.2]),
+            aperture_center_bounds=jnp.array([[-1.0, -1.0], [1.0, 1.0]]),
         )
 
     def test_is_pytree(self) -> None:
@@ -678,21 +680,6 @@ class TestPtychographyParamsPyTree(chex.TestCase):
         leaves, treedef = tree.tree_flatten(self.ptycho_params)
         reconstructed = tree.tree_unflatten(treedef, leaves)
 
-        chex.assert_trees_all_close(
-            reconstructed.zoom_factor, self.ptycho_params.zoom_factor
-        )
-        chex.assert_trees_all_close(
-            reconstructed.aperture_diameter,
-            self.ptycho_params.aperture_diameter,
-        )
-        chex.assert_trees_all_close(
-            reconstructed.travel_distance,
-            self.ptycho_params.travel_distance,
-        )
-        chex.assert_trees_all_close(
-            reconstructed.aperture_center,
-            self.ptycho_params.aperture_center,
-        )
         chex.assert_trees_all_close(
             reconstructed.camera_pixel_size,
             self.ptycho_params.camera_pixel_size,
@@ -703,6 +690,14 @@ class TestPtychographyParamsPyTree(chex.TestCase):
         chex.assert_trees_all_close(
             reconstructed.num_iterations,
             self.ptycho_params.num_iterations,
+        )
+        chex.assert_trees_all_close(
+            reconstructed.zoom_factor_bounds,
+            self.ptycho_params.zoom_factor_bounds,
+        )
+        chex.assert_trees_all_close(
+            reconstructed.aperture_center_bounds,
+            self.ptycho_params.aperture_center_bounds,
         )
 
     def test_tree_map(self) -> None:
@@ -717,7 +712,7 @@ class TestPtychographyParamsPyTree(chex.TestCase):
         scaled = tree.tree_map(scale_floats, self.ptycho_params)
 
         chex.assert_trees_all_close(
-            scaled.zoom_factor, self.ptycho_params.zoom_factor * 2
+            scaled.camera_pixel_size, self.ptycho_params.camera_pixel_size * 2
         )
         chex.assert_trees_all_close(
             scaled.learning_rate, self.ptycho_params.learning_rate * 2
@@ -731,37 +726,39 @@ class TestPtychographyParamsPyTree(chex.TestCase):
         """Test that PtychographyParams works with JIT compilation."""
 
         @jax.jit
-        def compute_magnification(
+        def compute_scaled_pixel(
             params: PtychographyParams,
         ) -> Float[Array, " "]:
-            return params.zoom_factor * params.travel_distance
+            return params.camera_pixel_size * params.learning_rate
 
-        result = compute_magnification(self.ptycho_params)
+        result = compute_scaled_pixel(self.ptycho_params)
         chex.assert_shape(result, ())
         chex.assert_tree_all_finite(result)
 
     def test_vmap_compatibility(self) -> None:
         """Test that PtychographyParams works with vmap."""
-        zoom_factors = jnp.array([1.0, 2.0, 3.0])
+        learning_rates = jnp.array([0.001, 0.01, 0.1])
 
-        def create_params(zoom: Float[Array, " "]) -> PtychographyParams:
+        def create_params(lr: Float[Array, " "]) -> PtychographyParams:
             # For vmap, we can't use factory functions that require concrete
             # values. So we use direct instantiation here
             return PtychographyParams(
-                zoom_factor=zoom,
-                aperture_diameter=self.ptycho_params.aperture_diameter,
-                travel_distance=self.ptycho_params.travel_distance,
-                aperture_center=self.ptycho_params.aperture_center,
                 camera_pixel_size=self.ptycho_params.camera_pixel_size,
-                learning_rate=self.ptycho_params.learning_rate,
                 num_iterations=self.ptycho_params.num_iterations,
+                learning_rate=lr,
+                loss_type=self.ptycho_params.loss_type,
+                optimizer_type=self.ptycho_params.optimizer_type,
+                zoom_factor_bounds=self.ptycho_params.zoom_factor_bounds,
+                aperture_diameter_bounds=self.ptycho_params.aperture_diameter_bounds,
+                travel_distance_bounds=self.ptycho_params.travel_distance_bounds,
+                aperture_center_bounds=self.ptycho_params.aperture_center_bounds,
             )
 
         vmapped_create = jax.vmap(create_params)
-        batch = vmapped_create(zoom_factors)
+        batch = vmapped_create(learning_rates)
 
-        chex.assert_shape(batch.zoom_factor, (3,))
-        chex.assert_shape(batch.aperture_center, (3, 2))
+        chex.assert_shape(batch.learning_rate, (3,))
+        chex.assert_shape(batch.zoom_factor_bounds, (3, 2))
 
 
 if __name__ == "__main__":

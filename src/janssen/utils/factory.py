@@ -49,6 +49,7 @@ from jaxtyping import Array, Bool, Complex, Float, Int, Num, jaxtyped
 
 from .types import (
     Diffractogram,
+    EpieData,
     GridParams,
     LensParams,
     MicroscopeData,
@@ -1561,4 +1562,80 @@ def make_ptychography_reconstruction(
         intermediate_aperture_centers=intermediate_aperture_centers_array,
         intermediate_travel_distances=intermediate_travel_distances_array,
         losses=losses_array,
+    )
+
+
+@jaxtyped(typechecker=beartype)
+def make_epie_data(
+    diffraction_patterns: Float[Array, " N H W"],
+    probe: Complex[Array, " H W"],
+    sample: Complex[Array, " Hs Ws"],
+    positions: Float[Array, " N 2"],
+    effective_dx: ScalarNumeric,
+    wavelength: ScalarNumeric,
+    original_camera_pixel_size: ScalarNumeric,
+    zoom_factor: ScalarNumeric,
+) -> EpieData:
+    """Create an EpieData PyTree for FFT-compatible ePIE reconstruction.
+
+    This factory function creates the preprocessed data structure needed
+    for running ePIE with pure FFT-based propagation. All physical quantities
+    are scaled so that the FFT naturally produces the correct far-field
+    coordinates.
+
+    Parameters
+    ----------
+    diffraction_patterns : Float[Array, " N H W"]
+        Preprocessed diffraction patterns scaled to FFT-natural pixel size.
+        Shape (N, H, W) where N is number of positions, H and W are probe size.
+    probe : Complex[Array, " H W"]
+        Initial probe field (typically plane wave with aperture applied).
+        Same shape as diffraction patterns (H, W).
+    sample : Complex[Array, " Hs Ws"]
+        Initial sample estimate covering the full FOV.
+    positions : Float[Array, " N 2"]
+        Scan positions in pixels (in the effective coordinate system).
+    effective_dx : ScalarNumeric
+        Effective pixel size at sample plane: camera_pixel_size / zoom_factor.
+    wavelength : ScalarNumeric
+        Wavelength of light in meters.
+    original_camera_pixel_size : ScalarNumeric
+        Original camera pixel size before preprocessing (for reference).
+    zoom_factor : ScalarNumeric
+        Original zoom factor (for reference/postprocessing).
+
+    Returns
+    -------
+    EpieData
+        Validated EpieData PyTree ready for FFT-based ePIE reconstruction.
+
+    Notes
+    -----
+    The key insight is that optical zoom just scales all physical dimensions.
+    By dividing pixel sizes and aperture diameter by zoom_factor, we get an
+    equivalent problem where the FFT naturally gives the correct far-field
+    coordinates without needing scaled Fraunhofer propagation.
+    """
+    diffraction_patterns_arr = jnp.asarray(
+        diffraction_patterns, dtype=jnp.float64
+    )
+    probe_arr = jnp.asarray(probe, dtype=jnp.complex128)
+    sample_arr = jnp.asarray(sample, dtype=jnp.complex128)
+    positions_arr = jnp.asarray(positions, dtype=jnp.float64)
+    effective_dx_arr = jnp.asarray(effective_dx, dtype=jnp.float64)
+    wavelength_arr = jnp.asarray(wavelength, dtype=jnp.float64)
+    original_camera_pixel_size_arr = jnp.asarray(
+        original_camera_pixel_size, dtype=jnp.float64
+    )
+    zoom_factor_arr = jnp.asarray(zoom_factor, dtype=jnp.float64)
+
+    return EpieData(
+        diffraction_patterns=diffraction_patterns_arr,
+        probe=probe_arr,
+        sample=sample_arr,
+        positions=positions_arr,
+        effective_dx=effective_dx_arr,
+        wavelength=wavelength_arr,
+        original_camera_pixel_size=original_camera_pixel_size_arr,
+        zoom_factor=zoom_factor_arr,
     )

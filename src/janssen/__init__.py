@@ -59,7 +59,7 @@ import jax  # noqa: E402
 
 jax.config.update("jax_enable_x64", True)
 
-from . import ( # noqa: E402, I001
+from . import (  # noqa: E402, I001
     invert,
     lenses,
     models,

@@ -55,6 +55,7 @@ from .engine import (
 )
 from .initialization import (
     compute_fov_and_positions,
+    init_simple_epie,
     init_simple_microscope,
 )
 from .loss_functions import create_loss_function
@@ -67,6 +68,7 @@ __all__: list[str] = [
     "compute_fov_and_positions",
     "create_loss_function",
     "epie_optical",
+    "init_simple_epie",
     "init_simple_microscope",
     "simple_microscope_epie",
     "simple_microscope_ptychography",
