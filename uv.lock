@@ -893,7 +893,7 @@ wheels = [
 
 [[package]]
 name = "janssen"
-version = "2025.10.4"
+version = "2025.10.5"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },

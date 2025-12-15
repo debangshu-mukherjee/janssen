@@ -1466,7 +1466,7 @@ def make_ptychography_reconstruction(
     intermediate_aperture_diameters: Float[Array, " S"],
     intermediate_aperture_centers: Float[Array, " 2 S"],
     intermediate_travel_distances: Float[Array, " S"],
-    losses: Float[Array, " N 2"],
+    losses: Float[Array, " L 2"],
 ) -> PtychographyReconstruction:
     """Create a PtychographyReconstruction PyTree with validated results.
 
@@ -1498,8 +1498,9 @@ def make_ptychography_reconstruction(
         Intermediate aperture centers during optimization
     intermediate_travel_distances : Float[Array, " S"]
         Intermediate travel distances during optimization
-    losses : Float[Array, " N 2"]
-        Loss history with columns [iteration, loss_value]
+    losses : Float[Array, " L 2"]
+        Loss history with columns [iteration, loss_value]. L is the number
+        of recorded iterations (may differ from number of positions N).
 
     Returns
     -------

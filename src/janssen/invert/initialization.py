@@ -214,6 +214,11 @@ def _inverse_fraunhofer_prop_scaled(
     )
     field_ft: Complex[Array, " H W"] = unscaled_ft_real + 1j * unscaled_ft_imag
 
+    # The forward model uses centered FFT: fftshift(fft2(ifftshift(field)))
+    # The camera field (after forward prop) is centered (DC at array center).
+    # After removing phase terms and unscaling, field_ft corresponds to the
+    # centered FFT output. To invert back to spatial domain with DC at center:
+    # Use centered IFFT: fftshift(ifft2(ifftshift(field_ft)))
     field_before: Complex[Array, " H W"] = jnp.fft.fftshift(
         jnp.fft.ifft2(jnp.fft.ifftshift(field_ft))
     )
@@ -450,10 +455,9 @@ def init_simple_microscope(
             zoomed_dx,
         )
 
-        aperture_safe: Float[Array, " H W"] = aperture_mask + regularization
-        after_aperture: Complex[Array, " H W"] = (
-            after_prop.field / aperture_safe
-        )
+        # Apply aperture: zero out regions outside the aperture rather than
+        # dividing (which would amplify noise outside the aperture circle)
+        after_aperture: Complex[Array, " H W"] = after_prop.field * aperture_mask
 
         unzoomed_wavefront: OpticalWavefront = make_optical_wavefront(
             field=after_aperture,

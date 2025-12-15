@@ -713,8 +713,9 @@ class PtychographyReconstruction(NamedTuple):
         Intermediate aperture centers during optimization
     intermediate_travel_distances : Float[Array, " S"]
         Intermediate travel distances during optimization
-    losses : Float[Array, " N 2"]
-        Loss history with columns [iteration, loss_value]
+    losses : Float[Array, " L 2"]
+        Loss history with columns [iteration, loss_value]. L is the number
+        of recorded iterations (may differ from number of positions N).
 
     Notes
     -----
@@ -738,7 +739,7 @@ class PtychographyReconstruction(NamedTuple):
     intermediate_aperture_diameters: Float[Array, " S"]
     intermediate_aperture_centers: Float[Array, " 2 S"]
     intermediate_travel_distances: Float[Array, " S"]
-    losses: Float[Array, " N 2"]
+    losses: Float[Array, " L 2"]
 
     def tree_flatten(
         self,
@@ -757,7 +758,7 @@ class PtychographyReconstruction(NamedTuple):
             Float[Array, " S"],
             Float[Array, " 2 S"],
             Float[Array, " S"],
-            Float[Array, " N 2"],
+            Float[Array, " L 2"],
         ],
         None,
     ]:
@@ -800,7 +801,7 @@ class PtychographyReconstruction(NamedTuple):
             Float[Array, " S"],
             Float[Array, " 2 S"],
             Float[Array, " S"],
-            Float[Array, " N 2"],
+            Float[Array, " L 2"],
         ],
     ) -> "PtychographyReconstruction":
         """Unflatten PtychographyReconstruction from tuple of components."""

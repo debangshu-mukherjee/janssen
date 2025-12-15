@@ -29,8 +29,10 @@ epie_optical : function
     Extended PIE algorithm for optical ptychography
 init_simple_microscope : function
     Initialize reconstruction by inverting the simple microscope forward model
+simple_microscope_epie : function
+    Ptychography reconstruction using extended PIE algorithm
 simple_microscope_ptychography : function
-    Resumable ptychography reconstruction algorithm
+    Resumable ptychography reconstruction using gradient-based optimization
 single_pie_iteration : function
     Single iteration of PIE algorithm
 single_pie_sequential : function
@@ -56,13 +58,17 @@ from .initialization import (
     init_simple_microscope,
 )
 from .loss_functions import create_loss_function
-from .ptychography import simple_microscope_ptychography
+from .ptychography import (
+    simple_microscope_epie,
+    simple_microscope_ptychography,
+)
 
 __all__: list[str] = [
     "compute_fov_and_positions",
     "create_loss_function",
     "epie_optical",
     "init_simple_microscope",
+    "simple_microscope_epie",
     "simple_microscope_ptychography",
     "single_pie_iteration",
     "single_pie_sequential",

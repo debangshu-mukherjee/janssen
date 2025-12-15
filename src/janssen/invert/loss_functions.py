@@ -77,23 +77,46 @@ def create_loss_function(
     - Return the compiled loss function.
     """
 
-    def mae_loss(diff: Float[Array, " H W"]) -> Float[Array, " H W"]:
-        return jnp.mean(jnp.abs(diff))
+    def mae_loss(
+        model_output: Float[Array, "..."], data: Float[Array, "..."]
+    ) -> Float[Array, " "]:
+        return jnp.mean(jnp.abs(model_output - data))
 
-    def mse_loss(diff: Float[Array, " H W"]) -> Float[Array, " H W"]:
-        return jnp.mean(jnp.square(diff))
+    def mse_loss(
+        model_output: Float[Array, "..."], data: Float[Array, "..."]
+    ) -> Float[Array, " "]:
+        return jnp.mean(jnp.square(model_output - data))
 
-    def rmse_loss(diff: Float[Array, " H W"]) -> Float[Array, " H W"]:
-        return jnp.sqrt(jnp.mean(jnp.square(diff)))
+    def rmse_loss(
+        model_output: Float[Array, "..."], data: Float[Array, "..."]
+    ) -> Float[Array, " "]:
+        return jnp.sqrt(jnp.mean(jnp.square(model_output - data)))
 
-    loss_functions = {"mae": mae_loss, "mse": mse_loss, "rmse": rmse_loss}
+    def poisson_loss(
+        model_output: Float[Array, "..."], data: Float[Array, "..."]
+    ) -> Float[Array, " "]:
+        """Poisson negative log-likelihood loss.
+
+        For Poisson-distributed data, the negative log-likelihood is:
+        L = sum(model - data * log(model))
+        We add a small epsilon to avoid log(0).
+        """
+        eps = 1e-10
+        model_safe = jnp.maximum(model_output, eps)
+        return jnp.mean(model_safe - data * jnp.log(model_safe))
+
+    loss_functions = {
+        "mae": mae_loss,
+        "mse": mse_loss,
+        "rmse": rmse_loss,
+        "poisson": poisson_loss,
+    }
 
     selected_loss_fn = loss_functions[loss_type]
 
     @jax.jit
     def loss_fn(params: PyTree, *args: Any) -> Float[Array, " "]:
         model_output = forward_function(params, *args)
-        diff = model_output - experimental_data
-        return selected_loss_fn(diff)
+        return selected_loss_fn(model_output, experimental_data)
 
     return loss_fn
