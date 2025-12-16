@@ -143,7 +143,7 @@ from .types import (
     ScalarNumeric,
     SlicedMaterialFunction,
 )
-from .math import wirtinger_grad
+from .math import fourier_shift, wirtinger_grad
 from .vector_types import (
     VectorWavefront3D,
     jones_to_vector3d,
@@ -171,6 +171,7 @@ __all__: list[str] = [
     "vector3d_to_jones",
     "optical2propagating",
     "shard_batch",
+    "fourier_shift",
     "wirtinger_grad",
     "Diffractogram",
     "EpieData",

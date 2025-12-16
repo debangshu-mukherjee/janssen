@@ -37,6 +37,7 @@ from janssen.utils import (
     PtychographyParams,
     PtychographyReconstruction,
     SampleFunction,
+    fourier_shift,
     make_epie_data,
     make_optical_wavefront,
     make_ptychography_reconstruction,
@@ -396,15 +397,17 @@ def simple_microscope_ptychography(  # noqa: PLR0915
     return full_and_intermediate
 
 
-def _sm_epie_core(  # noqa: PLR0915
+def _sm_epie_core(
     epie_data: EpieData,
     iterations: Int[Array, " N"],
     alpha: float = 1.0,
 ) -> EpieData:
-    """FFT-based ePIE core algorithm using preprocessed data.
+    """FFT-based ePIE core algorithm with Fourier shifting.
 
-    Pure JAX implementation of ePIE reconstruction. This function is
-    JIT-compatible and uses vmap for parallel updates across positions.
+    Pure JAX implementation of ePIE reconstruction using FFT-based
+    position shifting. The object and probe have the same size as the
+    diffraction patterns, and position shifts are applied via phase
+    ramps in Fourier space for sub-pixel accuracy.
 
     Parameters
     ----------
@@ -412,13 +415,11 @@ def _sm_epie_core(  # noqa: PLR0915
         Preprocessed data from init_simple_epie containing:
 
         - diffraction_patterns: Scaled camera images (N, H, W)
-        - probe: Initial probe with aperture (H, W)
-        - sample: Initial sample estimate (Hs, Ws)
-        - positions: Scan positions in pixels
+        - probe: Initial probe centered in the array (H, W)
+        - sample: Initial sample estimate, same size as probe (H, W)
+        - positions: Scan positions in pixels relative to center (0, 0)
     iterations : Int[Array, " N"]
-        Array of iteration indices to scan over. Length determines number
-        of iterations. Must be created outside JIT context to avoid tracer
-        issues with dynamically-sized arrays.
+        Array of iteration indices to scan over.
     alpha : float, optional
         ePIE step size parameter. Default is 1.0.
 
@@ -426,78 +427,50 @@ def _sm_epie_core(  # noqa: PLR0915
     -------
     EpieData
         Updated EpieData with reconstructed sample and probe.
-        All other fields are preserved from input.
 
     Notes
     -----
-    **Algorithm Overview**
+    **Algorithm with FFT Shifting**
 
-    For each iteration:
+    The probe is initially centered in the image. For each scan position
+    (dx, dy) relative to center:
 
-    1. vmap over all positions to compute updates in parallel
-    2. Scatter-add object updates to full FOV using lax.scan
-    3. Average object updates by overlap count
-    4. Average probe updates across all positions
-    5. Apply updates to object and probe
+    1. Shift object by (-dx, -dy) to align probe position with object
+    2. exit_wave = shifted_object * probe
+    3. detector = FFT(exit_wave)
+    4. Replace amplitude: detector_new = detector * sqrt(I) / |detector|
+    5. exit_wave_new = IFFT(detector_new)
+    6. Compute updates in shifted frame
+    7. Shift object update back by (+dx, +dy)
+    8. Average all object updates (they're all in the same frame now)
 
-    Uses ``lax.scan`` over iterations for efficient JIT compilation.
+    This approach:
 
-    **ePIE Update Equations**
-
-    For each position:
-
-    1. ``exit_wave = object_patch * probe``
-    2. ``detector = FFT(exit_wave)``
-    3. ``detector_new = detector * sqrt(measured) / |detector|``
-    4. ``exit_wave_new = IFFT(detector_new)``
-    5. ``diff = exit_wave_new - exit_wave``
-    6. ``obj_update = alpha * conj(probe) * diff / max(|probe|^2)``
-    7. ``probe_update = alpha * conj(obj) * diff / max(|obj|^2)``
-
-    **Scatter-Add Pattern**
-
-    Object updates from overlapping positions are accumulated using
-    ``lax.dynamic_slice`` and ``lax.dynamic_update_slice``, then averaged
-    by dividing by the overlap count at each pixel.
-
-    See Also
-    --------
-    init_simple_epie : Preprocess data for FFT-compatible ePIE.
-    simple_microscope_epie : High-level orchestration function.
+    - Supports sub-pixel shifts naturally
+    - Object and probe are same size as diffraction patterns
+    - All updates are accumulated in a common reference frame
     """
     diffraction_patterns: Float[Array, " N H W"] = (
         epie_data.diffraction_patterns
     )
-    sample_field: Complex[Array, " Hs Ws"] = epie_data.sample
+    sample_field: Complex[Array, " H W"] = epie_data.sample
     probe_field: Complex[Array, " H W"] = epie_data.probe
     positions: Float[Array, " N 2"] = epie_data.positions
-    probe_size_y: int = probe_field.shape[0]
-    probe_size_x: int = probe_field.shape[1]
-    sample_size_y: int = sample_field.shape[0]
-    sample_size_x: int = sample_field.shape[1]
     eps: float = 1e-8
 
     def _compute_single_update(
-        obj: Complex[Array, " Hs Ws"],
+        obj: Complex[Array, " H W"],
         probe: Complex[Array, " H W"],
         measurement: Float[Array, " H W"],
         pos: Float[Array, " 2"],
-    ) -> Tuple[
-        Complex[Array, " H W"],
-        Complex[Array, " H W"],
-        Int[Array, " 2"],
-    ]:
-        """Compute ePIE update for single position (vmappable)."""
-        start_x: Int[Array, " "] = jnp.floor(
-            pos[0] - 0.5 * probe_size_x
-        ).astype(jnp.int32)
-        start_y: Int[Array, " "] = jnp.floor(
-            pos[1] - 0.5 * probe_size_y
-        ).astype(jnp.int32)
-        obj_patch: Complex[Array, " H W"] = lax.dynamic_slice(
-            obj, (start_y, start_x), (probe_size_y, probe_size_x)
+    ) -> Tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
+        """Compute ePIE update for single position using FFT shifting."""
+        shift_x: Float[Array, " "] = pos[0]
+        shift_y: Float[Array, " "] = pos[1]
+        obj_shifted: Complex[Array, " H W"] = fourier_shift(
+            obj, -shift_x, -shift_y
         )
-        exit_wave: Complex[Array, " H W"] = obj_patch * probe
+        exit_wave: Complex[Array, " H W"] = obj_shifted * probe
         exit_wave_ft: Complex[Array, " H W"] = jnp.fft.fftshift(
             jnp.fft.fft2(exit_wave)
         )
@@ -515,89 +488,46 @@ def _sm_epie_core(  # noqa: PLR0915
         probe_conj: Complex[Array, " H W"] = jnp.conj(probe)
         probe_intensity: Float[Array, " H W"] = jnp.abs(probe) ** 2
         probe_max_intensity: Float[Array, " "] = jnp.max(probe_intensity)
-        obj_update: Complex[Array, " H W"] = (
+        obj_update_shifted: Complex[Array, " H W"] = (
             alpha * probe_conj * diff / (probe_max_intensity + eps)
         )
-        obj_conj: Complex[Array, " H W"] = jnp.conj(obj_patch)
-        obj_intensity: Float[Array, " H W"] = jnp.abs(obj_patch) ** 2
+        obj_update: Complex[Array, " H W"] = fourier_shift(
+            obj_update_shifted, shift_x, shift_y
+        )
+        obj_conj: Complex[Array, " H W"] = jnp.conj(obj_shifted)
+        obj_intensity: Float[Array, " H W"] = jnp.abs(obj_shifted) ** 2
         obj_max_intensity: Float[Array, " "] = jnp.max(obj_intensity)
         probe_update: Complex[Array, " H W"] = (
             alpha * obj_conj * diff / (obj_max_intensity + eps)
         )
-        start_indices: Int[Array, " 2"] = jnp.array(
-            [start_y, start_x], dtype=jnp.int32
-        )
-        return obj_update, probe_update, start_indices
-
-    def _scatter_add_updates(
-        carry: Tuple[Complex[Array, " Hs Ws"], Float[Array, " Hs Ws"]],
-        inputs: Tuple[Complex[Array, " H W"], Int[Array, " 2"]],
-    ) -> Tuple[
-        Tuple[Complex[Array, " Hs Ws"], Float[Array, " Hs Ws"]],
-        None,
-    ]:
-        """Scatter-add single update to accumulator with overlap counting."""
-        acc_update, acc_count = carry
-        update, idx = inputs
-        current_patch: Complex[Array, " H W"] = lax.dynamic_slice(
-            acc_update, (idx[0], idx[1]), (probe_size_y, probe_size_x)
-        )
-        acc_update = lax.dynamic_update_slice(
-            acc_update, current_patch + update, (idx[0], idx[1])
-        )
-        ones_patch: Float[Array, " H W"] = jnp.ones(
-            (probe_size_y, probe_size_x), dtype=jnp.float64
-        )
-        current_count: Float[Array, " H W"] = lax.dynamic_slice(
-            acc_count, (idx[0], idx[1]), (probe_size_y, probe_size_x)
-        )
-        acc_count = lax.dynamic_update_slice(
-            acc_count, current_count + ones_patch, (idx[0], idx[1])
-        )
-        return (acc_update, acc_count), None
+        return obj_update, probe_update
 
     def _epie_one_iteration(
-        carry: Tuple[Complex[Array, " Hs Ws"], Complex[Array, " H W"]],
+        carry: Tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
         _iter_idx: Int[Array, " "],
     ) -> Tuple[
-        Tuple[Complex[Array, " Hs Ws"], Complex[Array, " H W"]],
+        Tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
         None,
     ]:
-        """One complete sweep over all positions using vmap."""
+        """One ePIE iteration over all positions."""
         obj, probe = carry
-        obj_updates, probe_updates, start_indices = jax.vmap(
+        obj_updates, probe_updates = jax.vmap(
             lambda m, p: _compute_single_update(obj, probe, m, p)
         )(diffraction_patterns, positions)
-        obj_update_full: Complex[Array, " Hs Ws"] = jnp.zeros(
-            (sample_size_y, sample_size_x), dtype=jnp.complex128
-        )
-        obj_count: Float[Array, " Hs Ws"] = jnp.zeros(
-            (sample_size_y, sample_size_x), dtype=jnp.float64
-        )
-        (obj_update_sum, obj_overlap_count), _ = lax.scan(
-            _scatter_add_updates,
-            (obj_update_full, obj_count),
-            (obj_updates, start_indices),
-        )
-        obj_overlap_count_safe: Float[Array, " Hs Ws"] = jnp.maximum(
-            obj_overlap_count, 1.0
-        )
-        obj_update_avg: Complex[Array, " Hs Ws"] = (
-            obj_update_sum / obj_overlap_count_safe
-        )
+        obj_update_avg: Complex[Array, " H W"] = jnp.mean(obj_updates, axis=0)
         probe_update_avg: Complex[Array, " H W"] = jnp.mean(
             probe_updates, axis=0
         )
-        obj_new: Complex[Array, " Hs Ws"] = obj + obj_update_avg
+        obj_new: Complex[Array, " H W"] = obj + obj_update_avg
         probe_new: Complex[Array, " H W"] = probe + probe_update_avg
         return (obj_new, probe_new), None
 
-    init_carry: Tuple[Complex[Array, " Hs Ws"], Complex[Array, " H W"]] = (
+    init_carry: Tuple[Complex[Array, " H W"], Complex[Array, " H W"]] = (
         sample_field,
         probe_field,
     )
     final_carry, _ = lax.scan(_epie_one_iteration, init_carry, iterations)
-    final_sample_field: Complex[Array, " Hs Ws"]
+    final_sample_field: Complex[Array, " H W"]
     final_probe_field: Complex[Array, " H W"]
     final_sample_field, final_probe_field = final_carry
     result: EpieData = make_epie_data(
@@ -677,9 +607,6 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
     """
     guess_sample: SampleFunction = reconstruction.sample
     guess_lightwave: OpticalWavefront = reconstruction.lightwave
-    translated_positions: Float[Array, " N 2"] = (
-        reconstruction.translated_positions
-    )
     zoom_factor: Float[Array, " "] = reconstruction.zoom_factor
     aperture_diameter: Float[Array, " "] = reconstruction.aperture_diameter
     travel_distance: Float[Array, " "] = reconstruction.travel_distance
@@ -711,24 +638,20 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
     num_iterations: Int[Array, " "] = params.num_iterations
     alpha: Float[Array, " "] = params.learning_rate
     num_iterations_int: int = int(num_iterations)
-    start_iteration: Int[Array, " "] = jnp.array(
-        prev_losses.shape[0], dtype=jnp.int64
-    )
-    sample_dx: Float[Array, " "] = guess_sample.dx
-    probe_size_y: int = guess_lightwave.field.shape[0]
-    probe_size_x: int = guess_lightwave.field.shape[1]
     epie_data: EpieData = init_simple_epie(
         experimental_data=experimental_data,
-        probe_size=(probe_size_y, probe_size_x),
+        effective_dx=guess_sample.dx,
         wavelength=guess_lightwave.wavelength,
         zoom_factor=zoom_factor,
         aperture_diameter=aperture_diameter,
         travel_distance=travel_distance,
         camera_pixel_size=camera_pixel_size,
     )
-    is_resume: bool = int(prev_losses.shape[0]) > 0
+    epie_sample_shape: tuple[int, int] = epie_data.sample.shape
+    recon_sample_shape: tuple[int, int] = guess_sample.sample.shape
+    is_epie_resume: bool = epie_sample_shape == recon_sample_shape
 
-    if is_resume:
+    if is_epie_resume:
         epie_data = make_epie_data(
             diffraction_patterns=epie_data.diffraction_patterns,
             probe=guess_lightwave.field,
@@ -750,13 +673,14 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
     )
     final_sample_field: Complex[Array, " Hs Ws"] = result_epie.sample
     final_probe_field: Complex[Array, " H W"] = result_epie.probe
+    output_dx: Float[Array, " "] = result_epie.effective_dx
     final_sample: SampleFunction = make_sample_function(
-        sample=final_sample_field, dx=sample_dx
+        sample=final_sample_field, dx=output_dx
     )
     final_lightwave: OpticalWavefront = make_optical_wavefront(
         field=final_probe_field,
         wavelength=guess_lightwave.wavelength,
-        dx=guess_lightwave.dx,
+        dx=output_dx,
         z_position=guess_lightwave.z_position,
     )
     loss_val: Float[Array, " "] = jnp.array(0.0)
@@ -768,90 +692,82 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
         *final_probe_field.shape,
         num_iterations_int,
     )
-    intermediate_samples_new: Complex[Array, " Hs Ws N"] = jnp.broadcast_to(
+    intermediate_samples: Complex[Array, " Hs Ws N"] = jnp.broadcast_to(
         final_sample_field[..., None], sample_shape
     )
-    intermediate_lightwaves_new: Complex[Array, " H W N"] = jnp.broadcast_to(
+    intermediate_lightwaves: Complex[Array, " H W N"] = jnp.broadcast_to(
         final_probe_field[..., None], probe_shape
     )
-    intermediate_zoom_factors_new: Float[Array, " N"] = jnp.full(
+    intermediate_zoom_factors: Float[Array, " N"] = jnp.full(
         num_iterations_int, zoom_factor
     )
-    intermediate_aperture_diameters_new: Float[Array, " N"] = jnp.full(
+    intermediate_aperture_diameters: Float[Array, " N"] = jnp.full(
         num_iterations_int, aperture_diameter
     )
-    intermediate_travel_distances_new: Float[Array, " N"] = jnp.full(
+    intermediate_travel_distances: Float[Array, " N"] = jnp.full(
         num_iterations_int, travel_distance
     )
-    intermediate_aperture_centers_new: Float[Array, " 2 N"] = jnp.broadcast_to(
+    intermediate_aperture_centers: Float[Array, " 2 N"] = jnp.broadcast_to(
         aperture_center[:, None], (2, num_iterations_int)
     )
-
-    iteration_numbers: Float[Array, " N"] = start_iteration + jnp.arange(
+    iteration_numbers: Float[Array, " N"] = jnp.arange(
         num_iterations_int, dtype=jnp.float64
     )
-    losses_new: Float[Array, " N"] = jnp.full(num_iterations_int, loss_val)
+    losses_arr: Float[Array, " N"] = jnp.full(num_iterations_int, loss_val)
     losses: Float[Array, " N 2"] = jnp.stack(
-        [iteration_numbers, losses_new], axis=1
+        [iteration_numbers, losses_arr], axis=1
     )
 
-    combined_intermediate_samples: Complex[Array, " H W S"] = jnp.concatenate(
-        [prev_intermediate_samples, intermediate_samples_new], axis=-1
-    )
-    combined_intermediate_lightwaves: Complex[Array, " H W S"] = (
-        jnp.concatenate(
-            [prev_intermediate_lightwaves, intermediate_lightwaves_new],
+    if is_epie_resume:
+        intermediate_samples = jnp.concatenate(
+            [prev_intermediate_samples, intermediate_samples], axis=-1
+        )
+        intermediate_lightwaves = jnp.concatenate(
+            [prev_intermediate_lightwaves, intermediate_lightwaves], axis=-1
+        )
+        intermediate_zoom_factors = jnp.concatenate(
+            [prev_intermediate_zoom_factors, intermediate_zoom_factors],
             axis=-1,
         )
-    )
-    combined_intermediate_zoom_factors: Float[Array, " S"] = jnp.concatenate(
-        [prev_intermediate_zoom_factors, intermediate_zoom_factors_new],
-        axis=-1,
-    )
-    combined_intermediate_aperture_diameters: Float[Array, " S"] = (
-        jnp.concatenate(
+        intermediate_aperture_diameters = jnp.concatenate(
             [
                 prev_intermediate_aperture_diameters,
-                intermediate_aperture_diameters_new,
+                intermediate_aperture_diameters,
             ],
             axis=-1,
         )
-    )
-    combined_intermediate_aperture_centers: Float[Array, " 2 S"] = (
-        jnp.concatenate(
+        intermediate_aperture_centers = jnp.concatenate(
             [
                 prev_intermediate_aperture_centers,
-                intermediate_aperture_centers_new,
+                intermediate_aperture_centers,
             ],
             axis=-1,
         )
-    )
-    combined_intermediate_travel_distances: Float[Array, " S"] = (
-        jnp.concatenate(
+        intermediate_travel_distances = jnp.concatenate(
             [
                 prev_intermediate_travel_distances,
-                intermediate_travel_distances_new,
+                intermediate_travel_distances,
             ],
             axis=-1,
         )
-    )
-    combined_losses: Float[Array, " N 2"] = jnp.concatenate(
-        [prev_losses, losses], axis=0
+        losses = jnp.concatenate([prev_losses, losses], axis=0)
+    positions_meters: Float[Array, " N 2"] = (
+        epie_data.positions * output_dx
     )
     result: PtychographyReconstruction = make_ptychography_reconstruction(
         sample=final_sample,
         lightwave=final_lightwave,
-        translated_positions=translated_positions,
+        translated_positions=positions_meters,
         zoom_factor=zoom_factor,
         aperture_diameter=aperture_diameter,
         aperture_center=aperture_center,
         travel_distance=travel_distance,
-        intermediate_samples=combined_intermediate_samples,
-        intermediate_lightwaves=combined_intermediate_lightwaves,
-        intermediate_zoom_factors=combined_intermediate_zoom_factors,
-        intermediate_aperture_diameters=combined_intermediate_aperture_diameters,
-        intermediate_aperture_centers=combined_intermediate_aperture_centers,
-        intermediate_travel_distances=combined_intermediate_travel_distances,
-        losses=combined_losses,
+        intermediate_samples=intermediate_samples,
+        intermediate_lightwaves=intermediate_lightwaves,
+        intermediate_zoom_factors=intermediate_zoom_factors,
+        intermediate_aperture_diameters=intermediate_aperture_diameters,
+        intermediate_aperture_centers=intermediate_aperture_centers,
+        intermediate_travel_distances=intermediate_travel_distances,
+        losses=losses,
     )
     return result

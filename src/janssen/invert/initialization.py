@@ -596,7 +596,7 @@ def init_simple_microscope( # noqa: PLR0915
 @jaxtyped(typechecker=beartype)
 def init_simple_epie(  # noqa: PLR0915
     experimental_data: MicroscopeData,
-    probe_size: Tuple[int, int],
+    effective_dx: ScalarFloat,
     wavelength: ScalarFloat,
     zoom_factor: ScalarFloat,
     aperture_diameter: ScalarFloat,
@@ -606,78 +606,74 @@ def init_simple_epie(  # noqa: PLR0915
 ) -> EpieData:
     """Initialize data for FFT-compatible ePIE reconstruction.
 
-    Preprocesses experimental data by scaling all physical quantities to
-    work in an FFT-consistent coordinate system. The zoom factor is absorbed
-    by scaling pixel sizes and aperture diameter, so the ePIE algorithm can
-    use pure FFT for forward/backward propagation.
+    Preprocesses experimental data for FFT-based ePIE. All quantities are
+    converted to pixels so that _sm_epie_core works purely in pixel space.
 
     Parameters
     ----------
     experimental_data : MicroscopeData
         Experimental diffraction patterns with positions in meters.
         Shape of image_data: (N, H_cam, W_cam) where N is number of positions.
-    probe_size : Tuple[int, int]
-        Size of the probe array (H, W). This determines the reconstruction
-        resolution. Camera images will be scaled/cropped to this size.
+    effective_dx : ScalarFloat
+        Desired pixel size in meters for the sample/probe reconstruction.
+        This is a user input that determines the reconstruction resolution.
     wavelength : ScalarFloat
         Wavelength of light in meters.
     zoom_factor : ScalarFloat
-        Optical zoom factor (magnification) of the microscope.
+        Optical zoom factor (magnification) of the microscope. Used to scale
+        the aperture diameter for the probe.
     aperture_diameter : ScalarFloat
         Physical aperture diameter in meters (before zoom scaling).
     travel_distance : ScalarFloat
-        Light propagation distance in meters.
+        Propagation distance from sample to camera in meters.
     camera_pixel_size : ScalarFloat
         Physical size of camera pixels in meters.
     padding : ScalarInteger, optional
         Additional padding in pixels around the scanned region.
-        If None, defaults to half probe size.
+        If None, defaults to half the aperture size in pixels.
 
     Returns
     -------
     EpieData
         Preprocessed data ready for FFT-based ePIE reconstruction containing:
 
-        - diffraction_patterns: Scaled to (N, probe_size[0], probe_size[1])
-        - probe: Plane wave with circular aperture applied
-        - sample: Initial estimate (ones) covering the FOV
-        - positions: Scan positions in pixels
-        - effective_dx: camera_pixel_size / zoom_factor
+        - diffraction_patterns: Rescaled and padded/cropped to image size
+        - probe: Plane wave with circular aperture at image size
+        - sample: Initial estimate (ones), same size as probe
+        - positions: Scan positions in pixels relative to center (0, 0)
+        - effective_dx: The user-provided pixel size
         - wavelength, original_camera_pixel_size, zoom_factor for reference
 
     Notes
     -----
-    **Physics Background**
+    **Workflow**
 
-    Optical zoom scales all physical dimensions uniformly. A 10x zoom with
-    1mm aperture and 16μm camera pixels is equivalent to working with a
-    100μm aperture and 1.6μm pixels with no zoom.
+    1. Convert scan positions from meters to pixels: ``pos_px = pos_m / dx``
+    2. Unzoom aperture and convert to pixels: ``aperture_px = (D / zoom) / dx``
+    3. Compute image size from aperture + padding + scan FOV
+    4. Create probe: plane wave with aperture, calibrated at effective_dx
+    5. Compute FFT pixel size in inverse meters from image size and dx
+    6. Scale camera images: unzoom pixels, apply Fraunhofer to get meter⁻¹,
+       then rescale to match FFT pixel size
+    7. Pad or crop camera images to match image size
 
-    **Key Transformations**
+    **Aperture Scaling**
 
-    1. ``effective_dx = camera_pixel_size / zoom_factor``
-    2. ``effective_aperture = aperture_diameter / zoom_factor``
-    3. Camera images scaled to match FFT-natural pixel size
-    4. Probe initialized as plane wave with effective aperture
+    The effective aperture is ``aperture_diameter / zoom_factor``. This absorbs
+    the zoom into the probe geometry.
 
-    **FFT Framework**
+    **Camera Image Rescaling**
 
-    - Sample plane pixel size: ``effective_dx = camera_pixel_size / zoom``
-    - FFT maps to detector with pixel size:
-      ``dx_detector = λ * z / (N * effective_dx)``
-    - Camera images scaled via bilinear interpolation to match FFT-natural
-      size using ``scale_factor = camera_pixel_size / dx_fft_natural``
+    The camera pixel size after unzooming is ``camera_pixel_size / zoom``.
+    In Fraunhofer diffraction, the detector pixel maps to spatial frequency:
+    ``df = 1 / (λ * z) * camera_dx_unzoomed``. The FFT expects pixel spacing
+    ``df_fft = 1 / (N * effective_dx)``. We rescale images by the ratio
+    ``scale = df / df_fft`` to match.
 
-    **Image Scaling**
+    **Position Convention**
 
-    - ``scale_factor > 1``: Camera pixels larger than FFT-natural, interpolate
-    - ``scale_factor < 1``: Camera pixels smaller, downsample
-
-    **Position Normalization**
-
-    Positions converted from meters to pixels in effective coordinate system,
-    then normalized so minimum position maps to ``(padding + half_probe)``
-    within the FOV array.
+    Positions are centered so (0, 0) is the center of the scan region.
+    The probe is initially at center, and FFT shifting moves relative to this.
     """
     wavelength_arr: Float[Array, " "] = jnp.asarray(
         wavelength, dtype=jnp.float64
@@ -688,36 +684,90 @@ def init_simple_epie(  # noqa: PLR0915
     aperture_diameter_arr: Float[Array, " "] = jnp.asarray(
         aperture_diameter, dtype=jnp.float64
     )
+    effective_dx_arr: Float[Array, " "] = jnp.asarray(
+        effective_dx, dtype=jnp.float64
+    )
     travel_distance_arr: Float[Array, " "] = jnp.asarray(
         travel_distance, dtype=jnp.float64
     )
     camera_pixel_size_arr: Float[Array, " "] = jnp.asarray(
         camera_pixel_size, dtype=jnp.float64
     )
-    probe_size_y: int = probe_size[0]
-    probe_size_x: int = probe_size[1]
-    effective_dx: Float[Array, " "] = camera_pixel_size_arr / zoom_factor_arr
-    effective_aperture: Float[Array, " "] = (
+    effective_aperture_m: Float[Array, " "] = (
         aperture_diameter_arr / zoom_factor_arr
     )
-    dx_fft_natural: Float[Array, " "] = (
-        wavelength_arr * travel_distance_arr / (probe_size_x * effective_dx)
+    aperture_px: Float[Array, " "] = effective_aperture_m / effective_dx_arr
+    pixel_positions: Float[Array, " N 2"] = (
+        experimental_data.positions / effective_dx_arr
     )
-    scale_factor: Float[Array, " "] = camera_pixel_size_arr / dx_fft_natural
-    num_positions: int = experimental_data.image_data.shape[0]  # noqa: F841
+    min_pos_x: Float[Array, " "] = jnp.min(pixel_positions[:, 0])
+    max_pos_x: Float[Array, " "] = jnp.max(pixel_positions[:, 0])
+    min_pos_y: Float[Array, " "] = jnp.min(pixel_positions[:, 1])
+    max_pos_y: Float[Array, " "] = jnp.max(pixel_positions[:, 1])
+    scan_fov_x_px: Float[Array, " "] = max_pos_x - min_pos_x
+    scan_fov_y_px: Float[Array, " "] = max_pos_y - min_pos_y
+
+    if padding is None:
+        padding = int(aperture_px / 2)
+
+    image_size_x: int = (
+        int(jnp.ceil(scan_fov_x_px)) + int(jnp.ceil(aperture_px)) + 2 * padding
+    )
+    image_size_y: int = (
+        int(jnp.ceil(scan_fov_y_px)) + int(jnp.ceil(aperture_px)) + 2 * padding
+    )
+    image_size: int = max(image_size_x, image_size_y)
+    center_pos_x: Float[Array, " "] = (min_pos_x + max_pos_x) / 2.0
+    center_pos_y: Float[Array, " "] = (min_pos_y + max_pos_y) / 2.0
+    centered_positions_x: Float[Array, " N"] = (
+        pixel_positions[:, 0] - center_pos_x
+    )
+    centered_positions_y: Float[Array, " N"] = (
+        pixel_positions[:, 1] - center_pos_y
+    )
+    centered_positions: Float[Array, " N 2"] = jnp.stack(
+        [centered_positions_x, centered_positions_y], axis=1
+    )
+    x_probe: Float[Array, " W"] = (
+        jnp.arange(image_size) - image_size // 2
+    ) * effective_dx_arr
+    y_probe: Float[Array, " H"] = (
+        jnp.arange(image_size) - image_size // 2
+    ) * effective_dx_arr
+    xx_probe: Float[Array, " H W"]
+    yy_probe: Float[Array, " H W"]
+    xx_probe, yy_probe = jnp.meshgrid(x_probe, y_probe)
+    r_probe: Float[Array, " H W"] = jnp.sqrt(xx_probe**2 + yy_probe**2)
+    aperture_mask: Float[Array, " H W"] = (
+        r_probe <= effective_aperture_m / 2.0
+    ).astype(jnp.float64)
+    initial_probe: Complex[Array, " H W"] = aperture_mask.astype(
+        jnp.complex128
+    )
+    initial_sample: Complex[Array, " H W"] = jnp.ones(
+        (image_size, image_size), dtype=jnp.complex128
+    )
+    camera_dx_unzoomed: Float[Array, " "] = (
+        camera_pixel_size_arr / zoom_factor_arr
+    )
+    df_camera: Float[Array, " "] = camera_dx_unzoomed / (
+        wavelength_arr * travel_distance_arr
+    )
+    df_fft: Float[Array, " "] = 1.0 / (image_size * effective_dx_arr)
+    scale_factor: Float[Array, " "] = df_camera / df_fft
     cam_size_y: int = experimental_data.image_data.shape[1]
     cam_size_x: int = experimental_data.image_data.shape[2]
 
-    def scale_single_image(
+    def rescale_and_pad_image(
         image: Float[Array, " H_cam W_cam"],
     ) -> Float[Array, " H W"]:
-        """Scale a single camera image to FFT-natural size via bilinear."""
-        center_out_y: float = (probe_size_y - 1) / 2.0
-        center_out_x: float = (probe_size_x - 1) / 2.0
+        """Rescale camera image to FFT pixel size, pad/crop to image_size."""
         center_in_y: float = (cam_size_y - 1) / 2.0
         center_in_x: float = (cam_size_x - 1) / 2.0
-        out_y: Float[Array, " H"] = jnp.arange(probe_size_y, dtype=jnp.float64)
-        out_x: Float[Array, " W"] = jnp.arange(probe_size_x, dtype=jnp.float64)
+        center_out_y: float = (image_size - 1) / 2.0
+        center_out_x: float = (image_size - 1) / 2.0
+        out_y: Float[Array, " H"] = jnp.arange(image_size, dtype=jnp.float64)
+        out_x: Float[Array, " W"] = jnp.arange(image_size, dtype=jnp.float64)
         in_y: Float[Array, " H"] = (
             out_y - center_out_y
         ) * scale_factor + center_in_y
@@ -727,69 +777,24 @@ def init_simple_epie(  # noqa: PLR0915
         in_y_mesh: Float[Array, " H W"]
         in_x_mesh: Float[Array, " H W"]
         in_y_mesh, in_x_mesh = jnp.meshgrid(in_y, in_x, indexing="ij")
-        scaled_image: Float[Array, " H W"] = jax.scipy.ndimage.map_coordinates(
+        rescaled: Float[Array, " H W"] = jax.scipy.ndimage.map_coordinates(
             image,
             [in_y_mesh, in_x_mesh],
             order=1,
             mode="constant",
             cval=0.0,
         )
-        return scaled_image
+        return rescaled
 
-    scaled_patterns: Float[Array, " N H W"] = jax.vmap(scale_single_image)(
-        experimental_data.image_data
-    )
-    x_probe: Float[Array, " W"] = (
-        jnp.arange(probe_size_x) - probe_size_x // 2
-    ) * effective_dx
-    y_probe: Float[Array, " H"] = (
-        jnp.arange(probe_size_y) - probe_size_y // 2
-    ) * effective_dx
-    xx_probe: Float[Array, " H W"]
-    yy_probe: Float[Array, " H W"]
-    xx_probe, yy_probe = jnp.meshgrid(x_probe, y_probe)
-    r_probe: Float[Array, " H W"] = jnp.sqrt(xx_probe**2 + yy_probe**2)
-    aperture_mask: Float[Array, " H W"] = (
-        r_probe <= effective_aperture / 2.0
-    ).astype(jnp.float64)
-    initial_probe: Complex[Array, " H W"] = aperture_mask.astype(
-        jnp.complex128
-    )
-    pixel_positions: Float[Array, " N 2"] = (
-        experimental_data.positions / effective_dx
-    )
-    min_pos_x: Float[Array, " "] = jnp.min(pixel_positions[:, 0])
-    max_pos_x: Float[Array, " "] = jnp.max(pixel_positions[:, 0])
-    min_pos_y: Float[Array, " "] = jnp.min(pixel_positions[:, 1])
-    max_pos_y: Float[Array, " "] = jnp.max(pixel_positions[:, 1])
-    scan_fov_x: Float[Array, " "] = max_pos_x - min_pos_x
-    scan_fov_y: Float[Array, " "] = max_pos_y - min_pos_y
-    half_probe_x: int = probe_size_x // 2
-    half_probe_y: int = probe_size_y // 2
-
-    if padding is None:
-        padding = max(half_probe_x, half_probe_y)
-
-    fov_size_x: int = int(jnp.ceil(scan_fov_x)) + probe_size_x + 2 * padding
-    fov_size_y: int = int(jnp.ceil(scan_fov_y)) + probe_size_y + 2 * padding
-    normalized_positions_x: Float[Array, " N"] = (
-        pixel_positions[:, 0] - min_pos_x + padding + half_probe_x
-    )
-    normalized_positions_y: Float[Array, " N"] = (
-        pixel_positions[:, 1] - min_pos_y + padding + half_probe_y
-    )
-    normalized_positions: Float[Array, " N 2"] = jnp.stack(
-        [normalized_positions_x, normalized_positions_y], axis=1
-    )
-    initial_sample: Complex[Array, " Hs Ws"] = jnp.ones(
-        (fov_size_y, fov_size_x), dtype=jnp.complex128
-    )
+    rescaled_patterns: Float[Array, " N H W"] = jax.vmap(
+        rescale_and_pad_image
+    )(experimental_data.image_data)
     epie_data: EpieData = make_epie_data(
-        diffraction_patterns=scaled_patterns,
+        diffraction_patterns=rescaled_patterns,
         probe=initial_probe,
         sample=initial_sample,
-        positions=normalized_positions,
-        effective_dx=effective_dx,
+        positions=centered_positions,
+        effective_dx=effective_dx_arr,
         wavelength=wavelength_arr,
         original_camera_pixel_size=camera_pixel_size_arr,
         zoom_factor=zoom_factor_arr,
