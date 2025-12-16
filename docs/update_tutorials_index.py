@@ -4,7 +4,6 @@ Automatically update the tutorials index.rst file to include all Jupyter noteboo
 Run this script whenever new notebooks are added to the tutorials directory.
 """
 
-import os
 from pathlib import Path
 
 
@@ -16,10 +15,18 @@ def update_tutorials_index():
     tutorials_dir = docs_dir.parent / "tutorials"
     index_file = tutorials_dir / "index.rst"
 
-    # Find all notebook files
-    notebooks = sorted([f.stem for f in tutorials_dir.glob("*.ipynb")])
+    # Find all notebook files in root tutorials directory
+    root_notebooks = sorted([f.stem for f in tutorials_dir.glob("*.ipynb")])
 
-    if not notebooks:
+    # Find subdirectories with notebooks
+    subdirs = []
+    for subdir in sorted(tutorials_dir.iterdir()):
+        if subdir.is_dir() and not subdir.name.startswith("."):
+            subdir_notebooks = list(subdir.glob("*.ipynb"))
+            if subdir_notebooks:
+                subdirs.append(subdir.name)
+
+    if not root_notebooks and not subdirs:
         print("No notebooks found in tutorials directory")
         return
 
@@ -35,9 +42,19 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
 
 """
 
-    # Add each notebook
-    for notebook in notebooks:
+    # Add each root notebook
+    for notebook in root_notebooks:
         content += f"   {notebook}\n"
+
+    # Add subdirectory sections
+    for subdir in subdirs:
+        content += f"""
+.. toctree::
+   :maxdepth: 2
+   :caption: {subdir}
+
+   {subdir}/index
+"""
 
     content += """
 .. note::
@@ -55,9 +72,45 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
     with open(index_file, "w") as f:
         f.write(content)
 
-    print(f"Updated {index_file} with {len(notebooks)} notebooks:")
-    for notebook in notebooks:
+    print(f"Updated {index_file} with {len(root_notebooks)} root notebooks")
+    print(f"  and {len(subdirs)} subdirectories: {subdirs}")
+    for notebook in root_notebooks:
         print(f"  - {notebook}")
+
+    # Also update subdirectory index files
+    for subdir in subdirs:
+        update_subdir_index(tutorials_dir / subdir)
+
+
+def update_subdir_index(subdir_path: Path):
+    """Update the index.rst file for a subdirectory."""
+    index_file = subdir_path / "index.rst"
+    subdir_name = subdir_path.name
+
+    # Find all notebook files in subdirectory
+    notebooks = sorted([f.stem for f in subdir_path.glob("*.ipynb")])
+
+    if not notebooks:
+        return
+
+    content = f"""{subdir_name}
+{'=' * len(subdir_name)}
+
+This section contains notebooks demonstrating microscope simulations using different sample types.
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Microscope Simulations
+
+"""
+
+    for notebook in notebooks:
+        content += f"   {notebook}\n"
+
+    with open(index_file, "w") as f:
+        f.write(content)
+
+    print(f"  Updated {index_file} with {len(notebooks)} notebooks")
 
 
 if __name__ == "__main__":
