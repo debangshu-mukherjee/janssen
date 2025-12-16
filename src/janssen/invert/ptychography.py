@@ -161,7 +161,6 @@ def simple_microscope_ptychography(  # noqa: PLR0915
     guess_sample_field: Complex[Array, " H W"] = guess_sample.sample
     loss_type_str: str = LOSS_TYPES[int(loss_type)]
 
-
     def _forward_fn(
         sample_field: Complex[Array, " H W"],
         lightwave_field: Complex[Array, " H W"],
@@ -195,7 +194,6 @@ def simple_microscope_ptychography(  # noqa: PLR0915
     loss_func: Callable[..., Float[Array, " "]] = create_loss_function(
         _forward_fn, experimental_data.image_data, loss_type_str
     )
-
 
     def _compute_loss(
         sample_field: Complex[Array, " H W"],
@@ -232,7 +230,6 @@ def simple_microscope_ptychography(  # noqa: PLR0915
     sample_opt_state: optax.OptState = optimizer.init(guess_sample_field)
     sample_field: Complex[Array, " H W"] = guess_sample_field
     lightwave_field: Complex[Array, " H W"] = guess_lightwave.field
-
 
     def _scan_body(
         carry: Tuple[
@@ -434,25 +431,21 @@ def _sm_epie_core(
 
     Notes
     -----
-    **Algorithm with FFT Shifting**
+    **Sequential ePIE Algorithm with FFT Shifting**
 
-    The probe is initially centered in the image. For each scan position
-    (dx, dy) relative to center:
+    For each iteration, we loop through all scan positions sequentially.
+    At each position (dx, dy) relative to center:
 
-    1. Shift object by (-dx, -dy) to align probe position with object
-    2. exit_wave = shifted_object * probe
+    1. Shift probe by (dx, dy) to the scan position
+    2. exit_wave = object * shifted_probe
     3. detector = FFT(exit_wave)
     4. Replace amplitude: detector_new = detector * sqrt(I) / |detector|
     5. exit_wave_new = IFFT(detector_new)
-    6. Compute updates in shifted frame
-    7. Shift object update back by (+dx, +dy)
-    8. Average all object updates (they're all in the same frame now)
+    6. Update object and probe using ePIE formulas (in lab frame)
+    7. Use updated object for next position
 
-    This approach:
-
-    - Supports sub-pixel shifts naturally
-    - Object and probe are same size as diffraction patterns
-    - All updates are accumulated in a common reference frame
+    Key insight: We shift the PROBE to each position rather than shifting
+    the object. This keeps updates in the lab frame where they belong.
     """
     diffraction_patterns: Float[Array, " N H W"] = (
         epie_data.diffraction_patterns
@@ -462,22 +455,31 @@ def _sm_epie_core(
     positions: Float[Array, " N 2"] = epie_data.positions
     eps: float = 1e-8
 
-    def _compute_single_update(
-        obj: Complex[Array, " H W"],
-        probe: Complex[Array, " H W"],
-        measurement: Float[Array, " H W"],
-        pos: Float[Array, " 2"],
-    ) -> Tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
-        """Compute ePIE update for single position using FFT shifting."""
+    def _epie_single_position(
+        carry: Tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
+        inputs: Tuple[Float[Array, " H W"], Float[Array, " 2"]],
+    ) -> Tuple[
+        Tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
+        None,
+    ]:
+        """Process one scan position, updating object and probe."""
+        obj, probe = carry
+        measurement, pos = inputs
         shift_x: Float[Array, " "] = pos[0]
         shift_y: Float[Array, " "] = pos[1]
-        obj_shifted: Complex[Array, " H W"] = fourier_shift(
-            obj, -shift_x, -shift_y
+
+        # Shift probe to scan position (probe moves, object stays fixed)
+        probe_shifted: Complex[Array, " H W"] = fourier_shift(
+            probe, shift_x, shift_y
         )
-        exit_wave: Complex[Array, " H W"] = obj_shifted * probe
+
+        # Forward model: exit wave in lab frame
+        exit_wave: Complex[Array, " H W"] = obj * probe_shifted
         exit_wave_ft: Complex[Array, " H W"] = jnp.fft.fftshift(
             jnp.fft.fft2(exit_wave)
         )
+
+        # Amplitude constraint
         measured_amplitude: Float[Array, " H W"] = jnp.sqrt(
             jnp.maximum(measurement, 0.0)
         )
@@ -488,23 +490,36 @@ def _sm_epie_core(
         exit_wave_updated: Complex[Array, " H W"] = jnp.fft.ifft2(
             jnp.fft.ifftshift(exit_wave_ft_updated)
         )
+
+        # Difference for updates
         diff: Complex[Array, " H W"] = exit_wave_updated - exit_wave
-        probe_conj: Complex[Array, " H W"] = jnp.conj(probe)
-        probe_intensity: Float[Array, " H W"] = jnp.abs(probe) ** 2
+
+        # ePIE object update (in lab frame, where probe_shifted illuminates)
+        # Standard ePIE: O += alpha * P* * diff / max(|P|^2)
+        # This ensures uniform weighting across the illuminated region
+        probe_conj: Complex[Array, " H W"] = jnp.conj(probe_shifted)
+        probe_intensity: Float[Array, " H W"] = jnp.abs(probe_shifted) ** 2
         probe_max_intensity: Float[Array, " "] = jnp.max(probe_intensity)
-        obj_update_shifted: Complex[Array, " H W"] = (
+        obj_update: Complex[Array, " H W"] = (
             alpha * probe_conj * diff / (probe_max_intensity + eps)
         )
-        obj_update: Complex[Array, " H W"] = fourier_shift(
-            obj_update_shifted, shift_x, shift_y
-        )
-        obj_conj: Complex[Array, " H W"] = jnp.conj(obj_shifted)
-        obj_intensity: Float[Array, " H W"] = jnp.abs(obj_shifted) ** 2
+        obj_new: Complex[Array, " H W"] = obj + obj_update
+
+        # ePIE probe update (in shifted frame, then shift back)
+        # Standard ePIE: P += beta * O* * diff / max(|O|^2)
+        obj_conj: Complex[Array, " H W"] = jnp.conj(obj)
+        obj_intensity: Float[Array, " H W"] = jnp.abs(obj) ** 2
         obj_max_intensity: Float[Array, " "] = jnp.max(obj_intensity)
-        probe_update: Complex[Array, " H W"] = (
-            alpha * obj_conj * diff / (obj_max_intensity + eps)
+        probe_update_shifted: Complex[Array, " H W"] = (
+            beta * obj_conj * diff / (obj_max_intensity + eps)
         )
-        return obj_update, probe_update
+        # Shift probe update back to probe's reference frame (centered)
+        probe_update: Complex[Array, " H W"] = fourier_shift(
+            probe_update_shifted, -shift_x, -shift_y
+        )
+        probe_new: Complex[Array, " H W"] = probe + probe_update
+
+        return (obj_new, probe_new), None
 
     def _epie_one_iteration(
         carry: Tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
@@ -513,18 +528,14 @@ def _sm_epie_core(
         Tuple[Complex[Array, " H W"], Complex[Array, " H W"]],
         None,
     ]:
-        """One ePIE iteration over all positions."""
-        obj, probe = carry
-        obj_updates, probe_updates = jax.vmap(
-            lambda m, p: _compute_single_update(obj, probe, m, p)
-        )(diffraction_patterns, positions)
-        obj_update_avg: Complex[Array, " H W"] = jnp.mean(obj_updates, axis=0)
-        probe_update_avg: Complex[Array, " H W"] = jnp.mean(
-            probe_updates, axis=0
+        """One ePIE iteration: sequential pass through all positions."""
+        # Use lax.scan to process positions sequentially
+        final_carry, _ = lax.scan(
+            _epie_single_position,
+            carry,
+            (diffraction_patterns, positions),
         )
-        obj_new: Complex[Array, " H W"] = obj + obj_update_avg
-        probe_new: Complex[Array, " H W"] = probe + beta * probe_update_avg
-        return (obj_new, probe_new), None
+        return final_carry, None
 
     init_carry: Tuple[Complex[Array, " H W"], Complex[Array, " H W"]] = (
         sample_field,
@@ -755,9 +766,7 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
             axis=-1,
         )
         losses = jnp.concatenate([prev_losses, losses], axis=0)
-    positions_meters: Float[Array, " N 2"] = (
-        epie_data.positions * output_dx
-    )
+    positions_meters: Float[Array, " N 2"] = epie_data.positions * output_dx
     result: PtychographyReconstruction = make_ptychography_reconstruction(
         sample=final_sample,
         lightwave=final_lightwave,

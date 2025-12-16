@@ -996,6 +996,11 @@ test = [
     { name = "pytest-xdist" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "black", extra = ["jupyter"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "beartype", specifier = ">=0.21.0" },
@@ -1053,6 +1058,9 @@ requires-dist = [
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
 ]
 provides-extras = ["cuda", "docs", "notebooks", "test", "dev", "dev-cuda"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "black", extras = ["jupyter"], specifier = ">=25.1.0" }]
 
 [[package]]
 name = "jaraco-classes"

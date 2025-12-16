@@ -293,7 +293,7 @@ def _get_aperture_mask(
 
 
 @jaxtyped(typechecker=beartype)
-def init_simple_microscope( # noqa: PLR0915
+def init_simple_microscope(  # noqa: PLR0915
     experimental_data: MicroscopeData,
     probe_lightwave: OpticalWavefront,
     zoom_factor: ScalarFloat,
@@ -309,8 +309,8 @@ def init_simple_microscope( # noqa: PLR0915
 
     Runs the microscope forward model in reverse to create an initial
     sample estimate from experimental diffraction patterns. This serves
-    as iteration 0 of the reconstruction, returning a 
-    PtychographyReconstruction that can be passed to 
+    as iteration 0 of the reconstruction, returning a
+    PtychographyReconstruction that can be passed to
     simple_microscope_ptychography for further optimization.
 
     For each pattern, the algorithm:
