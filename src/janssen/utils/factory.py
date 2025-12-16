@@ -50,6 +50,7 @@ from jaxtyping import Array, Bool, Complex, Float, Int, Num, jaxtyped
 from .types import (
     Diffractogram,
     EpieData,
+    EpieParams,
     GridParams,
     LensParams,
     MicroscopeData,
@@ -1449,6 +1450,74 @@ def make_ptychography_params(
         aperture_diameter_bounds=aperture_diameter_bounds_arr,
         travel_distance_bounds=travel_distance_bounds_arr,
         aperture_center_bounds=aperture_center_bounds_arr,
+    )
+
+
+@jaxtyped(typechecker=beartype)
+def make_epie_params(
+    effective_dx: ScalarNumeric,
+    num_iterations: ScalarInteger,
+    alpha: ScalarNumeric = 1.0,
+    beta: ScalarNumeric = 1.0,
+    padding: ScalarInteger = 32,
+) -> EpieParams:
+    """Create an EpieParams PyTree with validated parameters.
+
+    Parameters
+    ----------
+    effective_dx : ScalarNumeric
+        Desired pixel size in meters for sample/probe reconstruction.
+        This is a user input that determines resolution.
+    num_iterations : ScalarInteger
+        Number of ePIE iterations (sweeps over all scan positions).
+    alpha : ScalarNumeric, optional
+        Object update step size. Default is 1.0. Typical range is 0.5-1.0.
+    beta : ScalarNumeric, optional
+        Probe update step size. Default is 1.0. Set to 0 to freeze the
+        probe and only update the object. Typical range is 0.0-1.0.
+    padding : ScalarInteger, optional
+        Additional padding in pixels around the scanned region. Default is 32.
+        Controls the reconstructed FOV beyond the scan area.
+
+    Returns
+    -------
+    EpieParams
+        Validated ePIE parameters as a PyTree
+
+    Notes
+    -----
+    ePIE parameters differ from gradient-based optimization:
+
+    - alpha/beta are step sizes for the ePIE update formulas, not learning rates
+    - Setting beta=0 freezes the probe (useful when probe is well-known)
+    - effective_dx is user-specified, not derived from optical parameters
+    - The sample is initialized to 1+0j (unity transmission)
+
+    Examples
+    --------
+    >>> params = make_epie_params(
+    ...     effective_dx=1.6e-6,  # 1.6 µm pixels
+    ...     num_iterations=100,
+    ...     alpha=0.8,
+    ...     beta=0.5,  # Update probe more slowly than object
+    ... )
+    """
+    effective_dx_arr: Float[Array, " "] = jnp.asarray(
+        effective_dx, dtype=jnp.float64
+    )
+    num_iterations_arr: Int[Array, " "] = jnp.asarray(
+        num_iterations, dtype=jnp.int64
+    )
+    alpha_arr: Float[Array, " "] = jnp.asarray(alpha, dtype=jnp.float64)
+    beta_arr: Float[Array, " "] = jnp.asarray(beta, dtype=jnp.float64)
+    padding_arr: Int[Array, " "] = jnp.asarray(padding, dtype=jnp.int64)
+
+    return EpieParams(
+        effective_dx=effective_dx_arr,
+        num_iterations=num_iterations_arr,
+        alpha=alpha_arr,
+        beta=beta_arr,
+        padding=padding_arr,
     )
 
 

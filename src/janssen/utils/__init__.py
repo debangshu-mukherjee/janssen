@@ -111,6 +111,7 @@ from .distributed import (
 from .factory import (
     make_diffractogram,
     make_epie_data,
+    make_epie_params,
     make_grid_params,
     make_lens_params,
     make_microscope_data,
@@ -126,6 +127,7 @@ from .factory import (
 from .types import (
     Diffractogram,
     EpieData,
+    EpieParams,
     GridParams,
     LensParams,
     MicroscopeData,
@@ -156,6 +158,7 @@ __all__: list[str] = [
     "get_device_count",
     "make_diffractogram",
     "make_epie_data",
+    "make_epie_params",
     "make_grid_params",
     "make_lens_params",
     "make_microscope_data",
@@ -175,6 +178,7 @@ __all__: list[str] = [
     "wirtinger_grad",
     "Diffractogram",
     "EpieData",
+    "EpieParams",
     "GridParams",
     "LensParams",
     "MicroscopeData",

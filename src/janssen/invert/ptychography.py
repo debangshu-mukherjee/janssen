@@ -401,6 +401,7 @@ def _sm_epie_core(
     epie_data: EpieData,
     iterations: Int[Array, " N"],
     alpha: float = 1.0,
+    beta: float = 1.0,
 ) -> EpieData:
     """FFT-based ePIE core algorithm with Fourier shifting.
 
@@ -421,7 +422,10 @@ def _sm_epie_core(
     iterations : Int[Array, " N"]
         Array of iteration indices to scan over.
     alpha : float, optional
-        ePIE step size parameter. Default is 1.0.
+        ePIE step size for object update. Default is 1.0.
+    beta : float, optional
+        ePIE step size for probe update. Default is 1.0.
+        Set to 0 to freeze probe and only update object.
 
     Returns
     -------
@@ -519,7 +523,7 @@ def _sm_epie_core(
             probe_updates, axis=0
         )
         obj_new: Complex[Array, " H W"] = obj + obj_update_avg
-        probe_new: Complex[Array, " H W"] = probe + probe_update_avg
+        probe_new: Complex[Array, " H W"] = probe + beta * probe_update_avg
         return (obj_new, probe_new), None
 
     init_carry: Tuple[Complex[Array, " H W"], Complex[Array, " H W"]] = (

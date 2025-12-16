@@ -783,6 +783,88 @@ class EpieData(NamedTuple):
 
 
 @register_pytree_node_class
+class EpieParams(NamedTuple):
+    """PyTree structure for ePIE reconstruction parameters.
+
+    Parameters specific to the extended Ptychographic Iterative Engine (ePIE)
+    algorithm, which differs from gradient-based optimization.
+
+    Attributes
+    ----------
+    effective_dx : Float[Array, " "]
+        Desired pixel size in meters for sample/probe reconstruction.
+        This is a user input that determines resolution, NOT derived from
+        camera_pixel_size / zoom_factor.
+    num_iterations : Int[Array, " "]
+        Number of ePIE iterations (sweeps over all scan positions).
+    alpha : Float[Array, " "]
+        Object update step size, typically 0.5-1.0.
+    beta : Float[Array, " "]
+        Probe update step size, typically 0.5-1.0.
+        Set to 0 to freeze the probe and only update the object.
+    padding : Int[Array, " "]
+        Additional padding in pixels around the scanned region.
+        Controls the reconstructed FOV beyond the scan area.
+
+    Notes
+    -----
+    ePIE uses different parameters than gradient-based optimization:
+
+    - No learning_rate in the Adam sense; uses alpha/beta step sizes
+    - No loss_type or optimizer_type (ePIE has its own update rules)
+    - effective_dx is user-specified, not derived from optical parameters
+    - padding controls FOV size independently
+
+    The sample is initialized to 1+0j (unity transmission).
+    """
+
+    effective_dx: Float[Array, " "]
+    num_iterations: Int[Array, " "]
+    alpha: Float[Array, " "]
+    beta: Float[Array, " "]
+    padding: Int[Array, " "]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Float[Array, " "],
+            Int[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Int[Array, " "],
+        ],
+        None,
+    ]:
+        """Flatten the EpieParams into a tuple of its components."""
+        return (
+            (
+                self.effective_dx,
+                self.num_iterations,
+                self.alpha,
+                self.beta,
+                self.padding,
+            ),
+            None,
+        )
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Float[Array, " "],
+            Int[Array, " "],
+            Float[Array, " "],
+            Float[Array, " "],
+            Int[Array, " "],
+        ],
+    ) -> "EpieParams":
+        """Unflatten the EpieParams from a tuple of its components."""
+        return cls(*children)
+
+
+@register_pytree_node_class
 class PtychographyReconstruction(NamedTuple):
     """PyTree structure for ptychography reconstruction results.
 
