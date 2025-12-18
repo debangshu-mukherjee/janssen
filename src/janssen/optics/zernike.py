@@ -121,23 +121,30 @@ def noll_to_nm(j: ScalarInteger) -> Tuple[int, int]:
     Notes
     -----
     Uses the standard Noll ordering where j=1 corresponds to piston (n=0, m=0).
-    This implementation uses JAX-compatible operations for JIT compilation.
+    Sign convention: j even -> m >= 0 (cosine), j odd -> m <= 0 (sine).
+
+    The radial order n is found from the cumulative count relation:
+    n(n+1)/2 < j <= (n+1)(n+2)/2.
+
+    Within each row n, the position k (0-indexed) determines |m|.
+    For n even: |m| follows pattern 0,2,2,4,4,...
+    For n odd: |m| follows pattern 1,1,3,3,5,5,...
     """
-    sqrt_term: Float[Array, " "] = jnp.sqrt(9 + 8 * j)
-    n_float: Float[Array, " "] = (-3 + sqrt_term) / 2
-    n: int = int(jnp.ceil(n_float))
-    n_prev: int = n * (n - 1) // 2
-    p: int = j - n_prev - 1
-    m_even_p_even: int = 2 * ((p + 1) // 2)
-    m_even_p_odd: int = -2 * ((p + 1) // 2)
-    m_even: Int[Array, " "] = jnp.where(
-        p % 2 == 0, m_even_p_even, m_even_p_odd
-    )
-    m_odd_p_even: int = -2 * ((p + 2) // 2) + 1
-    m_odd_p_odd: int = 2 * ((p + 2) // 2) - 1
-    m_odd: Int[Array, " "] = jnp.where(p % 2 == 0, m_odd_p_even, m_odd_p_odd)
-    m_array: Int[Array, " "] = jnp.where(n % 2 == 0, m_even, m_odd)
-    m: int = int(m_array)
+    n_float: Float[Array, " "] = (-1 + jnp.sqrt(1 + 8 * j)) / 2
+    n: int = int(jnp.ceil(n_float)) - 1
+
+    j_start: int = n * (n + 1) // 2 + 1
+    k: int = j - j_start
+
+    m_abs_even_n: int = 2 * ((k + 1) // 2)
+    m_abs_odd_n: int = 2 * (k // 2) + 1
+    m_abs: int = int(jnp.where(n % 2 == 0, m_abs_even_n, m_abs_odd_n))
+
+    m_positive: int = m_abs
+    m_negative: int = -m_abs
+    m_with_sign: int = int(jnp.where(j % 2 == 0, m_positive, m_negative))
+    m: int = int(jnp.where(m_abs == 0, 0, m_with_sign))
+
     return n, m
 
 
@@ -159,30 +166,41 @@ def nm_to_noll(n: int, m: int) -> int:
 
     Notes
     -----
-    This implementation uses JAX-compatible operations for JIT compilation.
-    Calculates j_base as the number of terms with radial order less than n.
-    Position within the n group is computed differently for even and odd n
-    values.
-    For even n: positive m maps to m-1, negative m to -m-1, zero m to 0.
-    For odd n: positive m maps to m, negative m to -m-1.
-    """
-    j_base: int = n * (n - 1) // 2
+    Sign convention: j even -> m >= 0 (cosine), j odd -> m <= 0 (sine).
 
-    p_even_m_pos: int = m - 1
-    p_even_m_neg: int = -m - 1
-    p_even_m_zero: int = 0
-    p_even: Int[Array, " "] = jnp.where(
-        m > 0, p_even_m_pos, jnp.where(m < 0, p_even_m_neg, p_even_m_zero)
+    The first Noll index for row n is j_base = n(n+1)/2 + 1.
+
+    For m=0, the position k within the row is 0.
+    For m!=0, find the pair of k values for the given |m|, then select
+    based on the sign of m and the parity requirement.
+
+    For n even: |m| values are 0,2,4,...; group index g = |m|/2;
+    k_first = 2g-1 for g>0, else 0.
+    For n odd: |m| values are 1,3,5,...; group index g = (|m|-1)/2;
+    k_first = 2g.
+
+    The final k is chosen such that m > 0 yields an even j,
+    and m < 0 yields an odd j.
+    """
+    j_base: int = n * (n + 1) // 2 + 1
+    m_abs: int = abs(m)
+
+    g_even_n: int = m_abs // 2
+    k_first_even_n: int = int(jnp.where(g_even_n > 0, 2 * g_even_n - 1, 0))
+    g_odd_n: int = (m_abs - 1) // 2
+    k_first_odd_n: int = 2 * g_odd_n
+    k_first: int = int(jnp.where(n % 2 == 0, k_first_even_n, k_first_odd_n))
+
+    j_first: int = j_base + k_first
+    j_first_is_even: int = 1 - (j_first % 2)
+    k_for_pos: int = int(jnp.where(j_first_is_even, k_first, k_first + 1))
+    k_for_neg: int = int(jnp.where(j_first_is_even, k_first + 1, k_first))
+    k: int = int(
+        jnp.where(m_abs == 0, 0, jnp.where(m > 0, k_for_pos, k_for_neg))
     )
 
-    p_odd_m_pos: int = m
-    p_odd_m_neg: int = -m - 1
-    p_odd: Int[Array, " "] = jnp.where(m > 0, p_odd_m_pos, p_odd_m_neg)
-
-    p: Int[Array, " "] = jnp.where(n % 2 == 0, p_even, p_odd)
-
-    result: int = int(j_base + p + 1)
-    return result
+    j: int = j_base + k
+    return j
 
 
 @jaxtyped(typechecker=beartype)
@@ -480,6 +498,129 @@ def zernike_noll(
     return result
 
 
+def _zernike_radial_traced(
+    rho: Float[Array, " *batch"],
+    n: Int[Array, " "],
+    m_abs: Int[Array, " "],
+    max_n: int = 20,
+) -> Float[Array, " *batch"]:
+    """Traced-compatible radial Zernike polynomial.
+
+    Supports traced n and m values by using fixed maximum loop bounds.
+    This is necessary for use inside jax.lax.scan where n and m are traced.
+
+    Parameters
+    ----------
+    rho : Float[Array, " *batch"]
+        Normalized radial coordinate (0 to 1)
+    n : Int[Array, " "]
+        Radial order (traced JAX array)
+    m_abs : Int[Array, " "]
+        Absolute value of azimuthal frequency (traced JAX array)
+    max_n : int, optional
+        Maximum radial order to support, by default 20. The loop iterates
+        max_n // 2 + 1 times regardless of actual n value.
+
+    Returns
+    -------
+    Float[Array, " *batch"]
+        Radial polynomial R_n^|m|(rho)
+
+    Notes
+    -----
+    Validity check: (n - m_abs) must be even for valid Zernike polynomials.
+    Invalid combinations return zeros.
+
+    The number of terms in the sum is (n - m_abs) // 2 + 1.
+    Terms where s >= num_terms are masked out during accumulation.
+
+    Uses jax.scipy.special.gammaln for stable factorial computation with
+    traced values.
+    """
+    valid = ((n - m_abs) % 2) == 0
+    num_terms = (n - m_abs) // 2 + 1
+
+    def body_fn(
+        s: Int[Array, " "], carry: Float[Array, " *batch"]
+    ) -> Float[Array, " *batch"]:
+        sign = (-1.0) ** s
+        num = jnp.exp(jax.scipy.special.gammaln(n - s + 1))
+        denom_s = jnp.exp(jax.scipy.special.gammaln(s + 1))
+        denom_n_plus = jnp.exp(
+            jax.scipy.special.gammaln((n + m_abs) // 2 - s + 1)
+        )
+        denom_n_minus = jnp.exp(
+            jax.scipy.special.gammaln((n - m_abs) // 2 - s + 1)
+        )
+        denom = denom_s * denom_n_plus * denom_n_minus
+        coeff = sign * num / denom
+        power_term = rho ** (n - 2 * s)
+        term = coeff * power_term
+        term = jnp.where(s < num_terms, term, 0.0)
+        return carry + term
+
+    result = jax.lax.fori_loop(0, max_n // 2 + 1, body_fn, jnp.zeros_like(rho))
+    return jnp.where(valid, result, jnp.zeros_like(rho))
+
+
+def _zernike_polynomial_traced(
+    rho: Float[Array, " *batch"],
+    theta: Float[Array, " *batch"],
+    n: Int[Array, " "],
+    m: Int[Array, " "],
+    normalize: bool = True,
+    max_n: int = 20,
+) -> Float[Array, " *batch"]:
+    """Traced-compatible Zernike polynomial.
+
+    Supports traced n and m values for use inside jax.lax.scan.
+
+    Parameters
+    ----------
+    rho : Float[Array, " *batch"]
+        Normalized radial coordinate (0 to 1)
+    theta : Float[Array, " *batch"]
+        Azimuthal angle in radians
+    n : Int[Array, " "]
+        Radial order (traced JAX array)
+    m : Int[Array, " "]
+        Azimuthal frequency (traced JAX array, signed)
+    normalize : bool, optional
+        Whether to normalize for unit RMS over unit circle, by default True
+    max_n : int, optional
+        Maximum radial order to support, by default 20
+
+    Returns
+    -------
+    Float[Array, " *batch"]
+        Zernike polynomial Z_n^m(rho, theta)
+
+    Notes
+    -----
+    Angular part uses cosine for m > 0, sine for m < 0, and 1 for m = 0.
+    Normalization factor is sqrt(n+1) for m=0 and sqrt(2*(n+1)) for m≠0.
+    Returns zero outside the unit circle (rho > 1).
+    """
+    m_abs = jnp.abs(m)
+    r = _zernike_radial_traced(rho, n, m_abs, max_n)
+
+    angular_cos = jnp.cos(m_abs * theta)
+    angular_sin = jnp.sin(m_abs * theta)
+    angular_ones = jnp.ones_like(theta)
+    angular = jnp.where(
+        m > 0, angular_cos, jnp.where(m < 0, angular_sin, angular_ones)
+    )
+
+    norm_m0 = jnp.sqrt(n + 1.0)
+    norm_m_nonzero = jnp.sqrt(2.0 * (n + 1.0))
+    norm = jnp.where(
+        normalize, jnp.where(m == 0, norm_m0, norm_m_nonzero), 1.0
+    )
+
+    mask = rho <= 1.0
+    return norm * r * angular * mask
+
+
 @jaxtyped(typechecker=beartype)
 def generate_aberration_nm(
     xx: Float[Array, " H W"],
@@ -514,12 +655,8 @@ def generate_aberration_nm(
     Notes
     -----
     This version is fully JAX-compatible and can be JIT-compiled.
-    Uses jax.lax.scan for efficient accumulation.
-    Converts Cartesian coordinates to polar coordinates normalized by pupil
-    radius.
-    Each Zernike contribution is accumulated using scan for efficiency.
-    The n and m values must be concrete integers for zernike_polynomial.
-    Final phase is converted from waves to radians.
+    Uses jax.lax.scan for efficient accumulation with traced-compatible
+    Zernike polynomial computation.
     """
     rho: Float[Array, " H W"] = jnp.sqrt(xx**2 + yy**2) / pupil_radius
     theta: Float[Array, " H W"] = jnp.arctan2(yy, xx)
@@ -529,8 +666,8 @@ def generate_aberration_nm(
         inputs: Tuple[Int[Array, " "], Int[Array, " "], Float[Array, " "]],
     ) -> Tuple[Float[Array, " H W"], None]:
         n, m, coeff = inputs
-        z: Float[Array, " H W"] = zernike_polynomial(
-            rho, theta, int(n), int(m), normalize=True
+        z: Float[Array, " H W"] = _zernike_polynomial_traced(
+            rho, theta, n, m, normalize=True
         )
         updated_phase: Float[Array, " H W"] = phase_acc + coeff * z
         return updated_phase, None
@@ -578,26 +715,36 @@ def generate_aberration_noll(
     -----
     Converts Noll indices to (n,m) pairs and calls generate_aberration_nm.
     Uses vectorized JAX operations for the Noll-to-nm conversion.
+    Sign convention: j even -> m >= 0 (cosine), j odd -> m <= 0 (sine).
+
+    The radial order n is computed from n(n+1)/2 < j <= (n+1)(n+2)/2.
+    The position k within row n determines |m|, which follows the pattern:
+    0,2,2,4,4,... for n even and 1,1,3,3,5,5,... for n odd.
     """
     num_coeffs: int = coefficients.shape[0]
     j_indices: Int[Array, " nn"] = jnp.arange(
         1, num_coeffs + 1, dtype=jnp.int32
     )
-    sqrt_term: Float[Array, " nn"] = jnp.sqrt(9 + 8 * j_indices)
-    n_float: Float[Array, " nn"] = (-3 + sqrt_term) / 2
-    n_indices: Int[Array, " nn"] = jnp.ceil(n_float).astype(jnp.int32)
-    n_prev: Int[Array, " nn"] = n_indices * (n_indices - 1) // 2
-    p: Int[Array, " nn"] = j_indices - n_prev - 1
-    m_even_p_even: Int[Array, " nn"] = 2 * ((p + 1) // 2)
-    m_even_p_odd: Int[Array, " nn"] = -2 * ((p + 1) // 2)
-    m_even: Int[Array, " nn"] = jnp.where(
-        p % 2 == 0, m_even_p_even, m_even_p_odd
-    )
-    m_odd_p_even: Int[Array, " nn"] = -2 * ((p + 2) // 2) + 1
-    m_odd_p_odd: Int[Array, " nn"] = 2 * ((p + 2) // 2) - 1
-    m_odd: Int[Array, " nn"] = jnp.where(p % 2 == 0, m_odd_p_even, m_odd_p_odd)
 
-    m_indices: Int[Array, " nn"] = jnp.where(n_indices % 2 == 0, m_even, m_odd)
+    n_float: Float[Array, " nn"] = (-1 + jnp.sqrt(1 + 8 * j_indices)) / 2
+    n_indices: Int[Array, " nn"] = (jnp.ceil(n_float) - 1).astype(jnp.int32)
+
+    j_start: Int[Array, " nn"] = n_indices * (n_indices + 1) // 2 + 1
+    k: Int[Array, " nn"] = j_indices - j_start
+
+    m_abs_even_n: Int[Array, " nn"] = 2 * ((k + 1) // 2)
+    m_abs_odd_n: Int[Array, " nn"] = 2 * (k // 2) + 1
+    m_abs: Int[Array, " nn"] = jnp.where(
+        n_indices % 2 == 0, m_abs_even_n, m_abs_odd_n
+    )
+
+    m_positive: Int[Array, " nn"] = m_abs
+    m_negative: Int[Array, " nn"] = -m_abs
+    m_with_sign: Int[Array, " nn"] = jnp.where(
+        j_indices % 2 == 0, m_positive, m_negative
+    )
+    m_indices: Int[Array, " nn"] = jnp.where(m_abs == 0, 0, m_with_sign)
+
     phase: Float[Array, " hh ww"] = generate_aberration_nm(
         xx, yy, n_indices, m_indices, coefficients, pupil_radius
     )

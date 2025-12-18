@@ -137,8 +137,13 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
     )
     def test_zernike_polynomial(self, n: int, m: int) -> None:
         """Test full Zernike polynomial properties."""
-        var_zernike_polynomial = self.variant(zernike_polynomial)
-        Z = var_zernike_polynomial(self.rho, self.theta, n, m, normalize=True)
+        # Use partial to bind n, m, normalize before variant wrapping
+        # since zernike_polynomial requires these as static Python values
+        from functools import partial
+
+        zp_bound = partial(zernike_polynomial, n=n, m=m, normalize=True)
+        var_zernike_polynomial = self.variant(zp_bound)
+        Z = var_zernike_polynomial(self.rho, self.theta)
 
         # Check that polynomial is zero outside unit circle
         outside_mask = self.rho > 1.0
@@ -153,10 +158,13 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
     def test_zernike_orthogonality(self) -> None:
         """Test orthogonality of Zernike polynomials over unit circle."""
         # Create finer grid for better integration
+        # endpoint=False avoids double-counting at theta boundaries
         n_pts = 200
         r = jnp.linspace(0, 1, n_pts)
-        t = jnp.linspace(0, 2 * jnp.pi, n_pts)
+        t = jnp.linspace(0, 2 * jnp.pi, n_pts, endpoint=False)
         rr, tt = jnp.meshgrid(r, t)
+        dr = r[1] - r[0]
+        dt = t[1] - t[0]
 
         # Test orthogonality for a few low-order polynomials
         test_cases = [(2, 0), (2, 2), (3, 1), (3, -1)]
@@ -164,14 +172,14 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
         for i, (n1, m1) in enumerate(test_cases):
             Z1 = zernike_polynomial(rr, tt, n1, m1, normalize=True)
 
-            # Test orthogonality with itself (should give 1)
-            integral_self = jnp.mean(Z1 * Z1 * rr) * 2 * jnp.pi
-            chex.assert_trees_all_close(integral_self, 1.0, rtol=0.1)
+            # Test orthogonality with itself: ∫∫ Z^2 r dr dθ = π (normalized)
+            integral_self = jnp.sum(Z1 * Z1 * rr * dr * dt)
+            chex.assert_trees_all_close(integral_self, jnp.pi, rtol=0.05)
 
             # Test orthogonality with others (should give 0)
             for n2, m2 in test_cases[i + 1 :]:
                 Z2 = zernike_polynomial(rr, tt, n2, m2, normalize=True)
-                integral_cross = jnp.mean(Z1 * Z2 * rr) * 2 * jnp.pi
+                integral_cross = jnp.sum(Z1 * Z2 * rr * dr * dt)
                 chex.assert_trees_all_close(integral_cross, 0.0, atol=0.1)
 
     @chex.variants(with_jit=True, without_jit=True)
@@ -243,18 +251,28 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
         amplitude = 0.25  # waves
         phase = var_defocus(self.xx, self.yy, amplitude, self.pupil_radius)
 
-        # Check symmetry (defocus should be radially symmetric)
-        center = self.ny // 2, self.nx // 2
-        radius_pixels = 20
-        for angle in [0, jnp.pi / 4, jnp.pi / 2, 3 * jnp.pi / 4]:
-            i = int(center[0] + radius_pixels * jnp.sin(angle))
-            j = int(center[1] + radius_pixels * jnp.cos(angle))
-            if 0 <= i < self.ny and 0 <= j < self.nx:
-                chex.assert_trees_all_close(
-                    phase[i, j],
-                    phase[center[0], center[1] + radius_pixels],
-                    rtol=0.01,
-                )
+        # Check basic properties
+        chex.assert_trees_all_equal(jnp.isrealobj(phase), True)
+        chex.assert_shape(phase, self.xx.shape)
+
+        # Check that phase is zero outside pupil
+        outside_mask = self.rho > 1.0
+        if jnp.any(outside_mask):
+            chex.assert_trees_all_close(
+                jnp.max(jnp.abs(phase[outside_mask])), 0.0, atol=1e-10
+            )
+
+        # Check that defocus matches analytical formula: Z4 = sqrt(3)*(2*rho^2 - 1)
+        # phase = 2*pi * amplitude * Z4
+        inside_mask = self.rho <= 1.0
+        z4_analytical = jnp.sqrt(3.0) * (2.0 * self.rho**2 - 1.0)
+        expected_phase = 2.0 * jnp.pi * amplitude * z4_analytical
+        chex.assert_trees_all_close(
+            phase[inside_mask],
+            expected_phase[inside_mask],
+            rtol=1e-2,
+            atol=1e-4,
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_astigmatism(self) -> None:
@@ -283,21 +301,28 @@ class TestZernike(chex.TestCase, parameterized.TestCase):
         amplitude = 0.2
         phase = var_spherical(self.xx, self.yy, amplitude, self.pupil_radius)
 
-        # Check radial symmetry
-        center = self.ny // 2, self.nx // 2
-        radius_pixels = 15
-        values = []
-        for angle in jnp.linspace(0, 2 * jnp.pi, 8, endpoint=False):
-            i = int(center[0] + radius_pixels * jnp.sin(angle))
-            j = int(center[1] + radius_pixels * jnp.cos(angle))
-            if 0 <= i < self.ny and 0 <= j < self.nx:
-                values.append(phase[i, j])
+        # Check basic properties
+        chex.assert_trees_all_equal(jnp.isrealobj(phase), True)
+        chex.assert_shape(phase, self.xx.shape)
 
-        if len(values) > 1:
-            # All values at same radius should be similar
-            mean_val = jnp.mean(jnp.array(values))
-            for val in values:
-                chex.assert_trees_all_close(val, mean_val, rtol=0.01)
+        # Check that phase is zero outside pupil
+        outside_mask = self.rho > 1.0
+        if jnp.any(outside_mask):
+            chex.assert_trees_all_close(
+                jnp.max(jnp.abs(phase[outside_mask])), 0.0, atol=1e-10
+            )
+
+        # Check that spherical matches analytical formula:
+        # Z11 = sqrt(5)*(6*rho^4 - 6*rho^2 + 1) [normalized]
+        # phase = 2*pi * amplitude * Z11
+        inside_mask = self.rho <= 1.0
+        z11_analytical = jnp.sqrt(5.0) * (
+            6.0 * self.rho**4 - 6.0 * self.rho**2 + 1.0
+        )
+        expected_phase = 2.0 * jnp.pi * amplitude * z11_analytical
+        chex.assert_trees_all_close(
+            phase[inside_mask], expected_phase[inside_mask], rtol=1e-2
+        )
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_trefoil(self) -> None:

@@ -454,7 +454,7 @@ def calculate_usaf_group_range(
 
 
 @jaxtyped(typechecker=beartype)
-def generate_usaf_pattern(
+def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
     image_size: int = 1024,
     groups: Optional[range] = None,
     pixel_size: ScalarFloat = 1.0e-6,
@@ -532,10 +532,12 @@ def generate_usaf_pattern(
     (1024, 1024)
 
     >>> # Auto mode: fill the image optimally
-    >>> pattern = generate_usaf_pattern(image_size=8192, pixel_size=0.5e-6, auto=True)
+    >>> pattern = generate_usaf_pattern(
+    ...     image_size=8192, pixel_size=0.5e-6, auto=True)
 
     >>> # Camera with 6.5 µm pixels
-    >>> pattern = generate_usaf_pattern(pixel_size=6.5e-6)
+    >>> pattern = generate_usaf_pattern(
+    ...     pixel_size=6.5e-6)
 
     >>> # White background with black bars (typical)
     >>> pattern = generate_usaf_pattern(background=1.0, foreground=0.0)
