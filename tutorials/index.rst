@@ -10,6 +10,7 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    DifferentBeams
    Diffractogram
    PolarBeams
+   ZernikePolynomials
 
 .. toctree::
    :maxdepth: 2
