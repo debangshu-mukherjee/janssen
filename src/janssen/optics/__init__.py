@@ -74,6 +74,10 @@ generate_aberration_nm : function
     Generate aberration phase map from Zernike coefficients (n, m)
 generate_aberration_noll : function
     Generate aberration phase map from Zernike coefficients (Noll)
+compute_phase_from_coeffs : function
+    Compute phase map from Zernike coefficients with configurable starting index
+phase_rms : function
+    Compute RMS of phase within the unit pupil
 half_waveplate : function
     Half-wave plate transformation
 mirror_reflection : function
@@ -174,12 +178,14 @@ from .zernike import (
     apply_aberration,
     astigmatism,
     coma,
+    compute_phase_from_coeffs,
     defocus,
     factorial,
     generate_aberration_nm,
     generate_aberration_noll,
     nm_to_noll,
     noll_to_nm,
+    phase_rms,
     spherical_aberration,
     trefoil,
     zernike_polynomial,
@@ -205,6 +211,7 @@ __all__: list[str] = [
     "bessel_kv_small_non_integer",
     "circular_aperture",
     "coma",
+    "compute_phase_from_coeffs",
     "create_spatial_grid",
     "defocus",
     "factorial",
@@ -222,6 +229,7 @@ __all__: list[str] = [
     "phase_grating_blazed_elliptical",
     "phase_grating_sawtooth",
     "phase_grating_sine",
+    "phase_rms",
     "polarizer_jones",
     "prism_phase_ramp",
     "quarter_waveplate",

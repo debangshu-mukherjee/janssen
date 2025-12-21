@@ -11,6 +11,10 @@ __pycache__/
 /data/
 /data/*.npy
 
+# Plotting figures
+Figures/
+tutorials/Figures/
+
 # IDE settings
 .vscode/
 .pyre_configuration

@@ -37,6 +37,10 @@ generate_aberration_nm : function
     Generate aberration phase map from (n,m) indices and coefficients
 generate_aberration_noll : function
     Generate aberration phase map from Noll-indexed coefficients
+compute_phase_from_coeffs : function
+    Compute phase map from Zernike coefficients with configurable starting index
+phase_rms : function
+    Compute RMS of phase within the unit pupil
 defocus : function
     Generate defocus aberration (Z4)
 astigmatism : function
@@ -749,6 +753,158 @@ def generate_aberration_noll(
         xx, yy, n_indices, m_indices, coefficients, pupil_radius
     )
     return phase
+
+
+@jaxtyped(typechecker=beartype)
+def compute_phase_from_coeffs(
+    rho: Float[Array, " *batch"],
+    theta: Float[Array, " *batch"],
+    coefficients: Float[Array, " N"],
+    start_noll: int = 4,
+) -> Float[Array, " *batch"]:
+    """Compute phase map from Zernike coefficients.
+
+    Generates a phase aberration map by summing normalized Zernike polynomials
+    weighted by the provided coefficients. The coefficients are mapped to
+    consecutive Noll indices starting from `start_noll`.
+
+    Parameters
+    ----------
+    rho : Float[Array, " *batch"]
+        Normalized radial coordinate (0 to 1)
+    theta : Float[Array, " *batch"]
+        Azimuthal angle in radians
+    coefficients : Float[Array, " N"]
+        Zernike coefficients in waves. Element i corresponds to
+        Noll index (start_noll + i).
+    start_noll : int, optional
+        Starting Noll index for the coefficients, by default 4 (defocus).
+        Common choices: 1 (piston), 4 (defocus, skipping tip/tilt).
+
+    Returns
+    -------
+    Float[Array, " *batch"]
+        Phase map in radians
+
+    Notes
+    -----
+    The phase is computed as:
+        phase = 2 * pi * sum_i(coefficients[i] * Z_{start_noll + i})
+
+    where Z_j is the normalized Zernike polynomial for Noll index j.
+    The output is in radians, with coefficients interpreted as waves.
+
+    Examples
+    --------
+    >>> # Compute phase for defocus through spherical aberration (j=4 to j=11)
+    >>> coeffs = jnp.array([0.5, 0.1, -0.2, 0.0, 0.0, 0.0, 0.0, 0.3])
+    >>> phase = compute_phase_from_coeffs(rho, theta, coeffs, start_noll=4)
+    """
+    num_coeffs: int = coefficients.shape[0]
+    noll_indices: Int[Array, " N"] = jnp.arange(
+        start_noll, start_noll + num_coeffs, dtype=jnp.int32
+    )
+
+    # Convert Noll indices to (n, m) pairs using vectorized operations
+    n_float: Float[Array, " N"] = (-1 + jnp.sqrt(1 + 8 * noll_indices)) / 2
+    n_indices: Int[Array, " N"] = (jnp.ceil(n_float) - 1).astype(jnp.int32)
+
+    j_start: Int[Array, " N"] = n_indices * (n_indices + 1) // 2 + 1
+    k: Int[Array, " N"] = noll_indices - j_start
+
+    m_abs_even_n: Int[Array, " N"] = 2 * ((k + 1) // 2)
+    m_abs_odd_n: Int[Array, " N"] = 2 * (k // 2) + 1
+    m_abs: Int[Array, " N"] = jnp.where(
+        n_indices % 2 == 0, m_abs_even_n, m_abs_odd_n
+    )
+
+    m_positive: Int[Array, " N"] = m_abs
+    m_negative: Int[Array, " N"] = -m_abs
+    m_with_sign: Int[Array, " N"] = jnp.where(
+        noll_indices % 2 == 0, m_positive, m_negative
+    )
+    m_indices: Int[Array, " N"] = jnp.where(m_abs == 0, 0, m_with_sign)
+
+    # Accumulate phase using scan
+    def scan_fn(
+        phase_acc: Float[Array, " *batch"],
+        inputs: Tuple[Int[Array, " "], Int[Array, " "], Float[Array, " "]],
+    ) -> Tuple[Float[Array, " *batch"], None]:
+        n, m, coeff = inputs
+        z: Float[Array, " *batch"] = _zernike_polynomial_traced(
+            rho, theta, n, m, normalize=True
+        )
+        updated_phase: Float[Array, " *batch"] = phase_acc + coeff * z
+        return updated_phase, None
+
+    initial_phase: Float[Array, " *batch"] = jnp.zeros_like(rho)
+    inputs: Tuple[Int[Array, " N"], Int[Array, " N"], Float[Array, " N"]] = (
+        n_indices,
+        m_indices,
+        coefficients,
+    )
+    phase: Float[Array, " *batch"]
+    phase, _ = jax.lax.scan(scan_fn, initial_phase, inputs)
+
+    phase_radians: Float[Array, " *batch"] = 2 * jnp.pi * phase
+    return phase_radians
+
+
+@jaxtyped(typechecker=beartype)
+def phase_rms(
+    rho: Float[Array, " *batch"],
+    theta: Float[Array, " *batch"],
+    coefficients: Float[Array, " N"],
+    start_noll: int = 4,
+) -> Float[Array, " "]:
+    """Compute RMS of phase within the unit pupil.
+
+    Calculates the root-mean-square of the phase aberration within the
+    region where rho <= 1.0 (the unit pupil).
+
+    Parameters
+    ----------
+    rho : Float[Array, " *batch"]
+        Normalized radial coordinate (0 to 1)
+    theta : Float[Array, " *batch"]
+        Azimuthal angle in radians
+    coefficients : Float[Array, " N"]
+        Zernike coefficients in waves. Element i corresponds to
+        Noll index (start_noll + i).
+    start_noll : int, optional
+        Starting Noll index for the coefficients, by default 4 (defocus).
+
+    Returns
+    -------
+    Float[Array, " "]
+        RMS phase value in radians
+
+    Notes
+    -----
+    The RMS is computed as:
+        RMS = sqrt(mean((phase - mean(phase))^2))
+
+    where the mean is taken only over pixels within the unit pupil (rho <= 1).
+    The piston (mean phase) is subtracted before computing RMS.
+
+    Examples
+    --------
+    >>> # Compute RMS for a set of aberration coefficients
+    >>> coeffs = jnp.array([0.5, 0.1, -0.2, 0.0, 0.0, 0.0, 0.0, 0.3])
+    >>> rms = phase_rms(rho, theta, coeffs, start_noll=4)
+    """
+    phase: Float[Array, " *batch"] = compute_phase_from_coeffs(
+        rho, theta, coefficients, start_noll
+    )
+    mask: Float[Array, " *batch"] = rho <= 1.0
+    phase_in_pupil: Float[Array, " *batch"] = jnp.where(mask, phase, 0.0)
+    n_pixels: Float[Array, " "] = jnp.sum(mask)
+    mean_phase: Float[Array, " "] = jnp.sum(phase_in_pupil) / n_pixels
+    variance: Float[Array, " "] = (
+        jnp.sum(jnp.where(mask, (phase - mean_phase) ** 2, 0.0)) / n_pixels
+    )
+    rms: Float[Array, " "] = jnp.sqrt(variance)
+    return rms
 
 
 @jaxtyped(typechecker=beartype)
