@@ -346,12 +346,13 @@ def calculate_usaf_group_range(
     ...     image_size=8192,
     ...     pixel_size=0.5e-6,
     ... )
-    >>> print(f"Use: groups=range({result['min_group']}, {result['max_group'] + 1})")
+    >>> min_g, max_g = result['min_group'], result['max_group']
+    >>> print(f"Use: groups=range({min_g}, {max_g + 1})")
     """
     pixels_per_mm: float = 1e-3 / pixel_size
 
     # Max group: bars must be at least min_bar_pixels wide
-    # For element 6 (finest in group): bar_width = pixels_per_mm / (2 * 2^(g + 5/6))
+    # For element 6: bar_width = pixels_per_mm / (2 * 2^(g + 5/6))
     max_group: int = int(
         math.floor(math.log2(pixels_per_mm / (2 * min_bar_pixels)) - 5 / 6)
     )
@@ -679,7 +680,7 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
         current_y += row_height + spacing_v
 
     # Normalize canvas to [0, 1] for phase calculation
-    # Use Python conditional since foreground/background are known at trace time
+    # Use Python conditional since foreground/background known at trace time
     if foreground != background:
         normalized_pattern: Float[Array, " h w"] = (canvas - background) / (
             foreground - background

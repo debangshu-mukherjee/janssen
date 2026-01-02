@@ -38,7 +38,7 @@ generate_aberration_nm : function
 generate_aberration_noll : function
     Generate aberration phase map from Noll-indexed coefficients
 compute_phase_from_coeffs : function
-    Compute phase map from Zernike coefficients with configurable starting index
+    Compute phase map from Zernike coefficients with start index
 phase_rms : function
     Compute RMS of phase within the unit pupil
 defocus : function

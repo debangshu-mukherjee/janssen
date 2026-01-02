@@ -337,7 +337,8 @@ def coherence_length(
     Notes
     -----
     For a Gaussian spectrum with FWHM bandwidth Delta_lambda:
-        L_c = (2*ln(2)/pi) * lambda^2 / Delta_lambda ~ 0.44 * lambda^2 / Delta_lambda
+        L_c = (2*ln(2)/pi) * lambda^2 / Delta_lambda
+            ~ 0.44 * lambda^2 / Delta_lambda
 
     For a Lorentzian spectrum:
         L_c = lambda^2 / (pi * Delta_lambda)

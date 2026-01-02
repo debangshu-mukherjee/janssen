@@ -26,7 +26,7 @@ class TestCreateBarTriplet:
 
         # Height = 5 * width (3 bars + 2 spaces)
         # Width = length
-        assert pattern.shape == (5 * width, length)
+        chex.assert_shape(pattern, (5 * width, length))
 
     def test_vertical_bars_shape(self) -> None:
         """Test vertical bar triplet has correct shape."""
@@ -36,7 +36,7 @@ class TestCreateBarTriplet:
 
         # Height = length
         # Width = 5 * width (3 bars + 2 spaces)
-        assert pattern.shape == (length, 5 * width)
+        chex.assert_shape(pattern, (length, 5 * width))
 
     def test_horizontal_bars_structure(self) -> None:
         """Test horizontal bars have correct structure."""
@@ -46,15 +46,15 @@ class TestCreateBarTriplet:
 
         # Check bar positions
         # Bar 1: rows [0, 5)
-        assert jnp.all(pattern[0:5, :] == 1.0)
+        chex.assert_trees_all_close(pattern[0:5, :], 1.0)
         # Space: rows [5, 10)
-        assert jnp.all(pattern[5:10, :] == 0.0)
+        chex.assert_trees_all_close(pattern[5:10, :], 0.0)
         # Bar 2: rows [10, 15)
-        assert jnp.all(pattern[10:15, :] == 1.0)
+        chex.assert_trees_all_close(pattern[10:15, :], 1.0)
         # Space: rows [15, 20)
-        assert jnp.all(pattern[15:20, :] == 0.0)
+        chex.assert_trees_all_close(pattern[15:20, :], 0.0)
         # Bar 3: rows [20, 25)
-        assert jnp.all(pattern[20:25, :] == 1.0)
+        chex.assert_trees_all_close(pattern[20:25, :], 1.0)
 
     def test_vertical_bars_structure(self) -> None:
         """Test vertical bars have correct structure."""
@@ -63,21 +63,21 @@ class TestCreateBarTriplet:
         pattern = create_bar_triplet(width, length, horizontal=False)
 
         # Check bar positions (columns instead of rows)
-        assert jnp.all(pattern[:, 0:5] == 1.0)
-        assert jnp.all(pattern[:, 5:10] == 0.0)
-        assert jnp.all(pattern[:, 10:15] == 1.0)
-        assert jnp.all(pattern[:, 15:20] == 0.0)
-        assert jnp.all(pattern[:, 20:25] == 1.0)
+        chex.assert_trees_all_close(pattern[:, 0:5], 1.0)
+        chex.assert_trees_all_close(pattern[:, 5:10], 0.0)
+        chex.assert_trees_all_close(pattern[:, 10:15], 1.0)
+        chex.assert_trees_all_close(pattern[:, 15:20], 0.0)
+        chex.assert_trees_all_close(pattern[:, 20:25], 1.0)
 
     def test_minimum_width_enforced(self) -> None:
         """Test that minimum width of 1 is enforced."""
         pattern = create_bar_triplet(0, 10, horizontal=True)
-        assert pattern.shape[0] == 5  # 5 * 1
+        chex.assert_shape(pattern, (5, 10))  # 5 * 1 = 5
 
     def test_output_dtype(self) -> None:
         """Test output is float32."""
         pattern = create_bar_triplet(5, 20, horizontal=True)
-        assert pattern.dtype == jnp.float32
+        chex.assert_type(pattern, jnp.float32)
 
 
 class TestCreateElementPattern:
@@ -95,7 +95,6 @@ class TestCreateElementPattern:
         # Height should be 5 * bar_width (triplet height)
         # Width should be bar_length + gap + bar_length
         bar_length = 5 * bar_width
-        triplet_width = 5 * bar_width
         assert element.shape[0] == 5 * bar_width
         assert element.shape[1] > bar_length  # At least one triplet width
 
@@ -184,7 +183,7 @@ class TestCreateGroupPattern:
         group_pattern, _ = create_group_pattern(0, 100.0)
 
         # Pattern should be 2D
-        assert len(group_pattern.shape) == 2
+        chex.assert_rank(group_pattern, 2)
 
     def test_group_layout_dimensions(self) -> None:
         """Test group has reasonable dimensions for 2x3 layout."""
@@ -203,21 +202,21 @@ class TestGenerateUsafPattern:
         """Test default output has correct shape."""
         pattern = generate_usaf_pattern()
 
-        assert pattern.amplitude.shape == (1024, 1024)
+        chex.assert_shape(pattern.sample, (1024, 1024))
 
     def test_custom_image_size(self) -> None:
         """Test custom image size."""
         pattern = generate_usaf_pattern(image_size=512)
 
-        assert pattern.amplitude.shape == (512, 512)
+        chex.assert_shape(pattern.sample, (512, 512))
 
     def test_custom_groups(self) -> None:
         """Test custom group range."""
         pattern = generate_usaf_pattern(image_size=512, groups=range(0, 3))
 
         # Should still produce valid output
-        assert pattern.amplitude.shape == (512, 512)
-        assert jnp.sum(pattern.amplitude) > 0
+        chex.assert_shape(pattern.sample, (512, 512))
+        assert jnp.sum(pattern.sample) > 0
 
     def test_background_foreground_values(self) -> None:
         """Test background and foreground values are applied."""
@@ -228,7 +227,7 @@ class TestGenerateUsafPattern:
             foreground=0.8,
         )
 
-        amp = pattern.amplitude
+        amp = jnp.abs(pattern.sample)
         # Background should be 0.2, bars should be 0.8
         assert jnp.min(amp) >= 0.2 - 1e-5
         assert jnp.max(amp) <= 0.8 + 1e-5
@@ -242,7 +241,7 @@ class TestGenerateUsafPattern:
             foreground=0.0,
         )
 
-        amp = pattern.amplitude
+        amp = jnp.abs(pattern.sample)
         assert jnp.min(amp) >= 0.0 - 1e-5
         assert jnp.max(amp) <= 1.0 + 1e-5
 
@@ -251,19 +250,19 @@ class TestGenerateUsafPattern:
         pixel_size = 2.5e-6
         pattern = generate_usaf_pattern(pixel_size=pixel_size)
 
-        assert jnp.isclose(pattern.dx, pixel_size, rtol=1e-5)
+        chex.assert_trees_all_close(pattern.dx, pixel_size, rtol=1e-5)
 
     def test_default_pixel_size(self) -> None:
         """Test default pixel size is 1 µm."""
         pattern = generate_usaf_pattern()
 
-        assert jnp.isclose(pattern.dx, 1.0e-6, rtol=1e-5)
+        chex.assert_trees_all_close(pattern.dx, 1.0e-6, rtol=1e-5)
 
     def test_output_is_complex(self) -> None:
-        """Test output amplitude is complex."""
+        """Test output sample is complex."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
 
-        assert jnp.iscomplexobj(pattern.amplitude)
+        assert jnp.iscomplexobj(pattern.sample)
 
     def test_zero_phase_gives_real_values(self) -> None:
         """Test that max_phase=0 gives purely real output."""
@@ -272,7 +271,7 @@ class TestGenerateUsafPattern:
         )
 
         # Imaginary part should be zero (or very close)
-        assert jnp.allclose(jnp.imag(pattern.amplitude), 0.0, atol=1e-6)
+        chex.assert_trees_all_close(jnp.imag(pattern.sample), 0.0, atol=1e-6)
 
     def test_nonzero_phase_adds_imaginary_component(self) -> None:
         """Test that max_phase > 0 adds imaginary component."""
@@ -286,7 +285,7 @@ class TestGenerateUsafPattern:
 
         # Where there are bars (foreground), there should be phase
         # Imaginary part should be non-zero somewhere
-        assert jnp.max(jnp.abs(jnp.imag(pattern.amplitude))) > 0.1
+        assert jnp.max(jnp.abs(jnp.imag(pattern.sample))) > 0.1
 
     def test_phase_follows_amplitude_pattern(self) -> None:
         """Test that phase pattern matches amplitude pattern."""
@@ -298,8 +297,8 @@ class TestGenerateUsafPattern:
             foreground=1.0,
         )
 
-        amp = jnp.abs(pattern.amplitude)
-        phase = jnp.angle(pattern.amplitude)
+        amp = jnp.abs(pattern.sample)
+        phase = jnp.angle(pattern.sample)
 
         # Where amplitude is zero (background), phase is undefined but
         # the complex value is 0, so we skip those points
@@ -318,15 +317,15 @@ class TestGenerateUsafPattern:
         """Test output is SampleFunction type."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
 
-        # Should have amplitude and dx attributes
-        assert hasattr(pattern, "amplitude")
+        # Should have sample and dx attributes
+        assert hasattr(pattern, "sample")
         assert hasattr(pattern, "dx")
 
     def test_output_dtype(self) -> None:
-        """Test output amplitude is complex64."""
+        """Test output sample is complex64."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
 
-        assert pattern.amplitude.dtype == jnp.complex64
+        chex.assert_type(pattern.sample, jnp.complex64)
 
 
 class TestJaxCompatibility:
@@ -345,19 +344,19 @@ class TestJaxCompatibility:
             return pattern * x[0]
 
         result = wrapper(jnp.array([2.0]))
-        assert result.shape == (25, 20)
+        chex.assert_shape(result, (25, 20))
 
     def test_element_pattern_is_array(self) -> None:
         """Test element pattern is a JAX array."""
         element = create_element_pattern(10)
-        assert isinstance(element, jax.Array)
+        chex.assert_type(element, jnp.float32)
 
     def test_group_pattern_is_array(self) -> None:
         """Test group pattern is a JAX array."""
         group_pattern, _ = create_group_pattern(0, 50.0)
-        assert isinstance(group_pattern, jax.Array)
+        chex.assert_type(group_pattern, jnp.float32)
 
-    def test_usaf_pattern_amplitude_is_array(self) -> None:
-        """Test USAF pattern amplitude is a JAX array."""
+    def test_usaf_pattern_sample_is_array(self) -> None:
+        """Test USAF pattern sample is a JAX array."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
-        assert isinstance(pattern.amplitude, jax.Array)
+        chex.assert_type(pattern.sample, jnp.complex64)

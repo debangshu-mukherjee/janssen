@@ -294,8 +294,12 @@ def synchrotron_source(
     ww: int = int(grid_size[1])
 
     # Mode widths (geometric mean approach)
-    sigma_h: Float[Array, " "] = jnp.asarray(horizontal_coherence, dtype=jnp.float64)
-    sigma_v: Float[Array, " "] = jnp.asarray(vertical_coherence, dtype=jnp.float64)
+    sigma_h: Float[Array, " "] = jnp.asarray(
+        horizontal_coherence, dtype=jnp.float64
+    )
+    sigma_v: Float[Array, " "] = jnp.asarray(
+        vertical_coherence, dtype=jnp.float64
+    )
 
     # Create coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
@@ -313,7 +317,9 @@ def synchrotron_source(
         -(xx**2) / sigma_h**2 - (yy**2) / sigma_v**2
     )
 
-    def _hermite_polynomial(order: int, x: Float[Array, "..."]) -> Float[Array, "..."]:
+    def _hermite_polynomial(
+        order: int, x: Float[Array, "..."]
+    ) -> Float[Array, "..."]:
         """Compute physicist's Hermite polynomial."""
         if order == 0:
             return jnp.ones_like(x)
@@ -353,9 +359,9 @@ def synchrotron_source(
             modes_list.append(mode)
             weights_list.append(weight_h * weight_v)
 
-    modes: Complex[Array, " num_modes hh ww"] = jnp.stack(modes_list, axis=0).astype(
-        jnp.complex128
-    )
+    modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
+        modes_list, axis=0
+    ).astype(jnp.complex128)
     weights: Float[Array, " num_modes"] = jnp.array(weights_list)
     weights = weights / jnp.sum(weights)
 

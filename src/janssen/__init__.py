@@ -50,7 +50,7 @@ and consider using the provided factory functions for data validation.
 import os
 from importlib.metadata import version
 
-# Enable multi-threaded CPU execution for JAX (must be set before importing JAX)
+# Enable multi-threaded CPU execution for JAX (before importing JAX)
 os.environ.setdefault(
     "XLA_FLAGS",
     "--xla_cpu_multi_thread_eigen=true intra_op_parallelism_threads=0",

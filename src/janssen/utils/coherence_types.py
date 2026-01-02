@@ -14,7 +14,7 @@ simulation by propagating a finite number of modes and summing intensities.
 Routine Listings
 ----------------
 CoherentModeSet : NamedTuple
-    PyTree structure for coherent mode decomposition of partially coherent fields
+    PyTree for coherent mode decomposition of partially coherent fields
 PolychromaticWavefront : NamedTuple
     PyTree structure for polychromatic/broadband field representation
 MutualIntensity : NamedTuple
@@ -58,7 +58,7 @@ from .types import ScalarNumeric
 
 @register_pytree_node_class
 class CoherentModeSet(NamedTuple):
-    """PyTree structure for coherent mode decomposition of partially coherent fields.
+    """PyTree for coherent mode decomposition of partially coherent fields.
 
     A partially coherent field can be represented as a weighted sum of
     orthogonal coherent modes. The total intensity is the incoherent sum:
@@ -212,7 +212,7 @@ class PolychromaticWavefront(NamedTuple):
     dx : Float[Array, " "]
         Spatial sampling interval (grid spacing) in meters.
     z_position : Float[Array, " "]
-        Axial position of the wavefront along the propagation direction in meters.
+        Axial position along the propagation direction in meters.
     polarization : Bool[Array, " "]
         Whether the fields are polarized (True for 4D fields, False for 3D).
 
@@ -254,7 +254,7 @@ class PolychromaticWavefront(NamedTuple):
         ],
         None,
     ]:
-        """Flatten the PolychromaticWavefront into a tuple of its components."""
+        """Flatten PolychromaticWavefront into a tuple of its components."""
         return (
             (
                 self.fields,
@@ -283,7 +283,7 @@ class PolychromaticWavefront(NamedTuple):
             Bool[Array, " "],
         ],
     ) -> "PolychromaticWavefront":
-        """Unflatten the PolychromaticWavefront from a tuple of its components."""
+        """Unflatten PolychromaticWavefront from a tuple of its components."""
         return cls(*children)
 
     @property
@@ -318,7 +318,7 @@ class PolychromaticWavefront(NamedTuple):
 class MutualIntensity(NamedTuple):
     """PyTree structure for full mutual intensity J(r₁, r₂) representation.
 
-    The mutual intensity describes the spatial coherence of a quasi-monochromatic
+    The mutual intensity describes spatial coherence of a quasi-monochromatic
     field:
         J(r₁, r₂) = ⟨E*(r₁) E(r₂)⟩
 
@@ -347,7 +347,8 @@ class MutualIntensity(NamedTuple):
 
     Notes
     -----
-    The mutual intensity can be decomposed into coherent modes via eigendecomposition:
+    The mutual intensity can be decomposed into coherent modes via eigenvalue
+    decomposition:
         J(r₁, r₂) = Σₙ λₙ φₙ*(r₁) φₙ(r₂)
 
     where λₙ are eigenvalues and φₙ are orthonormal eigenfunctions.
@@ -396,7 +397,7 @@ class MutualIntensity(NamedTuple):
 
     @property
     def intensity(self) -> Float[Array, " hh ww"]:
-        """Return the intensity I(r) = J(r, r) (diagonal of mutual intensity)."""
+        """Return intensity I(r) = J(r, r) (diagonal of mutual intensity)."""
         hh, ww = self.j_matrix.shape[:2]
         # Extract diagonal: J(r, r) for each spatial point
         intensity: Float[Array, " hh ww"] = jnp.real(
@@ -427,7 +428,7 @@ def make_coherent_mode_set(
     wavelength: ScalarNumeric,
     dx: ScalarNumeric,
     z_position: ScalarNumeric = 0.0,
-    polarization: bool = False,
+    polarization: Union[bool, Bool[Array, " "]] = False,
     normalize_weights: bool = True,
 ) -> CoherentModeSet:
     """Create a validated CoherentModeSet instance.
@@ -449,8 +450,9 @@ def make_coherent_mode_set(
         Spatial sampling interval in meters. Must be positive.
     z_position : ScalarNumeric, optional
         Axial position in meters. Default is 0.0.
-    polarization : bool, optional
-        Whether modes are polarized. Default is False.
+    polarization : Union[bool, Bool[Array, " "]], optional
+        Whether modes are polarized. Accepts Python bool or JAX bool array.
+        Default is False.
     normalize_weights : bool, optional
         If True, normalize weights to sum to 1. Default is True.
 
@@ -464,6 +466,8 @@ def make_coherent_mode_set(
     ValueError
         If modes and weights have inconsistent shapes, or if validation fails.
     """
+    non_polar_dim: int = 3  # modes shape: (num_modes, hh, ww)
+    polar_dim: int = 4  # modes shape: (num_modes, hh, ww, 2)
     modes = jnp.asarray(modes, dtype=jnp.complex128)
     weights = jnp.asarray(weights, dtype=jnp.float64)
     wavelength_arr: Float[Array, " "] = jnp.asarray(
@@ -477,23 +481,40 @@ def make_coherent_mode_set(
         polarization, dtype=jnp.bool_
     )
 
+    # Auto-detect polarization from modes dimensions
+    polarization_arr = jnp.where(
+        modes.ndim == polar_dim,
+        jnp.asarray(modes.shape[-1] == 2, dtype=jnp.bool_),
+        polarization_arr,
+    )
+
     def validate_and_create() -> CoherentModeSet:
         def check_modes_shape() -> Complex[Array, "..."]:
-            expected_ndim: int = 4 if polarization else 3
-            is_valid_ndim: Bool[Array, " "] = modes.ndim == expected_ndim
-            is_valid_pol_dim: Bool[Array, " "] = jnp.logical_or(
-                jnp.logical_not(polarization_arr),
-                modes.shape[-1] == 2,
-            )
-            is_valid: Bool[Array, " "] = jnp.logical_and(
-                is_valid_ndim, is_valid_pol_dim
-            )
+            def check_polarized() -> Complex[Array, " num_modes hh ww 2"]:
+                return lax.cond(
+                    jnp.logical_and(
+                        modes.ndim == polar_dim,
+                        modes.shape[-1] == 2,
+                    ),
+                    lambda: modes,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: modes, lambda: modes)
+                    ),
+                )
+
+            def check_scalar() -> Complex[Array, " num_modes hh ww"]:
+                return lax.cond(
+                    modes.ndim == non_polar_dim,
+                    lambda: modes,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: modes, lambda: modes)
+                    ),
+                )
+
             return lax.cond(
-                is_valid,
-                lambda: modes,
-                lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: modes, lambda: modes)
-                ),
+                polarization_arr,
+                check_polarized,
+                check_scalar,
             )
 
         def check_weights_shape(
@@ -575,7 +596,7 @@ def make_polychromatic_wavefront(
     spectral_weights: Float[Array, " num_wavelengths"],
     dx: ScalarNumeric,
     z_position: ScalarNumeric = 0.0,
-    polarization: bool = False,
+    polarization: Union[bool, Bool[Array, " "]] = False,
     normalize_weights: bool = True,
 ) -> PolychromaticWavefront:
     """Create a validated PolychromaticWavefront instance.
@@ -597,8 +618,9 @@ def make_polychromatic_wavefront(
         Spatial sampling interval in meters. Must be positive.
     z_position : ScalarNumeric, optional
         Axial position in meters. Default is 0.0.
-    polarization : bool, optional
-        Whether fields are polarized. Default is False.
+    polarization : Union[bool, Bool[Array, " "]], optional
+        Whether fields are polarized. Accepts Python bool or JAX bool array.
+        Default is False.
     normalize_weights : bool, optional
         If True, normalize spectral_weights to sum to 1. Default is True.
 
@@ -607,6 +629,8 @@ def make_polychromatic_wavefront(
     PolychromaticWavefront
         Validated polychromatic wavefront instance.
     """
+    non_polar_dim: int = 3  # fields shape: (num_wavelengths, hh, ww)
+    polar_dim: int = 4  # fields shape: (num_wavelengths, hh, ww, 2)
     fields = jnp.asarray(fields, dtype=jnp.complex128)
     wavelengths = jnp.asarray(wavelengths, dtype=jnp.float64)
     spectral_weights = jnp.asarray(spectral_weights, dtype=jnp.float64)
@@ -618,16 +642,40 @@ def make_polychromatic_wavefront(
         polarization, dtype=jnp.bool_
     )
 
+    # Auto-detect polarization from fields dimensions
+    polarization_arr = jnp.where(
+        fields.ndim == polar_dim,
+        jnp.asarray(fields.shape[-1] == 2, dtype=jnp.bool_),
+        polarization_arr,
+    )
+
     def validate_and_create() -> PolychromaticWavefront:
         def check_fields_shape() -> Complex[Array, "..."]:
-            expected_ndim: int = 4 if polarization else 3
-            is_valid_ndim: Bool[Array, " "] = fields.ndim == expected_ndim
+            def check_polarized() -> Complex[Array, " n hh ww 2"]:
+                return lax.cond(
+                    jnp.logical_and(
+                        fields.ndim == polar_dim,
+                        fields.shape[-1] == 2,
+                    ),
+                    lambda: fields,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: fields, lambda: fields)
+                    ),
+                )
+
+            def check_scalar() -> Complex[Array, " num_wavelengths hh ww"]:
+                return lax.cond(
+                    fields.ndim == non_polar_dim,
+                    lambda: fields,
+                    lambda: lax.stop_gradient(
+                        lax.cond(False, lambda: fields, lambda: fields)
+                    ),
+                )
+
             return lax.cond(
-                is_valid_ndim,
-                lambda: fields,
-                lambda: lax.stop_gradient(
-                    lax.cond(False, lambda: fields, lambda: fields)
-                ),
+                polarization_arr,
+                check_polarized,
+                check_scalar,
             )
 
         def check_wavelengths_shape(

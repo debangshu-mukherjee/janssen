@@ -532,7 +532,7 @@ def gaussian_beam(
 
     .. math::
         E(r, z) = A \\frac{w_0}{w(z)} \\exp\\left(-\\frac{r^2}{w(z)^2}\\right)
-                  \\exp\\left(-i k z - i \\frac{k r^2}{2 R(z)} + i \\zeta(z)\\right)
+                  \\exp\\left(-ikz - i\\frac{kr^2}{2R(z)} + i\\zeta(z)\\right)
 
     where:
 

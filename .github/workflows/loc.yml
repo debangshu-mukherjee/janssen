@@ -1,0 +1,54 @@
+name: Update LOC Badge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-loc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install pygount
+        run: uv pip install pygount --system
+
+      - name: Count lines of code
+        id: loc
+        run: |
+          LOC=$(pygount --format=cloc-xml src/janssen | grep -oP '<total[^>]*code="\K[0-9]+')
+          echo "loc=$LOC" >> $GITHUB_OUTPUT
+          echo "Lines of code: $LOC"
+
+      - name: Create badges directory
+        run: mkdir -p .github/badges
+
+      - name: Update LOC badge JSON
+        run: |
+          cat > .github/badges/loc.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "Lines of Code",
+            "message": "${{ steps.loc.outputs.loc }}",
+            "color": "blue"
+          }
+          EOF
+
+      - name: Commit badge update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .github/badges/loc.json
+          git diff --staged --quiet || git commit -m "Update LOC badge [skip ci]"
+          git push

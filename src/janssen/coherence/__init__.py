@@ -41,7 +41,7 @@ Spatial Coherence:
     gaussian_coherence_kernel : Gaussian spatial coherence kernel
     jinc_coherence_kernel : Jinc kernel from circular incoherent source
     rectangular_coherence_kernel : Sinc kernel from rectangular source
-    coherence_width_from_source : Calculate coherence width (van Cittert-Zernike)
+    coherence_width_from_source : Coherence width (van Cittert-Zernike)
     complex_degree_of_coherence : Normalized coherence from mutual intensity
 
 Temporal Coherence:

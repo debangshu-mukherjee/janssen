@@ -384,7 +384,9 @@ def simple_microscope_ptychography(  # noqa: PLR0915
             intermediate_aperture_diameters=(
                 combined_intermediate_aperture_diameters
             ),
-            intermediate_aperture_centers=combined_intermediate_aperture_centers,
+            intermediate_aperture_centers=(
+                combined_intermediate_aperture_centers
+            ),
             intermediate_travel_distances=(
                 combined_intermediate_travel_distances
             ),

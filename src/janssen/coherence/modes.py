@@ -308,7 +308,7 @@ def gaussian_schell_model_modes(
         return result
 
     # Generate modes using separable Hermite-Gaussians
-    # For simplicity, we use 1D mode structure: mode_n = H_n(x) * H_0(y) * gaussian
+    # For simplicity, 1D mode structure: mode_n = H_n(x) * H_0(y) * gaussian
     # A more complete 2D GSM would have different x and y mode indices
 
     def generate_mode(n: int) -> Complex[Array, " hh ww"]:

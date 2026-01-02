@@ -1487,7 +1487,7 @@ def make_epie_params(
     -----
     ePIE parameters differ from gradient-based optimization:
 
-    - alpha/beta are step sizes for the ePIE update formulas, not learning rates
+    - alpha/beta are step sizes for ePIE update formulas, not learning rates
     - Setting beta=0 freezes the probe (useful when probe is well-known)
     - effective_dx is user-specified, not derived from optical parameters
     - The sample is initialized to 1+0j (unity transmission)

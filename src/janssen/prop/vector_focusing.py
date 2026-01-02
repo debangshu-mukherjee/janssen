@@ -37,7 +37,7 @@ The Richards-Wolf integrals express the focal field as:
 \\vec{E}(\\rho_f, \\phi_f, z_f) = -\\frac{i k f}{2\\pi} \\int_0^{\\theta_{max}}
 \\int_0^{2\\pi} \\sqrt{\\cos\\theta} \\, \\mathbf{P}(\\theta, \\phi)
 \\cdot \\vec{E}_{pupil}(\\theta, \\phi) \\,
-e^{i k z_f \\cos\\theta} \\, e^{i k \\rho_f \\sin\\theta \\cos(\\phi - \\phi_f)}
+e^{ikz_f\\cos\\theta} \\, e^{ik\\rho_f\\sin\\theta\\cos(\\phi - \\phi_f)}
 \\sin\\theta \\, d\\phi \\, d\\theta
 
 where P(θ,φ) is the polarization rotation matrix that accounts for how the

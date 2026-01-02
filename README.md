@@ -7,6 +7,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![codecov](https://codecov.io/gh/debangshu-mukherjee/janssen/branch/main/graph/badge.svg)](https://codecov.io/gh/debangshu-mukherjee/janssen)
 [![jax_badge](https://tinyurl.com/mucknrvu)](https://docs.jax.dev/)
+[![Lines of Code](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/debangshu-mukherjee/janssen/main/.github/badges/loc.json)](https://github.com/debangshu-mukherjee/janssen)
 
 # Janssen: Optical Microscopy with JAX
 

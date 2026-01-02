@@ -10,6 +10,7 @@ Welcome to Janssen's documentation!
 
    organization
    contributing
+   guides/index
    api
    tutorials/index
 

@@ -320,10 +320,10 @@ def bessel_kv(v: ScalarFloat, x: Float[Array, " ..."]) -> Float[Array, " ..."]:
       for large x
     - For non-integer v, uses the reflection formula:
       K_v = π/(2sin(πv)) * (I_{-v} - I_v)
-    - For integer v, uses specialized series expansions and recurrence relations
+    - For integer v, uses specialized series and recurrence relations
     - Special exact formula for v = 0.5: K_{1/2}(x) = sqrt(π/(2x)) * exp(-x)
-    - The transition point between small and large x approximations is set
-      at x = 2.0
+    - The transition point between small and large x approximations is
+      set at x = 2.0
 
     Algorithm
     ---------
