@@ -53,7 +53,6 @@ vectorial field calculations.
     Rotates coordinates by an angle theta.
 """
 
-import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Callable, Optional, Tuple

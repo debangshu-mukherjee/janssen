@@ -1521,7 +1521,7 @@ def make_epie_params(
 
 
 @jaxtyped(typechecker=beartype)
-def make_ptychography_reconstruction(
+def make_ptychography_reconstruction( # noqa: PLR0913
     sample: SampleFunction,
     lightwave: OpticalWavefront,
     translated_positions: Float[Array, " N 2"],

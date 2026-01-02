@@ -146,6 +146,7 @@ from .factory import (
     make_sliced_material_function,
     optical2propagating,
 )
+from .math import fourier_shift, wirtinger_grad
 from .types import (
     Diffractogram,
     EpieData,
@@ -167,7 +168,6 @@ from .types import (
     ScalarNumeric,
     SlicedMaterialFunction,
 )
-from .math import fourier_shift, wirtinger_grad
 from .vector_types import (
     VectorWavefront3D,
     jones_to_vector3d,

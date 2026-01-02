@@ -36,7 +36,6 @@ support JAX transformations. Phase profiles are calculated based on the
 optical path difference through the lens material.
 """
 
-import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional, Tuple

@@ -47,11 +47,9 @@ NamedTuple classes to ensure proper runtime type checking of the
 contents.
 """
 
-import jax
 from beartype.typing import NamedTuple, Optional, Tuple, TypeAlias, Union
 from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array, Bool, Complex, Float, Int, Num
-
 
 NonJaxNumber: TypeAlias = Union[int, float, complex]
 ScalarBool: TypeAlias = Union[bool, Bool[Array, " "]]

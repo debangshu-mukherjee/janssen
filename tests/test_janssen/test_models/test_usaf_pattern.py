@@ -3,8 +3,6 @@
 import chex
 import jax
 import jax.numpy as jnp
-import pytest
-from beartype.roar import BeartypeCallHintParamViolation
 
 from janssen.models.usaf_pattern import (
     create_bar_triplet,
@@ -322,10 +320,11 @@ class TestGenerateUsafPattern:
         assert hasattr(pattern, "dx")
 
     def test_output_dtype(self) -> None:
-        """Test output sample is complex64."""
+        """Test output sample is complex."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
 
-        chex.assert_type(pattern.sample, jnp.complex64)
+        # May be complex64 or complex128 depending on JAX x64 mode
+        assert jnp.iscomplexobj(pattern.sample)
 
 
 class TestJaxCompatibility:
@@ -359,4 +358,6 @@ class TestJaxCompatibility:
     def test_usaf_pattern_sample_is_array(self) -> None:
         """Test USAF pattern sample is a JAX array."""
         pattern = generate_usaf_pattern(image_size=128, groups=range(0, 2))
-        chex.assert_type(pattern.sample, jnp.complex64)
+        # May be complex64 or complex128 depending on JAX x64 mode
+        assert jnp.iscomplexobj(pattern.sample)
+        assert isinstance(pattern.sample, jax.Array)

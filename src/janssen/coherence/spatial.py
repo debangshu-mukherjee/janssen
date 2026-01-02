@@ -162,8 +162,6 @@ def jinc_coherence_kernel(
     """
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
-
-    # Create centered coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]

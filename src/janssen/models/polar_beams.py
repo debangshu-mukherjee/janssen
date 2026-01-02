@@ -55,7 +55,6 @@ from janssen.utils import (
     make_optical_wavefront,
 )
 
-
 BESSEL_SAFE_FLOOR: float = 1e-10
 
 

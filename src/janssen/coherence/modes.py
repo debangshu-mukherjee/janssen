@@ -138,16 +138,15 @@ def hermite_gaussian_modes(
         """Compute physicist's Hermite polynomial H_n(x)."""
         if order == 0:
             return jnp.ones_like(x)
-        elif order == 1:
+        if order == 1:
             return 2.0 * x
-        else:
-            h_prev2 = jnp.ones_like(x)
-            h_prev1 = 2.0 * x
-            for k in range(2, order + 1):
-                h_curr = 2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
-                h_prev2 = h_prev1
-                h_prev1 = h_curr
-            return h_prev1
+        h_prev2 = jnp.ones_like(x)
+        h_prev1 = 2.0 * x
+        for k in range(2, order + 1):
+            h_curr = 2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
+            h_prev2 = h_prev1
+            h_prev1 = h_curr
+        return h_prev1
 
     # Generate all modes
     modes_list = []

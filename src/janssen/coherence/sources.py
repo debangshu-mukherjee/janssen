@@ -190,7 +190,8 @@ def thermal_source(
     Wien's displacement law gives the peak wavelength:
         lambda_peak = 2.898e-3 / T (meters * Kelvin)
 
-    Examples:
+    Examples
+    --------
     - Sun (5800 K): peak at 500 nm
     - Incandescent bulb (2800 K): peak at 1035 nm
     - Human body (310 K): peak at 9.3 um
@@ -323,16 +324,15 @@ def synchrotron_source(
         """Compute physicist's Hermite polynomial."""
         if order == 0:
             return jnp.ones_like(x)
-        elif order == 1:
+        if order == 1:
             return 2.0 * x
-        else:
-            h_prev2 = jnp.ones_like(x)
-            h_prev1 = 2.0 * x
-            for k in range(2, order + 1):
-                h_curr = 2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
-                h_prev2 = h_prev1
-                h_prev1 = h_curr
-            return h_prev1
+        h_prev2 = jnp.ones_like(x)
+        h_prev1 = 2.0 * x
+        for k in range(2, order + 1):
+            h_curr = 2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
+            h_prev2 = h_prev1
+            h_prev1 = h_curr
+        return h_prev1
 
     # Generate 2D modes as products of 1D modes
     n_h: int = int(num_modes_h)

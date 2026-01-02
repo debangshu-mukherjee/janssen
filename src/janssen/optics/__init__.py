@@ -7,121 +7,110 @@ propagation through various optical elements. All components are
 differentiable and optimized for JAX transformations, enabling gradient-based
 optimization of optical systems.
 
-Submodules
-----------
-apertures
-    Aperture functions for optical microscopy
-bessel
-    Bessel functions for JAX
-elements
-    Optical element transformations
-helper
-    Helper functions for optical propagation
-zernike
-    Zernike polynomial functions for optical aberration modeling
-
 Routine Listings
 ----------------
-add_phase_screen : function
-    Add phase screen to field
-amplitude_grating_binary : function
-    Create binary amplitude grating
-annular_aperture : function
-    Create an annular (ring-shaped) aperture
-apply_aberration : function
-    Apply aberration to optical wavefront
-apply_phase_mask : function
-    Apply a phase mask to a field
-apply_phase_mask_fn : function
-    Apply a phase mask function
-astigmatism : function
-    Generate astigmatism aberration (Z5, Z6)
-beam_splitter : function
-    Model beam splitter operation
-bessel_iv_series : function
-    Compute I_v(x) using series expansion for Bessel function.
-bessel_j0 : function
-    Compute J_0(x), regular Bessel function of the first kind, order 0.
-bessel_jn : function
-    Compute J_n(x), regular Bessel function of the first kind, order n.
-bessel_k0_series : function
-    Compute K_0(x) using series expansion.
-bessel_kn_recurrence : function
-    Compute K_n(x) using recurrence relation.
-bessel_kv : function
+:func:`circular_aperture`
+    Create a circular aperture.
+:func:`rectangular_aperture`
+    Create a rectangular aperture.
+:func:`annular_aperture`
+    Create an annular (ring-shaped) aperture.
+:func:`gaussian_apodizer`
+    Apply Gaussian apodization to a field.
+:func:`gaussian_apodizer_elliptical`
+    Apply elliptical Gaussian apodization.
+:func:`supergaussian_apodizer`
+    Apply super-Gaussian apodization.
+:func:`supergaussian_apodizer_elliptical`
+    Apply elliptical super-Gaussian apodization.
+:func:`variable_transmission_aperture`
+    Create aperture with variable transmission.
+:func:`bessel_j0`
+    Compute J_0(x), Bessel function of the first kind, order 0.
+:func:`bessel_jn`
+    Compute J_n(x), Bessel function of the first kind, order n.
+:func:`bessel_kv`
     Compute K_v(x), modified Bessel function of the second kind.
-bessel_kv_small_integer : function
+:func:`bessel_iv_series`
+    Compute I_v(x) using series expansion.
+:func:`bessel_k0_series`
+    Compute K_0(x) using series expansion.
+:func:`bessel_kn_recurrence`
+    Compute K_n(x) using recurrence relation.
+:func:`bessel_kv_small_integer`
     Compute K_v(x) for small x and integer v.
-bessel_kv_small_non_integer : function
+:func:`bessel_kv_small_non_integer`
     Compute K_v(x) for small x and non-integer v.
-circular_aperture : function
-    Create a circular aperture
-coma : function
-    Generate coma aberration (Z7, Z8)
-create_spatial_grid : function
-    Create computational spatial grid
-defocus : function
-    Generate defocus aberration (Z4)
-factorial : function
-    JAX-compatible factorial computation
-field_intensity : function
-    Calculate field intensity
-gaussian_apodizer : function
-    Apply Gaussian apodization to a field
-gaussian_apodizer_elliptical : function
-    Apply elliptical Gaussian apodization
-generate_aberration_nm : function
-    Generate aberration phase map from Zernike coefficients (n, m)
-generate_aberration_noll : function
-    Generate aberration phase map from Zernike coefficients (Noll)
-compute_phase_from_coeffs : function
-    Compute phase map from Zernike coefficients with start index
-phase_rms : function
-    Compute RMS of phase within the unit pupil
-half_waveplate : function
-    Half-wave plate transformation
-mirror_reflection : function
-    Model mirror reflection
-nd_filter : function
-    Neutral density filter
-nm_to_noll : function
-    Convert (n, m) indices to Noll index
-noll_to_nm : function
-    Convert Noll index to (n, m) indices
-normalize_field : function
-    Normalize optical field
-phase_grating_blazed_elliptical : function
-    Elliptical blazed phase grating
-phase_grating_sawtooth : function
-    Sawtooth phase grating
-phase_grating_sine : function
-    Sinusoidal phase grating
-polarizer_jones : function
-    Jones matrix for polarizer
-prism_phase_ramp : function
-    Phase ramp from prism
-quarter_waveplate : function
-    Quarter-wave plate transformation
-rectangular_aperture : function
-    Create a rectangular aperture
-scale_pixel : function
-    Scale pixel size in field
-spherical_aberration : function
-    Generate spherical aberration (Z11)
-supergaussian_apodizer : function
-    Apply super-Gaussian apodization
-supergaussian_apodizer_elliptical : function
-    Apply elliptical super-Gaussian apodization
-trefoil : function
-    Generate trefoil aberration (Z9, Z10)
-variable_transmission_aperture : function
-    Create aperture with variable transmission
-waveplate_jones : function
-    General waveplate Jones matrix
-zernike_polynomial : function
-    Generate a single Zernike polynomial
-zernike_radial : function
-    Radial component of Zernike polynomial
+:func:`apply_phase_mask`
+    Apply a phase mask to a field.
+:func:`apply_phase_mask_fn`
+    Apply a phase mask function.
+:func:`amplitude_grating_binary`
+    Create binary amplitude grating.
+:func:`phase_grating_sine`
+    Sinusoidal phase grating.
+:func:`phase_grating_sawtooth`
+    Sawtooth phase grating.
+:func:`phase_grating_blazed_elliptical`
+    Elliptical blazed phase grating.
+:func:`beam_splitter`
+    Model beam splitter operation.
+:func:`mirror_reflection`
+    Model mirror reflection.
+:func:`nd_filter`
+    Neutral density filter.
+:func:`prism_phase_ramp`
+    Phase ramp from prism.
+:func:`polarizer_jones`
+    Jones matrix for polarizer.
+:func:`half_waveplate`
+    Half-wave plate transformation.
+:func:`quarter_waveplate`
+    Quarter-wave plate transformation.
+:func:`waveplate_jones`
+    General waveplate Jones matrix.
+:func:`add_phase_screen`
+    Add phase screen to field.
+:func:`create_spatial_grid`
+    Create computational spatial grid.
+:func:`field_intensity`
+    Calculate field intensity.
+:func:`normalize_field`
+    Normalize optical field.
+:func:`scale_pixel`
+    Scale pixel size in field.
+:func:`sellmeier`
+    Sellmeier equation for refractive index.
+:func:`zernike_polynomial`
+    Generate a single Zernike polynomial.
+:func:`zernike_radial`
+    Radial component of Zernike polynomial.
+:func:`noll_to_nm`
+    Convert Noll index to (n, m) indices.
+:func:`nm_to_noll`
+    Convert (n, m) indices to Noll index.
+:func:`factorial`
+    JAX-compatible factorial computation.
+:func:`defocus`
+    Generate defocus aberration (Z4).
+:func:`astigmatism`
+    Generate astigmatism aberration (Z5, Z6).
+:func:`coma`
+    Generate coma aberration (Z7, Z8).
+:func:`trefoil`
+    Generate trefoil aberration (Z9, Z10).
+:func:`spherical_aberration`
+    Generate spherical aberration (Z11).
+:func:`apply_aberration`
+    Apply aberration to optical wavefront.
+:func:`generate_aberration_nm`
+    Generate aberration phase map from (n, m) coefficients.
+:func:`generate_aberration_noll`
+    Generate aberration phase map from Noll coefficients.
+:func:`compute_phase_from_coeffs`
+    Compute phase map from Zernike coefficients.
+:func:`phase_rms`
+    Compute RMS of phase within the unit pupil.
 
 Notes
 -----

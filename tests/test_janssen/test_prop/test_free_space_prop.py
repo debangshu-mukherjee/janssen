@@ -21,7 +21,6 @@ from janssen.utils import (
 
 
 class TestLensProp(chex.TestCase, parameterized.TestCase):
-    @chex.all_variants(with_jit=True, without_jit=True)
     def setUp(self) -> None:
         super().setUp()
         self.nx = 128
@@ -34,21 +33,19 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         self.r = jnp.sqrt(self.xx**2 + self.yy**2)
         sigma = 20 * self.dx
         gaussian_field = jnp.exp(-(self.r**2) / (2 * sigma**2))
-        var_make_optical_wavefront = self.variant(make_optical_wavefront)
-        self.test_wavefront = var_make_optical_wavefront(
+        self.test_wavefront = make_optical_wavefront(
             field=gaussian_field.astype(complex),
             wavelength=self.wavelength,
             dx=self.dx,
             z_position=0.0,
         )
-        self.plane_wave = var_make_optical_wavefront(
+        self.plane_wave = make_optical_wavefront(
             field=jnp.ones((self.ny, self.nx), dtype=complex),
             wavelength=self.wavelength,
             dx=self.dx,
             z_position=0.0,
         )
-        var_make_lens_params = self.variant(make_lens_params)
-        self.test_lens = var_make_lens_params(
+        self.test_lens = make_lens_params(
             focal_length=0.01,
             diameter=0.00005,
             n=1.5,
@@ -166,7 +163,13 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         chex.assert_trees_all_close(
             propagated.wavelength, self.test_wavefront.wavelength
         )
-        chex.assert_trees_all_close(propagated.dx, self.test_wavefront.dx)
+        # Fraunhofer propagation changes dx: dx_out = wavelength * z / (N * dx_in)
+        expected_dx = (
+            self.test_wavefront.wavelength
+            * z_distance
+            / (self.nx * self.test_wavefront.dx)
+        )
+        chex.assert_trees_all_close(propagated.dx, expected_dx, rtol=1e-5)
         chex.assert_trees_all_close(
             propagated.z_position,
             self.test_wavefront.z_position + z_distance,
@@ -332,8 +335,7 @@ class TestLensProp(chex.TestCase, parameterized.TestCase):
         """
         Test propagation with edge case fields.
         """
-        var_make_optical_wavefront = self.variant(make_optical_wavefront)
-        wavefront = var_make_optical_wavefront(
+        wavefront = make_optical_wavefront(
             field=field,
             wavelength=self.wavelength,
             dx=self.dx,
