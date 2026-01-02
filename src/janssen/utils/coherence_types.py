@@ -99,7 +99,8 @@ class CoherentModeSet(NamedTuple):
     """
 
     modes: Union[
-        Complex[Array, " num_modes hh ww"], Complex[Array, " num_modes hh ww 2"]
+        Complex[Array, " num_modes hh ww"],
+        Complex[Array, " num_modes hh ww 2"],
     ]
     weights: Float[Array, " num_modes"]
     wavelength: Float[Array, " "]
@@ -166,11 +167,14 @@ class CoherentModeSet(NamedTuple):
 
         I(r) = Σₙ weights[n] × |modes[n](r)|²
         """
-        mode_intensities: Float[Array, " num_modes hh ww"] = jnp.sum(
-            jnp.abs(self.modes) ** 2, axis=-1
-        ) if self.polarization else jnp.abs(self.modes) ** 2
+        mode_intensities: Float[Array, " num_modes hh ww"] = (
+            jnp.sum(jnp.abs(self.modes) ** 2, axis=-1)
+            if self.polarization
+            else jnp.abs(self.modes) ** 2
+        )
         return jnp.sum(
-            self.weights[:, jnp.newaxis, jnp.newaxis] * mode_intensities, axis=0
+            self.weights[:, jnp.newaxis, jnp.newaxis] * mode_intensities,
+            axis=0,
         )
 
     @property
@@ -298,11 +302,14 @@ class PolychromaticWavefront(NamedTuple):
 
         I(r) = Σᵢ spectral_weights[i] × |fields[i](r)|²
         """
-        field_intensities: Float[Array, " num_wavelengths hh ww"] = jnp.sum(
-            jnp.abs(self.fields) ** 2, axis=-1
-        ) if self.polarization else jnp.abs(self.fields) ** 2
+        field_intensities: Float[Array, " num_wavelengths hh ww"] = (
+            jnp.sum(jnp.abs(self.fields) ** 2, axis=-1)
+            if self.polarization
+            else jnp.abs(self.fields) ** 2
+        )
         return jnp.sum(
-            self.spectral_weights[:, jnp.newaxis, jnp.newaxis] * field_intensities,
+            self.spectral_weights[:, jnp.newaxis, jnp.newaxis]
+            * field_intensities,
             axis=0,
         )
 
@@ -413,7 +420,8 @@ class MutualIntensity(NamedTuple):
 @jaxtyped(typechecker=beartype)
 def make_coherent_mode_set(
     modes: Union[
-        Complex[Array, " num_modes hh ww"], Complex[Array, " num_modes hh ww 2"]
+        Complex[Array, " num_modes hh ww"],
+        Complex[Array, " num_modes hh ww 2"],
     ],
     weights: Float[Array, " num_modes"],
     wavelength: ScalarNumeric,
@@ -458,20 +466,24 @@ def make_coherent_mode_set(
     """
     modes = jnp.asarray(modes, dtype=jnp.complex128)
     weights = jnp.asarray(weights, dtype=jnp.float64)
-    wavelength_arr: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
+    wavelength_arr: Float[Array, " "] = jnp.asarray(
+        wavelength, dtype=jnp.float64
+    )
     dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
-    z_position_arr: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
-    polarization_arr: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
+    z_position_arr: Float[Array, " "] = jnp.asarray(
+        z_position, dtype=jnp.float64
+    )
+    polarization_arr: Bool[Array, " "] = jnp.asarray(
+        polarization, dtype=jnp.bool_
+    )
 
     def validate_and_create() -> CoherentModeSet:
         def check_modes_shape() -> Complex[Array, "..."]:
             expected_ndim: int = 4 if polarization else 3
             is_valid_ndim: Bool[Array, " "] = modes.ndim == expected_ndim
-            is_valid_pol_dim: Bool[Array, " "] = (
-                jnp.logical_or(
-                    jnp.logical_not(polarization_arr),
-                    modes.shape[-1] == 2,
-                )
+            is_valid_pol_dim: Bool[Array, " "] = jnp.logical_or(
+                jnp.logical_not(polarization_arr),
+                modes.shape[-1] == 2,
             )
             is_valid: Bool[Array, " "] = jnp.logical_and(
                 is_valid_ndim, is_valid_pol_dim
@@ -599,8 +611,12 @@ def make_polychromatic_wavefront(
     wavelengths = jnp.asarray(wavelengths, dtype=jnp.float64)
     spectral_weights = jnp.asarray(spectral_weights, dtype=jnp.float64)
     dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
-    z_position_arr: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
-    polarization_arr: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
+    z_position_arr: Float[Array, " "] = jnp.asarray(
+        z_position, dtype=jnp.float64
+    )
+    polarization_arr: Bool[Array, " "] = jnp.asarray(
+        polarization, dtype=jnp.bool_
+    )
 
     def validate_and_create() -> PolychromaticWavefront:
         def check_fields_shape() -> Complex[Array, "..."]:
@@ -637,7 +653,9 @@ def make_polychromatic_wavefront(
                 lambda: spectral_weights,
                 lambda: lax.stop_gradient(
                     lax.cond(
-                        False, lambda: spectral_weights, lambda: spectral_weights
+                        False,
+                        lambda: spectral_weights,
+                        lambda: spectral_weights,
                     )
                 ),
             )
@@ -680,7 +698,9 @@ def make_polychromatic_wavefront(
 
         validated_fields: Complex[Array, "..."] = check_fields_shape()
         validated_wavelengths: Float[Array, " num_wavelengths"] = (
-            check_wavelengths_positive(check_wavelengths_shape(validated_fields))
+            check_wavelengths_positive(
+                check_wavelengths_shape(validated_fields)
+            )
         )
         validated_spectral_weights: Float[Array, " num_wavelengths"] = (
             normalize_weights_fn(
@@ -738,9 +758,13 @@ def make_mutual_intensity(
     Consider using CoherentModeSet for larger grids.
     """
     j_matrix = jnp.asarray(j_matrix, dtype=jnp.complex128)
-    wavelength_arr: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
+    wavelength_arr: Float[Array, " "] = jnp.asarray(
+        wavelength, dtype=jnp.float64
+    )
     dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
-    z_position_arr: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
+    z_position_arr: Float[Array, " "] = jnp.asarray(
+        z_position, dtype=jnp.float64
+    )
 
     def validate_and_create() -> MutualIntensity:
         def check_j_matrix_shape() -> Complex[Array, " hh ww hh ww"]:
@@ -781,7 +805,9 @@ def make_mutual_intensity(
                 ),
             )
 
-        validated_j_matrix: Complex[Array, " hh ww hh ww"] = check_j_matrix_shape()
+        validated_j_matrix: Complex[Array, " hh ww hh ww"] = (
+            check_j_matrix_shape()
+        )
         validated_wavelength: Float[Array, " "] = check_wavelength()
         validated_dx: Float[Array, " "] = check_dx()
 

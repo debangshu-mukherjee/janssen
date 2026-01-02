@@ -9,6 +9,8 @@ and JIT-compilable functions.
 
 Submodules
 ----------
+coherence
+    Partial coherence support for spatial and temporal coherence effects.
 invert
     Inversion algorithms for phase retrieval and ptychography.
 lenses
@@ -60,6 +62,7 @@ import jax  # noqa: E402
 jax.config.update("jax_enable_x64", True)
 
 from . import (  # noqa: E402, I001
+    coherence,
     invert,
     lenses,
     models,
@@ -74,6 +77,7 @@ __version__: str = version("janssen")
 
 __all__: list[str] = [
     "__version__",
+    "coherence",
     "invert",
     "lenses",
     "models",
