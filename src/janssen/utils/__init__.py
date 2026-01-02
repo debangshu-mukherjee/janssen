@@ -8,6 +8,8 @@ Provides the foundation for type-safe JAX programming with PyTrees.
 
 Submodules
 ----------
+coherence_types
+    Coherence types for partially coherent field representation
 distributed
     Multi-device utilities for scalable optical computing
 factory
@@ -25,6 +27,8 @@ create_mesh : function
     Creates a device mesh for data parallelism across available devices
 get_device_count : function
     Gets the number of available JAX devices
+make_coherent_mode_set : function
+    Factory function for CoherentModeSet creation
 make_diffractogram : function
     Factory function for Diffractogram creation
 make_grid_params : function
@@ -33,8 +37,12 @@ make_lens_params : function
     Factory function for LensParams creation
 make_microscope_data : function
     Factory function for MicroscopeData creation
+make_mutual_intensity : function
+    Factory function for MutualIntensity creation
 make_optical_wavefront : function
     Factory function for OpticalWavefront creation
+make_polychromatic_wavefront : function
+    Factory function for PolychromaticWavefront creation
 make_propagating_wavefront : function
     Factory function for PropagatingWavefront creation
 optical2propagating : function
@@ -59,6 +67,8 @@ shard_batch : function
     Shards array data across the batch dimension for parallel processing
 wirtinger_grad : function
     Compute the Wirtinger gradient of a complex-valued function
+CoherentModeSet : PyTree
+    PyTree for coherent mode decomposition of partially coherent fields
 Diffractogram : PyTree
     PyTree for storing diffraction patterns
 GridParams : PyTree
@@ -67,12 +77,16 @@ LensParams : PyTree
     PyTree for lens optical parameters
 MicroscopeData : PyTree
     PyTree for microscopy data
+MutualIntensity : PyTree
+    PyTree for full mutual intensity J(r1, r2) representation
 NonJaxNumber : TypeAlias
     Type alias for Python numeric types
 OpticalWavefront : PyTree
     PyTree for optical wavefront representation
 OptimizerState : PyTree
     PyTree for optimizer state tracking
+PolychromaticWavefront : PyTree
+    PyTree for polychromatic/broadband field representation
 PropagatingWavefront : PyTree
     PyTree for propagating optical wavefront representation
 PtychographyParams : PyTree
@@ -103,6 +117,14 @@ proper type checking and validation. All PyTrees are registered with
 JAX and support automatic differentiation.
 """
 
+from .coherence_types import (
+    CoherentModeSet,
+    MutualIntensity,
+    PolychromaticWavefront,
+    make_coherent_mode_set,
+    make_mutual_intensity,
+    make_polychromatic_wavefront,
+)
 from .distributed import (
     create_mesh,
     get_device_count,
@@ -154,28 +176,40 @@ from .vector_types import (
 )
 
 __all__: list[str] = [
+    # Distributed utilities
     "create_mesh",
     "get_device_count",
+    "shard_batch",
+    # Factory functions
+    "make_coherent_mode_set",
     "make_diffractogram",
     "make_epie_data",
     "make_epie_params",
     "make_grid_params",
     "make_lens_params",
     "make_microscope_data",
+    "make_mutual_intensity",
     "make_optical_wavefront",
     "make_optimizer_state",
+    "make_polychromatic_wavefront",
     "make_propagating_wavefront",
     "make_ptychography_params",
     "make_ptychography_reconstruction",
     "make_sample_function",
     "make_sliced_material_function",
     "make_vector_wavefront_3d",
+    "optical2propagating",
+    # Vector type utilities
     "jones_to_vector3d",
     "vector3d_to_jones",
-    "optical2propagating",
-    "shard_batch",
+    # Math utilities
     "fourier_shift",
     "wirtinger_grad",
+    # Coherence types
+    "CoherentModeSet",
+    "MutualIntensity",
+    "PolychromaticWavefront",
+    # Core types
     "Diffractogram",
     "EpieData",
     "EpieParams",

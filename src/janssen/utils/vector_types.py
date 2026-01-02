@@ -34,7 +34,6 @@ The Ez component is typically zero in the input pupil plane and develops
 during propagation through high-NA optical systems.
 """
 
-import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import NamedTuple, Tuple

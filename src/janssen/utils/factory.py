@@ -40,7 +40,6 @@ NamedTuple classes to ensure proper runtime type checking of the
 contents.
 """
 
-import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional, Tuple, Union
