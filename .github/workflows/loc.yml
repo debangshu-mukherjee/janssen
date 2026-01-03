@@ -18,16 +18,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install pygount
-        run: uv pip install pygount --system
-
       - name: Count lines of code
         id: loc
         run: |
-          LOC=$(pygount --format=cloc-xml src/janssen | grep -oP '<total[^>]*code="\K[0-9]+')
+          LOC=$(uvx pygount --format=cloc-xml src/janssen | grep -oP '<total[^>]*code="\K[0-9]+')
           echo "loc=$LOC" >> $GITHUB_OUTPUT
           echo "Lines of code: $LOC"
 

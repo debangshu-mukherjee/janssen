@@ -161,7 +161,7 @@ class TestBesselKv(chex.TestCase, parameterized.TestCase):
         ("order_0", 0.0, 1.0, 0.4210244382),
         ("order_1", 1.0, 1.0, 0.6019072301),
         ("order_2", 2.0, 1.0, 1.6248388987),
-        ("order_half", 0.5, 1.0, 0.46756394),
+        ("order_half", 0.5, 1.0, 0.4610685044),
     )
     def test_known_values(self, v: float, x_val: float, expected: float):
         """Test bessel_kv with known values.

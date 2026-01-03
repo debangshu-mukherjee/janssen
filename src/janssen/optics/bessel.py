@@ -112,7 +112,14 @@ def bessel_jn(
 def bessel_iv_series(
     v_order: ScalarFloat, x_val: Float[Array, " ..."], dtype: jnp.dtype
 ) -> Float[Array, " ..."]:
-    """Compute I_v(x) using series expansion for Bessel function."""
+    """Compute I_v(x) using series expansion for Bessel function.
+
+    Note: For negative integer v, the gamma function is infinite which
+    would produce NaN. We deliberately return 0.0 in these cases to
+    prevent gradient issues in jnp.where branches that are not selected.
+    This is safe because bessel_kv only uses this function for non-integer
+    v values.
+    """
     x_half: Float[Array, " ..."] = x_val / 2.0
     x_half_v: Float[Array, " ..."] = jnp.power(x_half, v_order)
     x2_quarter: Float[Array, " ..."] = (x_val * x_val) / 4.0
@@ -121,8 +128,14 @@ def bessel_iv_series(
     k_arr: Float[Array, " 20"] = jnp.arange(max_terms, dtype=dtype)
 
     gamma_v_plus_1: Float[Array, ""] = jax.scipy.special.gamma(v_order + 1)
+    safe_gamma_v_plus_1: Float[Array, ""] = jnp.where(
+        jnp.isfinite(gamma_v_plus_1), gamma_v_plus_1, 1.0
+    )
     gamma_terms: Float[Array, " 20"] = jax.scipy.special.gamma(
         k_arr + v_order + 1
+    )
+    safe_gamma_terms: Float[Array, " 20"] = jnp.where(
+        jnp.isfinite(gamma_terms), gamma_terms, 1.0
     )
     factorial_terms: Float[Array, " 20"] = jax.scipy.special.factorial(k_arr)
 
@@ -130,13 +143,16 @@ def bessel_iv_series(
         x2_quarter[..., jnp.newaxis], k_arr
     )
     series_terms: Float[Array, " ... 20"] = powers / (
-        factorial_terms * gamma_terms / gamma_v_plus_1
+        factorial_terms * safe_gamma_terms / safe_gamma_v_plus_1
     )
 
     result: Float[Array, " ..."] = (
-        x_half_v / gamma_v_plus_1 * jnp.sum(series_terms, axis=-1)
+        x_half_v / safe_gamma_v_plus_1 * jnp.sum(series_terms, axis=-1)
     )
-    return result
+    safe_result: Float[Array, " ..."] = jnp.where(
+        jnp.isfinite(gamma_v_plus_1), result, 0.0
+    )
+    return safe_result
 
 
 @jaxtyped(typechecker=beartype)
@@ -174,34 +190,31 @@ def bessel_kn_recurrence(
     k0: Float[Array, " ..."],
     k1: Float[Array, " ..."],
 ) -> Float[Array, " ..."]:
-    """Compute K_n(x) using recurrence relation."""
+    """Compute K_n(x) using recurrence relation.
 
-    def _compute_kn() -> Float[Array, " ..."]:
-        init = (k0, k1)
-        max_n = 20
-        indices = jnp.arange(1, max_n, dtype=jnp.float32)
+    Uses lax.scan instead of while_loop to support reverse-mode autodiff.
+    """
+    max_order: int = 20
 
-        def masked_step(
-            carry: Tuple[Float[Array, " ..."], Float[Array, " ..."]],
-            i: Float[Array, ""],
-        ) -> Tuple[
-            Tuple[Float[Array, " ..."], Float[Array, " ..."]],
-            Float[Array, " ..."],
-        ]:
-            k_prev2, k_prev1 = carry
-            mask = i < n
-            two_i_over_x: Float[Array, " ..."] = 2.0 * i / x
-            k_curr: Float[Array, " ..."] = two_i_over_x * k_prev1 + k_prev2
-            k_curr = jnp.where(mask, k_curr, k_prev1)
-            return (k_prev1, k_curr), k_curr
+    def scan_body(
+        carry: Tuple[Float[Array, " ..."], Float[Array, " ..."]],
+        i: Int[Array, ""],
+    ) -> Tuple[
+        Tuple[Float[Array, " ..."], Float[Array, " ..."]], Float[Array, " ..."]
+    ]:
+        k_prev2, k_prev1 = carry
+        two_i_over_x: Float[Array, " ..."] = 2.0 * jnp.asarray(i, x.dtype) / x
+        k_curr: Float[Array, " ..."] = two_i_over_x * k_prev1 + k_prev2
+        return (k_prev1, k_curr), k_curr
 
-        carry, k_vals = jax.lax.scan(masked_step, init, indices)
-        final_k: Float[Array, " ..."] = carry[1]
-        return final_k
+    indices = jnp.arange(1, max_order + 1, dtype=jnp.int32)
+    _, all_kn_from_2 = jax.lax.scan(scan_body, (k0, k1), indices)
 
-    kn_result: Float[Array, " ..."] = jnp.where(
-        n == 0, k0, jnp.where(n == 1, k1, _compute_kn())
+    all_kn = jnp.concatenate(
+        [k0[jnp.newaxis, ...], k1[jnp.newaxis, ...], all_kn_from_2], axis=0
     )
+
+    kn_result: Float[Array, " ..."] = all_kn[n]
     return kn_result
 
 
@@ -209,12 +222,21 @@ def bessel_kn_recurrence(
 def bessel_kv_small_non_integer(
     v: ScalarFloat, x: Float[Array, " ..."], dtype: jnp.dtype
 ) -> Float[Array, " ..."]:
-    """Compute K_v(x) for small x and non-integer v."""
+    """Compute K_v(x) for small x and non-integer v.
+
+    Note: For integer v, sin(pi*v) is zero which would cause division by
+    zero. We use a safe denominator to prevent NaN gradients in jnp.where
+    branches that are not selected. This is safe because bessel_kv only
+    uses this function for non-integer v values.
+    """
     error_bound: Float[Array, ""] = jnp.asarray(1e-10)
     iv_pos: Float[Array, " ..."] = bessel_iv_series(v, x, dtype)
     iv_neg: Float[Array, " ..."] = bessel_iv_series(-v, x, dtype)
     sin_piv: Float[Array, ""] = jnp.sin(jnp.pi * v)
-    pi_over_2sin: Float[Array, ""] = jnp.pi / (2.0 * sin_piv)
+    safe_sin: Float[Array, ""] = jnp.where(
+        jnp.abs(sin_piv) > error_bound, sin_piv, 1.0
+    )
+    pi_over_2sin: Float[Array, ""] = jnp.pi / (2.0 * safe_sin)
     iv_diff: Float[Array, " ..."] = iv_neg - iv_pos
     result: Float[Array, " ..."] = jnp.where(
         jnp.abs(sin_piv) > error_bound, pi_over_2sin * iv_diff, 0.0
@@ -233,17 +255,22 @@ def bessel_kv_small_integer(
 
     k0: Float[Array, " ..."] = bessel_k0_series(x)
 
-    i1: Float[Array, " ..."] = jax.scipy.special.i1(x)
-    k1_coeffs: Float[Array, " 5"] = jnp.array(
-        [1.0, -0.5, 0.0625, -0.03125, 0.0234375], dtype=jnp.float64
+    log_term: Float[Array, " ..."] = jnp.log(x / 2.0)
+    euler_gamma: Float[Array, ""] = jnp.array(
+        0.57721566490153286060, dtype=x.dtype
     )
-    x2: Float[Array, " ..."] = (x * x) / 4.0
-    k1_powers: Float[Array, " ... 5"] = jnp.power(
-        x2[..., jnp.newaxis], jnp.arange(5)
+    x2: Float[Array, " ..."] = x * x
+    x3: Float[Array, " ..."] = x2 * x
+    x5: Float[Array, " ..."] = x3 * x2
+    x7: Float[Array, " ..."] = x5 * x2
+    base_log: Float[Array, " ..."] = log_term + euler_gamma
+    k1: Float[Array, " ..."] = (
+        1.0 / x
+        + 0.5 * x * (base_log - 0.5)
+        + x3 * (base_log - 1.25) / 16.0
+        + x5 * (base_log - 1.6666666666666667) / 384.0
+        + x7 * (base_log - 1.9583333333333333) / 18432.0
     )
-    k1_poly: Float[Array, " ..."] = jnp.sum(k1_coeffs * k1_powers, axis=-1)
-    log_i1_term: Float[Array, " ..."] = -jnp.log(x / 2.0) * i1
-    k1: Float[Array, " ..."] = log_i1_term + k1_poly / x
 
     kn_result: Float[Array, " ..."] = bessel_kn_recurrence(n, x, k0, k1)
     pos_v_result: Float[Array, " ..."] = jnp.where(
