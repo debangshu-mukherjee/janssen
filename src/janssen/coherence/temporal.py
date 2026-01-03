@@ -40,12 +40,18 @@ the power spectrum S(nu). For example:
 - Lorentzian spectrum -> Exponential coherence function
 - Rectangular spectrum -> Sinc coherence function
 
+All spectrum generation functions are JIT-compatible. Parameters that
+determine output array shapes (num_wavelengths) are treated as static.
+
 References
 ----------
 1. Goodman, J. W. "Statistical Optics" (2015)
 2. Born, M. & Wolf, E. "Principles of Optics" Chapter 10
 """
 
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional, Tuple
@@ -54,6 +60,27 @@ from jaxtyping import Array, Float, jaxtyped
 from janssen.utils import ScalarFloat, ScalarInteger
 
 C_LIGHT: float = 299792458.0
+
+
+@partial(jax.jit, static_argnums=(2,))
+def _gaussian_spectrum_impl(
+    center_wavelength: Float[Array, " "],
+    bandwidth_fwhm: Float[Array, " "],
+    num_wavelengths: int,
+    lam_min: Float[Array, " "],
+    lam_max: Float[Array, " "],
+) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
+    """JIT-compiled implementation of gaussian_spectrum."""
+    fwhm_to_sigma: float = 2.0 * jnp.sqrt(2.0 * jnp.log(2.0))
+    sigma: Float[Array, " "] = bandwidth_fwhm / fwhm_to_sigma
+    wavelengths: Float[Array, " n"] = jnp.linspace(
+        lam_min, lam_max, num_wavelengths
+    )
+    gaussian_weights: Float[Array, " n"] = jnp.exp(
+        -((wavelengths - center_wavelength) ** 2) / (2.0 * sigma**2)
+    )
+    weights: Float[Array, " n"] = gaussian_weights / jnp.sum(gaussian_weights)
+    return wavelengths, weights
 
 
 @jaxtyped(typechecker=beartype)
@@ -110,11 +137,28 @@ def gaussian_spectrum(
     else:
         lam_min = jnp.asarray(wavelength_range[0], dtype=jnp.float64)
         lam_max = jnp.asarray(wavelength_range[1], dtype=jnp.float64)
-    wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-    gaussian_weights: Float[Array, " n"] = jnp.exp(
-        -((wavelengths - lam0) ** 2) / (2.0 * sigma**2)
+    return _gaussian_spectrum_impl(lam0, fwhm, n, lam_min, lam_max)
+
+
+@partial(jax.jit, static_argnums=(2,))
+def _lorentzian_spectrum_impl(
+    center_wavelength: Float[Array, " "],
+    bandwidth_fwhm: Float[Array, " "],
+    num_wavelengths: int,
+    lam_min: Float[Array, " "],
+    lam_max: Float[Array, " "],
+) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
+    """JIT-compiled implementation of lorentzian_spectrum."""
+    wavelengths: Float[Array, " n"] = jnp.linspace(
+        lam_min, lam_max, num_wavelengths
     )
-    weights: Float[Array, " n"] = gaussian_weights / jnp.sum(gaussian_weights)
+    half_gamma: Float[Array, " "] = bandwidth_fwhm / 2.0
+    lorentzian_weights: Float[Array, " n"] = half_gamma**2 / (
+        (wavelengths - center_wavelength) ** 2 + half_gamma**2
+    )
+    weights: Float[Array, " n"] = lorentzian_weights / jnp.sum(
+        lorentzian_weights
+    )
     return wavelengths, weights
 
 
@@ -168,13 +212,23 @@ def lorentzian_spectrum(
     else:
         lam_min = jnp.asarray(wavelength_range[0], dtype=jnp.float64)
         lam_max = jnp.asarray(wavelength_range[1], dtype=jnp.float64)
-    wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-    half_gamma: Float[Array, " "] = gamma / 2.0
-    lorentzian_weights: Float[Array, " n"] = half_gamma**2 / (
-        (wavelengths - lam0) ** 2 + half_gamma**2
+    return _lorentzian_spectrum_impl(lam0, gamma, n, lam_min, lam_max)
+
+
+@partial(jax.jit, static_argnums=(2,))
+def _rectangular_spectrum_impl(
+    center_wavelength: Float[Array, " "],
+    bandwidth: Float[Array, " "],
+    num_wavelengths: int,
+) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
+    """JIT-compiled implementation of rectangular_spectrum."""
+    lam_min: Float[Array, " "] = center_wavelength - bandwidth / 2.0
+    lam_max: Float[Array, " "] = center_wavelength + bandwidth / 2.0
+    wavelengths: Float[Array, " n"] = jnp.linspace(
+        lam_min, lam_max, num_wavelengths
     )
-    weights: Float[Array, " n"] = lorentzian_weights / jnp.sum(
-        lorentzian_weights
+    weights: Float[Array, " n"] = (
+        jnp.ones(num_wavelengths, dtype=jnp.float64) / num_wavelengths
     )
     return wavelengths, weights
 
@@ -213,10 +267,33 @@ def rectangular_spectrum(
     lam0: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     delta_lam: Float[Array, " "] = jnp.asarray(bandwidth, dtype=jnp.float64)
     n: int = int(num_wavelengths)
-    lam_min: Float[Array, " "] = lam0 - delta_lam / 2.0
-    lam_max: Float[Array, " "] = lam0 + delta_lam / 2.0
-    wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-    weights: Float[Array, " n"] = jnp.ones(n, dtype=jnp.float64) / n
+    return _rectangular_spectrum_impl(lam0, delta_lam, n)
+
+
+@partial(jax.jit, static_argnums=(2,))
+def _blackbody_spectrum_impl(
+    temperature: Float[Array, " "],
+    lam_min: Float[Array, " "],
+    num_wavelengths: int,
+    lam_max: Float[Array, " "],
+) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
+    """JIT-compiled implementation of blackbody_spectrum."""
+    planck_constant: float = 6.62607015e-34
+    boltzmann_constant: float = 1.380649e-23
+    c: float = C_LIGHT
+    wavelengths: Float[Array, " n"] = jnp.linspace(
+        lam_min, lam_max, num_wavelengths
+    )
+    planck_exponent: Float[Array, " n"] = (
+        planck_constant * c / (wavelengths * boltzmann_constant * temperature)
+    )
+    planck_exponent_clipped: Float[Array, " n"] = jnp.clip(
+        planck_exponent, -700, 700
+    )
+    planck_weights: Float[Array, " n"] = (
+        2.0 * planck_constant * c**2 / wavelengths**5
+    ) / (jnp.exp(planck_exponent_clipped) - 1.0)
+    weights: Float[Array, " n"] = planck_weights / jnp.sum(planck_weights)
     return wavelengths, weights
 
 
@@ -255,9 +332,6 @@ def blackbody_spectrum(
 
     For a 5800 K blackbody (Sun), the peak is near 500 nm.
     """
-    planck_constant: float = 6.62607015e-34
-    boltzmann_constant: float = 1.380649e-23
-    c: float = C_LIGHT
     temp: Float[Array, " "] = jnp.asarray(temperature, dtype=jnp.float64)
     lam_min: Float[Array, " "] = jnp.asarray(
         wavelength_range[0], dtype=jnp.float64
@@ -266,18 +340,7 @@ def blackbody_spectrum(
         wavelength_range[1], dtype=jnp.float64
     )
     n: int = int(num_wavelengths)
-    wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-    planck_exponent: Float[Array, " n"] = (
-        planck_constant * c / (wavelengths * boltzmann_constant * temp)
-    )
-    planck_exponent_clipped: Float[Array, " n"] = jnp.clip(
-        planck_exponent, -700, 700
-    )
-    planck_weights: Float[Array, " n"] = (
-        2.0 * planck_constant * c**2 / wavelengths**5
-    ) / (jnp.exp(planck_exponent_clipped) - 1.0)
-    weights: Float[Array, " n"] = planck_weights / jnp.sum(planck_weights)
-    return wavelengths, weights
+    return _blackbody_spectrum_impl(temp, lam_min, n, lam_max)
 
 
 @jaxtyped(typechecker=beartype)

@@ -43,12 +43,37 @@ References
 2. Mandel, L. & Wolf, E. "Optical Coherence and Quantum Optics" (1995)
 """
 
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import ScalarFloat, ScalarInteger
+
+
+@partial(jax.jit, static_argnums=(0, 1))
+def _gaussian_coherence_kernel_impl(
+    hh: int,
+    ww: int,
+    dx: Float[Array, " "],
+    coherence_width: Float[Array, " "],
+) -> Float[Array, " hh ww"]:
+    """JIT-compiled implementation of gaussian_coherence_kernel."""
+    yr: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
+    xr: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
+    xx: Float[Array, " hh ww"]
+    yy: Float[Array, " hh ww"]
+    xx, yy = jnp.meshgrid(xr, yr)
+    r2: Float[Array, " hh ww"] = (xx**2) + (yy**2)
+    sigma_c: Float[Array, " "] = jnp.asarray(
+        coherence_width, dtype=jnp.float64
+    )
+    kernel_ft: Float[Array, " hh ww"] = jnp.exp(-r2 / (2.0 * sigma_c**2))
+    kernel: Float[Array, " hh ww"] = jnp.fft.ifftshift(kernel_ft)
+    return kernel
 
 
 @jaxtyped(typechecker=beartype)
@@ -96,17 +121,44 @@ def gaussian_coherence_kernel(
     """
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
-    yr: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
-    xr: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
+    dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
+    coh_arr: Float[Array, " "] = jnp.asarray(coherence_width, dtype=jnp.float64)
+    return _gaussian_coherence_kernel_impl(hh, ww, dx_arr, coh_arr)
+
+
+@partial(jax.jit, static_argnums=(0, 1))
+def _jinc_coherence_kernel_impl(
+    hh: int,
+    ww: int,
+    dx: Float[Array, " "],
+    source_diameter: Float[Array, " "],
+    wavelength: Float[Array, " "],
+    propagation_distance: Float[Array, " "],
+) -> Float[Array, " hh ww"]:
+    """JIT-compiled implementation of jinc_coherence_kernel."""
+    y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
+    x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
-    xx, yy = jnp.meshgrid(xr, yr)
-    r2: Float[Array, " hh ww"] = (xx**2) + (yy**2)
-    sigma_c: Float[Array, " "] = jnp.asarray(
-        coherence_width, dtype=jnp.float64
+    xx, yy = jnp.meshgrid(x, y)
+    radial_distance: Float[Array, " hh ww"] = jnp.sqrt(xx**2 + yy**2)
+    lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
+    z: Float[Array, " "] = jnp.asarray(propagation_distance, dtype=jnp.float64)
+    d: Float[Array, " "] = jnp.asarray(source_diameter, dtype=jnp.float64)
+    jinc_argument: Float[Array, " hh ww"] = (
+        jnp.pi * d * radial_distance / (lam * z)
     )
-    kernel_ft: Float[Array, " hh ww"] = jnp.exp(-r2 / (2.0 * sigma_c**2))
-    kernel: Float[Array, " hh ww"] = jnp.fft.ifftshift(kernel_ft)
+    j1_value: Float[Array, " hh ww"] = jnp.where(
+        jinc_argument < 1e-10,
+        jinc_argument / 2.0,
+        jax_bessel_j1(jinc_argument),
+    )
+    kernel: Float[Array, " hh ww"] = jnp.where(
+        jinc_argument < 1e-10,
+        1.0,
+        2.0 * j1_value / jinc_argument,
+    )
+    kernel = jnp.fft.ifftshift(kernel)
     return kernel
 
 
@@ -162,27 +214,41 @@ def jinc_coherence_kernel(
     """
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
+    dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
+    d_arr: Float[Array, " "] = jnp.asarray(source_diameter, dtype=jnp.float64)
+    lam_arr: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
+    z_arr: Float[Array, " "] = jnp.asarray(
+        propagation_distance, dtype=jnp.float64
+    )
+    return _jinc_coherence_kernel_impl(
+        hh, ww, dx_arr, d_arr, lam_arr, z_arr
+    )
+
+
+@partial(jax.jit, static_argnums=(0, 1))
+def _rectangular_coherence_kernel_impl(
+    hh: int,
+    ww: int,
+    dx: Float[Array, " "],
+    source_width_x: Float[Array, " "],
+    source_width_y: Float[Array, " "],
+    wavelength: Float[Array, " "],
+    propagation_distance: Float[Array, " "],
+) -> Float[Array, " hh ww"]:
+    """JIT-compiled implementation of rectangular_coherence_kernel."""
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
-    radial_distance: Float[Array, " hh ww"] = jnp.sqrt(xx**2 + yy**2)
     lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     z: Float[Array, " "] = jnp.asarray(propagation_distance, dtype=jnp.float64)
-    d: Float[Array, " "] = jnp.asarray(source_diameter, dtype=jnp.float64)
-    jinc_argument: Float[Array, " hh ww"] = (
-        jnp.pi * d * radial_distance / (lam * z)
-    )
-    j1_value: Float[Array, " hh ww"] = jnp.where(
-        jinc_argument < 1e-10,
-        jinc_argument / 2.0,
-        jax_bessel_j1(jinc_argument),
-    )
-    kernel: Float[Array, " hh ww"] = jnp.where(
-        jinc_argument < 1e-10,
-        1.0,
-        2.0 * j1_value / jinc_argument,
+    wx: Float[Array, " "] = jnp.asarray(source_width_x, dtype=jnp.float64)
+    wy: Float[Array, " "] = jnp.asarray(source_width_y, dtype=jnp.float64)
+    sinc_arg_x: Float[Array, " hh ww"] = wx * xx / (lam * z)
+    sinc_arg_y: Float[Array, " hh ww"] = wy * yy / (lam * z)
+    kernel: Float[Array, " hh ww"] = jnp.sinc(sinc_arg_x) * jnp.sinc(
+        sinc_arg_y
     )
     kernel = jnp.fft.ifftshift(kernel)
     return kernel
@@ -233,22 +299,16 @@ def rectangular_coherence_kernel(
     """
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
-    y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
-    x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
-    xx: Float[Array, " hh ww"]
-    yy: Float[Array, " hh ww"]
-    xx, yy = jnp.meshgrid(x, y)
-    lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
-    z: Float[Array, " "] = jnp.asarray(propagation_distance, dtype=jnp.float64)
-    wx: Float[Array, " "] = jnp.asarray(source_width_x, dtype=jnp.float64)
-    wy: Float[Array, " "] = jnp.asarray(source_width_y, dtype=jnp.float64)
-    sinc_arg_x: Float[Array, " hh ww"] = wx * xx / (lam * z)
-    sinc_arg_y: Float[Array, " hh ww"] = wy * yy / (lam * z)
-    kernel: Float[Array, " hh ww"] = jnp.sinc(sinc_arg_x) * jnp.sinc(
-        sinc_arg_y
+    dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
+    wx_arr: Float[Array, " "] = jnp.asarray(source_width_x, dtype=jnp.float64)
+    wy_arr: Float[Array, " "] = jnp.asarray(source_width_y, dtype=jnp.float64)
+    lam_arr: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
+    z_arr: Float[Array, " "] = jnp.asarray(
+        propagation_distance, dtype=jnp.float64
     )
-    kernel = jnp.fft.ifftshift(kernel)
-    return kernel
+    return _rectangular_coherence_kernel_impl(
+        hh, ww, dx_arr, wx_arr, wy_arr, lam_arr, z_arr
+    )
 
 
 @jaxtyped(typechecker=beartype)
@@ -295,6 +355,29 @@ def coherence_width_from_source(
     return coherence_width
 
 
+@jax.jit
+def _complex_degree_of_coherence_impl(
+    j_matrix: Complex[Array, " hh ww hh ww"],
+) -> Complex[Array, " hh ww hh ww"]:
+    """JIT-compiled implementation of complex_degree_of_coherence."""
+    intensity: Float[Array, " hh ww"] = jnp.real(
+        jnp.diagonal(
+            jnp.diagonal(j_matrix, axis1=0, axis2=2), axis1=0, axis2=1
+        )
+    )
+    intensity_r1: Float[Array, " hh ww 1 1"] = intensity[
+        :, :, jnp.newaxis, jnp.newaxis
+    ]
+    intensity_r2: Float[Array, " 1 1 hh ww"] = intensity[
+        jnp.newaxis, jnp.newaxis, :, :
+    ]
+    normalization: Float[Array, " hh ww hh ww"] = jnp.sqrt(
+        intensity_r1 * intensity_r2 + 1e-20
+    )
+    mu: Complex[Array, " hh ww hh ww"] = j_matrix / normalization
+    return mu
+
+
 @jaxtyped(typechecker=beartype)
 def complex_degree_of_coherence(
     j_matrix: Complex[Array, " hh ww hh ww"],
@@ -325,24 +408,7 @@ def complex_degree_of_coherence(
 
     For equal intensities, V = |mu|.
     """
-    hh: int = j_matrix.shape[0]
-    ww: int = j_matrix.shape[1]
-    intensity: Float[Array, " hh ww"] = jnp.real(
-        jnp.diagonal(
-            jnp.diagonal(j_matrix, axis1=0, axis2=2), axis1=0, axis2=1
-        )
-    )
-    intensity_r1: Float[Array, " hh ww 1 1"] = intensity[
-        :, :, jnp.newaxis, jnp.newaxis
-    ]
-    intensity_r2: Float[Array, " 1 1 hh ww"] = intensity[
-        jnp.newaxis, jnp.newaxis, :, :
-    ]
-    normalization: Float[Array, " hh ww hh ww"] = jnp.sqrt(
-        intensity_r1 * intensity_r2 + 1e-20
-    )
-    mu: Complex[Array, " hh ww hh ww"] = j_matrix / normalization
-    return mu
+    return _complex_degree_of_coherence_impl(j_matrix)
 
 
 def jax_bessel_j1(x: Float[Array, "..."]) -> Float[Array, "..."]:
