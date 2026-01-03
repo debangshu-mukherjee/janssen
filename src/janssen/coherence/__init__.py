@@ -87,8 +87,6 @@ The total intensity from coherent modes is:
 where wₙ are the modal weights and φₙ are the modes.
 """
 
-# Spatial coherence functions
-# Mode generation and decomposition
 from .modes import (
     effective_mode_count,
     eigenmode_decomposition,
@@ -98,7 +96,6 @@ from .modes import (
     mutual_intensity_from_modes,
 )
 
-# Propagation functions
 from .propagation import (
     apply_element_to_modes,
     intensity_from_modes,
@@ -108,7 +105,6 @@ from .propagation import (
     propagate_polychromatic,
 )
 
-# Source models
 from .sources import (
     laser_with_mode_noise,
     led_source,
@@ -124,7 +120,6 @@ from .spatial import (
     rectangular_coherence_kernel,
 )
 
-# Temporal coherence functions
 from .temporal import (
     bandwidth_from_coherence_length,
     blackbody_spectrum,
@@ -137,13 +132,11 @@ from .temporal import (
 )
 
 __all__: list[str] = [
-    # Spatial coherence
     "gaussian_coherence_kernel",
     "jinc_coherence_kernel",
     "rectangular_coherence_kernel",
     "coherence_width_from_source",
     "complex_degree_of_coherence",
-    # Temporal coherence
     "gaussian_spectrum",
     "lorentzian_spectrum",
     "rectangular_spectrum",
@@ -152,21 +145,18 @@ __all__: list[str] = [
     "coherence_time",
     "bandwidth_from_coherence_length",
     "spectral_phase_from_dispersion",
-    # Mode generation
     "hermite_gaussian_modes",
     "gaussian_schell_model_modes",
     "eigenmode_decomposition",
     "effective_mode_count",
     "modes_from_wavefront",
     "mutual_intensity_from_modes",
-    # Propagation
     "propagate_coherent_modes",
     "propagate_polychromatic",
     "apply_element_to_modes",
     "intensity_from_modes",
     "intensity_from_polychromatic",
     "propagate_and_focus_modes",
-    # Sources
     "led_source",
     "thermal_source",
     "synchrotron_source",

@@ -7,49 +7,40 @@ through different media and materials. Includes lens-based propagation,
 material-based propagation, free-space propagation, and high-NA vector
 focusing methods.
 
-Submodules
-----------
-free_space_prop
-    Free-space propagation functions using scalar diffraction theory
-material_prop
-    Material propagation functions for sliced material models
-vector_focusing
-    High-NA vector focusing using Richards-Wolf diffraction integrals
-
 Routine Listings
 ----------------
-angular_spectrum_prop : function
+:func:`angular_spectrum_prop`
     Angular spectrum propagation method (no paraxial approximation).
-aplanatic_apodization : function
-    Apply sqrt(cos(theta)) apodization for aplanatic lens systems.
-compute_focal_volume : function
-    Compute 3D focal volume at multiple z planes.
-correct_propagator : function
-    Automatically selects the most appropriate propagation method.
-debye_wolf_focus : function
-    Compute focal field using Debye-Wolf formulation.
-digital_zoom : function
-    Digital zoom transformation for optical fields.
-fraunhofer_prop : function
-    Fraunhofer (far-field) propagation.
-fraunhofer_prop_scaled : function
-    Fraunhofer propagation with output at specified pixel size.
-fresnel_prop : function
+:func:`fresnel_prop`
     Fresnel (near-field) propagation.
-high_na_focus : function
-    Compute focal field using Richards-Wolf vector diffraction integrals.
-lens_propagation : function
+:func:`fraunhofer_prop`
+    Fraunhofer (far-field) propagation.
+:func:`fraunhofer_prop_scaled`
+    Fraunhofer propagation with output at specified pixel size.
+:func:`correct_propagator`
+    Automatically selects the most appropriate propagation method.
+:func:`lens_propagation`
     Propagate optical wavefront through a lens.
-multislice_propagation : function
-    Propagate optical wavefront through a 3D material.
-optical_path_length : function
-    Compute the optical path length through a material.
-optical_zoom : function
+:func:`digital_zoom`
+    Digital zoom transformation for optical fields.
+:func:`optical_zoom`
     Optical zoom transformation.
-scalar_focus_for_comparison : function
-    Compute scalar focal field for comparison with vector result.
-total_transmit : function
+:func:`multislice_propagation`
+    Propagate optical wavefront through a 3D material.
+:func:`optical_path_length`
+    Compute the optical path length through a material.
+:func:`total_transmit`
     Compute the total transmission through a material.
+:func:`high_na_focus`
+    Compute focal field using Richards-Wolf vector diffraction integrals.
+:func:`debye_wolf_focus`
+    Compute focal field using Debye-Wolf formulation.
+:func:`aplanatic_apodization`
+    Apply sqrt(cos(theta)) apodization for aplanatic lens systems.
+:func:`compute_focal_volume`
+    Compute 3D focal volume at multiple z planes.
+:func:`scalar_focus_for_comparison`
+    Compute scalar focal field for comparison with vector result.
 
 Notes
 -----

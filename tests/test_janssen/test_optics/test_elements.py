@@ -237,9 +237,13 @@ class TestElements(chex.TestCase, parameterized.TestCase):
         expected_field = self.field * jnp.exp(1j * phase_map)
         chex.assert_trees_all_close(output.field, expected_field, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_apply_phase_mask_fn(self) -> None:
-        """Test applying phase mask from function."""
+        """Test applying phase mask from function.
+
+        Note: Only tested without JIT since phase_fn is a Python callable
+        that cannot be traced by JAX without static_argnames.
+        """
         var_apply_phase_mask_fn = self.variant(apply_phase_mask_fn)
 
         def phase_fn(

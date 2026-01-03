@@ -398,24 +398,17 @@ class MutualIntensity(NamedTuple):
     @property
     def intensity(self) -> Float[Array, " hh ww"]:
         """Return intensity I(r) = J(r, r) (diagonal of mutual intensity)."""
-        hh, ww = self.j_matrix.shape[:2]
-        # Extract diagonal: J(r, r) for each spatial point
-        intensity: Float[Array, " hh ww"] = jnp.real(
+        diagonal_elements: Float[Array, " hh ww"] = jnp.real(
             jnp.diagonal(
                 jnp.diagonal(self.j_matrix, axis1=0, axis2=2), axis1=0, axis2=1
             )
         )
-        return intensity
+        return diagonal_elements
 
     @property
     def grid_size(self) -> Tuple[int, int]:
         """Return the spatial grid size (height, width)."""
         return (self.j_matrix.shape[0], self.j_matrix.shape[1])
-
-
-# =============================================================================
-# Factory Functions
-# =============================================================================
 
 
 @jaxtyped(typechecker=beartype)
@@ -466,8 +459,8 @@ def make_coherent_mode_set(
     ValueError
         If modes and weights have inconsistent shapes, or if validation fails.
     """
-    non_polar_dim: int = 3  # modes shape: (num_modes, hh, ww)
-    polar_dim: int = 4  # modes shape: (num_modes, hh, ww, 2)
+    non_polar_dim: int = 3
+    polar_dim: int = 4
     modes = jnp.asarray(modes, dtype=jnp.complex128)
     weights = jnp.asarray(weights, dtype=jnp.float64)
     wavelength_arr: Float[Array, " "] = jnp.asarray(
@@ -481,7 +474,6 @@ def make_coherent_mode_set(
         polarization, dtype=jnp.bool_
     )
 
-    # Auto-detect polarization from modes dimensions
     polarization_arr = jnp.where(
         modes.ndim == polar_dim,
         jnp.asarray(modes.shape[-1] == 2, dtype=jnp.bool_),
@@ -533,7 +525,6 @@ def make_coherent_mode_set(
         def check_weights_nonnegative(
             w: Float[Array, " num_modes"],
         ) -> Float[Array, " num_modes"]:
-            # Clip small negative values (numerical artifacts from eigendecomp)
             w_clipped: Float[Array, " num_modes"] = jnp.maximum(w, 0.0)
             return w_clipped
 
@@ -629,8 +620,8 @@ def make_polychromatic_wavefront(
     PolychromaticWavefront
         Validated polychromatic wavefront instance.
     """
-    non_polar_dim: int = 3  # fields shape: (num_wavelengths, hh, ww)
-    polar_dim: int = 4  # fields shape: (num_wavelengths, hh, ww, 2)
+    non_polar_dim: int = 3
+    polar_dim: int = 4
     fields = jnp.asarray(fields, dtype=jnp.complex128)
     wavelengths = jnp.asarray(wavelengths, dtype=jnp.float64)
     spectral_weights = jnp.asarray(spectral_weights, dtype=jnp.float64)
@@ -642,7 +633,6 @@ def make_polychromatic_wavefront(
         polarization, dtype=jnp.bool_
     )
 
-    # Auto-detect polarization from fields dimensions
     polarization_arr = jnp.where(
         fields.ndim == polar_dim,
         jnp.asarray(fields.shape[-1] == 2, dtype=jnp.bool_),
@@ -816,7 +806,6 @@ def make_mutual_intensity(
 
     def validate_and_create() -> MutualIntensity:
         def check_j_matrix_shape() -> Complex[Array, " hh ww hh ww"]:
-            # Must be 4D with matching spatial dimensions
             is_valid_ndim: Bool[Array, " "] = j_matrix.ndim == 4
             is_valid_shape: Bool[Array, " "] = jnp.logical_and(
                 j_matrix.shape[0] == j_matrix.shape[2],

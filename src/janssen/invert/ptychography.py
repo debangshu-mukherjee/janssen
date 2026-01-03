@@ -470,18 +470,15 @@ def _sm_epie_core(
         shift_x: Float[Array, " "] = pos[0]
         shift_y: Float[Array, " "] = pos[1]
 
-        # Shift probe to scan position (probe moves, object stays fixed)
         probe_shifted: Complex[Array, " H W"] = fourier_shift(
             probe, shift_x, shift_y
         )
 
-        # Forward model: exit wave in lab frame
         exit_wave: Complex[Array, " H W"] = obj * probe_shifted
         exit_wave_ft: Complex[Array, " H W"] = jnp.fft.fftshift(
             jnp.fft.fft2(exit_wave)
         )
 
-        # Amplitude constraint
         measured_amplitude: Float[Array, " H W"] = jnp.sqrt(
             jnp.maximum(measurement, 0.0)
         )
@@ -493,12 +490,8 @@ def _sm_epie_core(
             jnp.fft.ifftshift(exit_wave_ft_updated)
         )
 
-        # Difference for updates
         diff: Complex[Array, " H W"] = exit_wave_updated - exit_wave
 
-        # ePIE object update (in lab frame, where probe_shifted illuminates)
-        # Standard ePIE: O += alpha * P* * diff / max(|P|^2)
-        # This ensures uniform weighting across the illuminated region
         probe_conj: Complex[Array, " H W"] = jnp.conj(probe_shifted)
         probe_intensity: Float[Array, " H W"] = jnp.abs(probe_shifted) ** 2
         probe_max_intensity: Float[Array, " "] = jnp.max(probe_intensity)
@@ -507,15 +500,12 @@ def _sm_epie_core(
         )
         obj_new: Complex[Array, " H W"] = obj + obj_update
 
-        # ePIE probe update (in shifted frame, then shift back)
-        # Standard ePIE: P += beta * O* * diff / max(|O|^2)
         obj_conj: Complex[Array, " H W"] = jnp.conj(obj)
         obj_intensity: Float[Array, " H W"] = jnp.abs(obj) ** 2
         obj_max_intensity: Float[Array, " "] = jnp.max(obj_intensity)
         probe_update_shifted: Complex[Array, " H W"] = (
             beta * obj_conj * diff / (obj_max_intensity + eps)
         )
-        # Shift probe update back to probe's reference frame (centered)
         probe_update: Complex[Array, " H W"] = fourier_shift(
             probe_update_shifted, -shift_x, -shift_y
         )
@@ -531,7 +521,6 @@ def _sm_epie_core(
         None,
     ]:
         """One ePIE iteration: sequential pass through all positions."""
-        # Use lax.scan to process positions sequentially
         final_carry, _ = lax.scan(
             _epie_single_position,
             carry,

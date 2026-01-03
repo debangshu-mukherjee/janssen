@@ -6,109 +6,92 @@ Core utilities for the janssen package including type definitions,
 factory functions, and decorators for type checking and validation.
 Provides the foundation for type-safe JAX programming with PyTrees.
 
-Submodules
-----------
-coherence_types
-    Coherence types for partially coherent field representation
-distributed
-    Multi-device utilities for scalable optical computing
-factory
-    Factory functions for creating data structures
-math
-    Mathematical utilities including Wirtinger calculus
-types
-    Type definitions and PyTrees
-vector_types
-    Vector wavefront types for high-NA optics
-
 Routine Listings
 ----------------
-create_mesh : function
-    Creates a device mesh for data parallelism across available devices
-get_device_count : function
-    Gets the number of available JAX devices
-make_coherent_mode_set : function
-    Factory function for CoherentModeSet creation
-make_diffractogram : function
-    Factory function for Diffractogram creation
-make_grid_params : function
-    Factory function for GridParams creation
-make_lens_params : function
-    Factory function for LensParams creation
-make_microscope_data : function
-    Factory function for MicroscopeData creation
-make_mutual_intensity : function
-    Factory function for MutualIntensity creation
-make_optical_wavefront : function
-    Factory function for OpticalWavefront creation
-make_polychromatic_wavefront : function
-    Factory function for PolychromaticWavefront creation
-make_propagating_wavefront : function
-    Factory function for PropagatingWavefront creation
-optical2propagating : function
-    Creates a PropagatingWavefront from a tuple of OpticalWavefronts
-make_optimizer_state : function
-    Factory function for OptimizerState creation
-make_ptychography_params : function
-    Factory function for PtychographyParams creation
-make_ptychography_reconstruction : function
-    Factory function for PtychographyReconstruction creation
-make_sample_function : function
-    Factory function for SampleFunction creation
-make_sliced_material_function : function
-    Factory function for SlicedMaterialFunction creation
-make_vector_wavefront_3d : function
-    Factory function for VectorWavefront3D creation
-jones_to_vector3d : function
-    Convert Jones field to 3-component vector field
-vector3d_to_jones : function
-    Extract transverse components as Jones field
-shard_batch : function
-    Shards array data across the batch dimension for parallel processing
-wirtinger_grad : function
-    Compute the Wirtinger gradient of a complex-valued function
-CoherentModeSet : PyTree
-    PyTree for coherent mode decomposition of partially coherent fields
-Diffractogram : PyTree
-    PyTree for storing diffraction patterns
-GridParams : PyTree
-    PyTree for computational grid parameters
-LensParams : PyTree
-    PyTree for lens optical parameters
-MicroscopeData : PyTree
-    PyTree for microscopy data
-MutualIntensity : PyTree
-    PyTree for full mutual intensity J(r1, r2) representation
-NonJaxNumber : TypeAlias
-    Type alias for Python numeric types
-OpticalWavefront : PyTree
-    PyTree for optical wavefront representation
-OptimizerState : PyTree
-    PyTree for optimizer state tracking
-PolychromaticWavefront : PyTree
-    PyTree for polychromatic/broadband field representation
-PropagatingWavefront : PyTree
-    PyTree for propagating optical wavefront representation
-PtychographyParams : PyTree
-    PyTree for ptychography reconstruction parameters
-PtychographyReconstruction : PyTree
-    PyTree for ptychography reconstruction results
-SampleFunction : PyTree
-    PyTree for sample representation
-ScalarBool : TypeAlias
-    Type alias for scalar boolean values
-ScalarComplex : TypeAlias
-    Type alias for scalar complex values
-ScalarFloat : TypeAlias
-    Type alias for scalar float values
-ScalarInteger : TypeAlias
-    Type alias for scalar integer values
-ScalarNumeric : TypeAlias
-    Type alias for any scalar numeric value
-SlicedMaterialFunction : PyTree
-    PyTree for 3D sliced material with complex refractive index
-VectorWavefront3D : PyTree
-    PyTree for full 3-component vector electric field
+:func:`create_mesh`
+    Creates a device mesh for data parallelism across available devices.
+:func:`get_device_count`
+    Gets the number of available JAX devices.
+:func:`shard_batch`
+    Shards array data across the batch dimension for parallel processing.
+:func:`make_optical_wavefront`
+    Factory function for OpticalWavefront creation.
+:func:`make_propagating_wavefront`
+    Factory function for PropagatingWavefront creation.
+:func:`optical2propagating`
+    Creates a PropagatingWavefront from a tuple of OpticalWavefronts.
+:func:`make_coherent_mode_set`
+    Factory function for CoherentModeSet creation.
+:func:`make_polychromatic_wavefront`
+    Factory function for PolychromaticWavefront creation.
+:func:`make_mutual_intensity`
+    Factory function for MutualIntensity creation.
+:func:`make_diffractogram`
+    Factory function for Diffractogram creation.
+:func:`make_grid_params`
+    Factory function for GridParams creation.
+:func:`make_lens_params`
+    Factory function for LensParams creation.
+:func:`make_microscope_data`
+    Factory function for MicroscopeData creation.
+:func:`make_sample_function`
+    Factory function for SampleFunction creation.
+:func:`make_sliced_material_function`
+    Factory function for SlicedMaterialFunction creation.
+:func:`make_optimizer_state`
+    Factory function for OptimizerState creation.
+:func:`make_ptychography_params`
+    Factory function for PtychographyParams creation.
+:func:`make_ptychography_reconstruction`
+    Factory function for PtychographyReconstruction creation.
+:func:`make_epie_data`
+    Factory function for EpieData creation.
+:func:`make_epie_params`
+    Factory function for EpieParams creation.
+:func:`make_vector_wavefront_3d`
+    Factory function for VectorWavefront3D creation.
+:func:`jones_to_vector3d`
+    Convert Jones field to 3-component vector field.
+:func:`vector3d_to_jones`
+    Extract transverse components as Jones field.
+:func:`fourier_shift`
+    FFT-based sub-pixel shifting of 2D fields.
+:func:`wirtinger_grad`
+    Compute the Wirtinger gradient of a complex-valued function.
+:class:`OpticalWavefront`
+    PyTree for optical wavefront representation.
+:class:`PropagatingWavefront`
+    PyTree for propagating optical wavefront representation.
+:class:`CoherentModeSet`
+    PyTree for coherent mode decomposition of partially coherent fields.
+:class:`PolychromaticWavefront`
+    PyTree for polychromatic/broadband field representation.
+:class:`MutualIntensity`
+    PyTree for full mutual intensity J(r1, r2) representation.
+:class:`Diffractogram`
+    PyTree for storing diffraction patterns.
+:class:`GridParams`
+    PyTree for computational grid parameters.
+:class:`LensParams`
+    PyTree for lens optical parameters.
+:class:`MicroscopeData`
+    PyTree for microscopy data.
+:class:`SampleFunction`
+    PyTree for sample representation.
+:class:`SlicedMaterialFunction`
+    PyTree for 3D sliced material with complex refractive index.
+:class:`OptimizerState`
+    PyTree for optimizer state tracking.
+:class:`PtychographyParams`
+    PyTree for ptychography reconstruction parameters.
+:class:`PtychographyReconstruction`
+    PyTree for ptychography reconstruction results.
+:class:`EpieData`
+    PyTree for ePIE algorithm data.
+:class:`EpieParams`
+    PyTree for ePIE algorithm parameters.
+:class:`VectorWavefront3D`
+    PyTree for full 3-component vector electric field.
 
 Notes
 -----

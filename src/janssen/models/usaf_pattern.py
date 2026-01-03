@@ -351,8 +351,6 @@ def calculate_usaf_group_range(
     """
     pixels_per_mm: float = 1e-3 / pixel_size
 
-    # Max group: bars must be at least min_bar_pixels wide
-    # For element 6: bar_width = pixels_per_mm / (2 * 2^(g + 5/6))
     max_group: int = int(
         math.floor(math.log2(pixels_per_mm / (2 * min_bar_pixels)) - 5 / 6)
     )
@@ -379,7 +377,6 @@ def calculate_usaf_group_range(
         spacing_h: int = max(5, img_size // 200)
         spacing_v: int = max(20, img_size // 80)
 
-        # Check if largest group fits
         largest_g: int = min(groups)
         largest_h, largest_w = get_group_size(largest_g, ppm)
 
@@ -391,7 +388,6 @@ def calculate_usaf_group_range(
             )
             effective_ppm = ppm * scale
 
-        # Simulate packing
         current_x: int = margin
         current_y: int = margin
         row_max_h: int = 0
@@ -414,7 +410,6 @@ def calculate_usaf_group_range(
 
         return count
 
-    # Find min_group that maximizes the number of groups that fit
     best_min_group: int = max_group
     best_count: int = 1
 
@@ -423,14 +418,12 @@ def calculate_usaf_group_range(
         count: int = simulate_packing(groups_to_try, pixels_per_mm, image_size)
 
         if count >= len(groups_to_try):
-            # All groups fit
             if len(groups_to_try) > best_count:
                 best_count = len(groups_to_try)
                 best_min_group = candidate_min
 
     min_group: int = best_min_group
 
-    # Build group info
     group_info: dict = {}
     for g in range(min_group, max_group + 1):
         bar_width_e1: float = pixels_per_mm / (2 * (2**g))
@@ -549,7 +542,6 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
     >>> # Specific group range
     >>> pattern = generate_usaf_pattern(groups=range(0, 5))
     """
-    # Handle auto mode
     if auto:
         range_info = calculate_usaf_group_range(
             image_size=image_size,
@@ -567,11 +559,10 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
         (image_size, image_size), background, dtype=jnp.float32
     )
 
-    margin: int = image_size // 40  # Smaller margin for more space
+    margin: int = image_size // 40
     usable_size: int = image_size - 2 * margin
-    spacing_h: int = max(5, image_size // 200)  # Horizontal spacing (tight)
+    spacing_h: int = max(5, image_size // 200)
 
-    # Helper to estimate group size without generating full pattern
     def estimate_group_size(group: int, ppm: float) -> Tuple[int, int]:
         """Estimate group size without generating full pattern."""
         bar_width: int = get_bar_width_pixels(group, 1, ppm)
@@ -586,11 +577,9 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
         total_width: int = 2 * elem_width + col_gap
         return col_height, total_width
 
-    # Check if largest (coarsest) group fits in usable area
     largest_group: int = min(groups_list)
     largest_h, largest_w = estimate_group_size(largest_group, pixels_per_mm)
 
-    # Only scale if the largest group doesn't fit at all
     effective_ppm: float = pixels_per_mm
     if largest_h > usable_size or largest_w > usable_size:
         scale: float = (
@@ -598,10 +587,7 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
         )
         effective_ppm = pixels_per_mm * scale
 
-    # First pass: determine rows and their heights (dry run)
-    rows: list[list[Tuple[int, int, int]]] = (
-        []
-    )  # Each row: list of (group, gh, gw)
+    rows: list[list[Tuple[int, int, int]]] = []
     current_row: list[Tuple[int, int, int]] = []
     current_x: int = margin
 
@@ -609,7 +595,6 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
         gh, gw = estimate_group_size(group, effective_ppm)
 
         if current_x + gw > image_size - margin and current_row:
-            # Start new row
             rows.append(current_row)
             current_row = []
             current_x = margin
@@ -620,49 +605,39 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
     if current_row:
         rows.append(current_row)
 
-    # Calculate row heights
     row_heights: list[int] = []
     for row in rows:
         max_h = max(gh for _, gh, _ in row)
         row_heights.append(max_h)
 
-    # Calculate total row height and distribute vertical space equally
     total_row_height: int = sum(row_heights)
-    num_gaps: int = (
-        len(rows) + 1
-    )  # gaps above first row, between rows, after last row
+    num_gaps: int = len(rows) + 1
     total_free_space: int = image_size - total_row_height
     spacing_v: int = total_free_space // num_gaps if num_gaps > 0 else margin
 
-    # Second pass: actually place the groups with calculated spacing
     current_y: int = spacing_v
 
     for row_idx, row in enumerate(rows):
         row_height: int = row_heights[row_idx]
         current_x = margin
 
-        # Calculate total row width to center the row
         row_width: int = sum(gw for _, _, gw in row) + spacing_h * (
             len(row) - 1
         )
-        current_x = (image_size - row_width) // 2  # Center the row
+        current_x = (image_size - row_width) // 2
 
         for group, gh_est, gw_est in row:
-            # Check if we've run out of vertical space
             if current_y + row_height > image_size - spacing_v // 2:
                 break
 
-            # Generate actual pattern
             pattern, _ = create_group_pattern(group, effective_ppm)
             gh: int = int(pattern.shape[0])
             gw: int = int(pattern.shape[1])
 
-            # Vertically center within row
             y_offset: int = (row_height - gh) // 2
             x_pos: int = current_x
             y_pos: int = current_y + y_offset
 
-            # Clip if necessary
             gh_clipped: int = min(gh, image_size - y_pos)
             gw_clipped: int = min(gw, image_size - x_pos)
 
@@ -679,8 +654,6 @@ def generate_usaf_pattern(  # noqa: PLR0912, PLR0915
 
         current_y += row_height + spacing_v
 
-    # Normalize canvas to [0, 1] for phase calculation
-    # Use Python conditional since foreground/background known at trace time
     if foreground != background:
         normalized_pattern: Float[Array, " h w"] = (canvas - background) / (
             foreground - background

@@ -179,7 +179,6 @@ def spherical_inclusion(
     num_slices: int
     height, width, num_slices = shape
 
-    # Create coordinate arrays
     y_coords: Float[Array, " h"] = (
         jnp.arange(height, dtype=jnp.float64) - height / 2.0
     ) * dx
@@ -190,7 +189,6 @@ def spherical_inclusion(
         jnp.arange(num_slices, dtype=jnp.float64) * tz
     )
 
-    # Set center position
     def _get_default_center() -> (
         Tuple[Float[Array, " "], Float[Array, " "], Float[Array, " "]]
     ):
@@ -209,24 +207,20 @@ def spherical_inclusion(
         z0: Float[Array, " "] = jnp.asarray(center[2], dtype=jnp.float64)
         return (y0, x0, z0)
 
-    # Use Python-time conditional since center is not traced
     if center is None:
         center_y, center_x, center_z = _get_default_center()
     else:
         center_y, center_x, center_z = _get_provided_center()
 
-    # Create 3D coordinate grids
     yy: Float[Array, " h w z"]
     xx: Float[Array, " h w z"]
     zz: Float[Array, " h w z"]
     yy, xx, zz = jnp.meshgrid(y_coords, x_coords, z_coords, indexing="ij")
 
-    # Compute radial distance from center
-    r: Float[Array, " h w z"] = jnp.sqrt(
+    radial_distance: Float[Array, " h w z"] = jnp.sqrt(
         (yy - center_y) ** 2 + (xx - center_x) ** 2 + (zz - center_z) ** 2
     )
 
-    # Assign refractive index based on distance
     n_sphere_val: Complex[Array, " "] = jnp.asarray(
         n_sphere, dtype=jnp.complex128
     )
@@ -236,7 +230,7 @@ def spherical_inclusion(
     radius_val: Float[Array, " "] = jnp.asarray(radius, dtype=jnp.float64)
 
     material_array: Complex[Array, " h w z"] = jnp.where(
-        r < radius_val,
+        radial_distance < radius_val,
         n_sphere_val,
         n_background_val,
     )
@@ -331,7 +325,6 @@ def layered_material(
         )
         return layer_slice
 
-    # Use vmap to process all slices in parallel
     material_array: Complex[Array, " h w z"] = jax.vmap(
         _assign_layer_index, out_axes=2
     )(jnp.arange(num_slices))
@@ -426,7 +419,6 @@ def biological_cell(
     num_slices: int
     height, width, num_slices = shape
 
-    # Create coordinate arrays
     y_coords: Float[Array, " h"] = (
         jnp.arange(height, dtype=jnp.float64) - height / 2.0
     ) * dx
@@ -437,7 +429,6 @@ def biological_cell(
         jnp.arange(num_slices, dtype=jnp.float64) * tz
     )
 
-    # Set center position (Python-time conditional)
     if center is None:
         center_y: Float[Array, " "] = jnp.asarray(0.0, dtype=jnp.float64)
         center_x: Float[Array, " "] = jnp.asarray(0.0, dtype=jnp.float64)
@@ -449,18 +440,15 @@ def biological_cell(
         center_x = jnp.asarray(center[1], dtype=jnp.float64)
         center_z = jnp.asarray(center[2], dtype=jnp.float64)
 
-    # Create 3D coordinate grids
     yy: Float[Array, " h w z"]
     xx: Float[Array, " h w z"]
     zz: Float[Array, " h w z"]
     yy, xx, zz = jnp.meshgrid(y_coords, x_coords, z_coords, indexing="ij")
 
-    # Compute radial distance from center
-    r: Float[Array, " h w z"] = jnp.sqrt(
+    radial_distance: Float[Array, " h w z"] = jnp.sqrt(
         (yy - center_y) ** 2 + (xx - center_x) ** 2 + (zz - center_z) ** 2
     )
 
-    # Convert to JAX arrays
     n_nucleus_val: Complex[Array, " "] = jnp.asarray(
         n_nucleus, dtype=jnp.complex128
     )
@@ -475,12 +463,11 @@ def biological_cell(
     )
     cell_r: Float[Array, " "] = jnp.asarray(cell_radius, dtype=jnp.float64)
 
-    # Nested jnp.where for three regions
     material_array: Complex[Array, " h w z"] = jnp.where(
-        r < nucleus_r,
+        radial_distance < nucleus_r,
         n_nucleus_val,
         jnp.where(
-            r < cell_r,
+            radial_distance < cell_r,
             n_cytoplasm_val,
             n_medium_val,
         ),
@@ -561,7 +548,6 @@ def gradient_index_material(
     num_slices: int
     height, width, num_slices = shape
 
-    # Create coordinate arrays in x-y plane
     y_coords: Float[Array, " h"] = (
         jnp.arange(height, dtype=jnp.float64) - height / 2.0
     ) * dx
@@ -569,23 +555,21 @@ def gradient_index_material(
         jnp.arange(width, dtype=jnp.float64) - width / 2.0
     ) * dx
 
-    # Create 2D coordinate grids
     yy_2d: Float[Array, " h w"]
     xx_2d: Float[Array, " h w"]
     yy_2d, xx_2d = jnp.meshgrid(y_coords, x_coords, indexing="ij")
 
-    # Compute radial distance in x-y plane
-    r_xy: Float[Array, " h w"] = jnp.sqrt(xx_2d**2 + yy_2d**2)
+    radial_distance_xy: Float[Array, " h w"] = jnp.sqrt(xx_2d**2 + yy_2d**2)
 
-    # Apply GRIN formula
     n0: Float[Array, " "] = jnp.asarray(n_center, dtype=jnp.float64)
     steepness: Float[Array, " "] = jnp.asarray(
         gradient_constant, dtype=jnp.float64
     )
 
-    n_profile: Float[Array, " h w"] = n0 * (1.0 - (steepness / 2.0) * r_xy**2)
+    n_profile: Float[Array, " h w"] = n0 * (
+        1.0 - (steepness / 2.0) * radial_distance_xy**2
+    )
 
-    # Clip to physical range
     n_minimum: Float[Array, " "] = jnp.asarray(
         1.0 if n_min is None else n_min, dtype=jnp.float64
     )
@@ -593,12 +577,10 @@ def gradient_index_material(
         n_profile, n_minimum, n0
     )
 
-    # Broadcast to 3D (constant along z)
     n_profile_3d: Float[Array, " h w z"] = jnp.broadcast_to(
         n_profile_clipped[:, :, None], (height, width, num_slices)
     )
 
-    # Convert to complex (no absorption)
     material_array: Complex[Array, " h w z"] = n_profile_3d.astype(
         jnp.complex128
     )

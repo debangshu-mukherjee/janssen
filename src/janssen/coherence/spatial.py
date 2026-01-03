@@ -167,35 +167,24 @@ def jinc_coherence_kernel(
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
-
-    # Radial distance
-    r: Float[Array, " hh ww"] = jnp.sqrt(xx**2 + yy**2)
-
-    # Scaling factor from van Cittert-Zernike
+    radial_distance: Float[Array, " hh ww"] = jnp.sqrt(xx**2 + yy**2)
     lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     z: Float[Array, " "] = jnp.asarray(propagation_distance, dtype=jnp.float64)
     d: Float[Array, " "] = jnp.asarray(source_diameter, dtype=jnp.float64)
-
-    # Argument for jinc function: pi * D * r / (lambda * z)
-    arg: Float[Array, " hh ww"] = jnp.pi * d * r / (lam * z)
-
-    # Jinc function: 2 * J1(x) / x, with limit = 1 at x = 0
-    # Use Taylor expansion near zero for numerical stability
-    j1_arg: Float[Array, " hh ww"] = jnp.where(
-        arg < 1e-10,
-        arg / 2.0,  # J1(x) ~ x/2 for small x
-        jax_bessel_j1(arg),
+    jinc_argument: Float[Array, " hh ww"] = (
+        jnp.pi * d * radial_distance / (lam * z)
     )
-
+    j1_value: Float[Array, " hh ww"] = jnp.where(
+        jinc_argument < 1e-10,
+        jinc_argument / 2.0,
+        jax_bessel_j1(jinc_argument),
+    )
     kernel: Float[Array, " hh ww"] = jnp.where(
-        arg < 1e-10,
-        1.0,  # jinc(0) = 1
-        2.0 * j1_arg / arg,
+        jinc_argument < 1e-10,
+        1.0,
+        2.0 * j1_value / jinc_argument,
     )
-
-    # Shift to have maximum at [0, 0] for convolution
     kernel = jnp.fft.ifftshift(kernel)
-
     return kernel
 
 
@@ -244,30 +233,21 @@ def rectangular_coherence_kernel(
     """
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
-
-    # Create centered coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
-
-    # Scaling factors from van Cittert-Zernike
     lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     z: Float[Array, " "] = jnp.asarray(propagation_distance, dtype=jnp.float64)
     wx: Float[Array, " "] = jnp.asarray(source_width_x, dtype=jnp.float64)
     wy: Float[Array, " "] = jnp.asarray(source_width_y, dtype=jnp.float64)
-
-    # Arguments for sinc functions
-    arg_x: Float[Array, " hh ww"] = wx * xx / (lam * z)
-    arg_y: Float[Array, " hh ww"] = wy * yy / (lam * z)
-
-    # 2D sinc kernel
-    kernel: Float[Array, " hh ww"] = jnp.sinc(arg_x) * jnp.sinc(arg_y)
-
-    # Shift to have maximum at [0, 0] for convolution
+    sinc_arg_x: Float[Array, " hh ww"] = wx * xx / (lam * z)
+    sinc_arg_y: Float[Array, " hh ww"] = wy * yy / (lam * z)
+    kernel: Float[Array, " hh ww"] = jnp.sinc(sinc_arg_x) * jnp.sinc(
+        sinc_arg_y
+    )
     kernel = jnp.fft.ifftshift(kernel)
-
     return kernel
 
 
@@ -310,11 +290,8 @@ def coherence_width_from_source(
     lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     z: Float[Array, " "] = jnp.asarray(propagation_distance, dtype=jnp.float64)
     d: Float[Array, " "] = jnp.asarray(source_diameter, dtype=jnp.float64)
-
-    # Factor 0.44 gives the 1/e width of a Gaussian approximation
-    # to the jinc function's central lobe
-    coherence_width: Float[Array, " "] = 0.44 * lam * z / d
-
+    vcz_factor: float = 0.44
+    coherence_width: Float[Array, " "] = vcz_factor * lam * z / d
     return coherence_width
 
 
@@ -350,28 +327,21 @@ def complex_degree_of_coherence(
     """
     hh: int = j_matrix.shape[0]
     ww: int = j_matrix.shape[1]
-
-    # Extract intensity: I(r) = J(r, r) (diagonal elements)
-    # Reshape for proper indexing
-    i_idx: Float[Array, " hh"] = jnp.arange(hh)
-    j_idx: Float[Array, " ww"] = jnp.arange(ww)
-
-    # Get I(r) = J(r, r) for all r
     intensity: Float[Array, " hh ww"] = jnp.real(
         jnp.diagonal(
             jnp.diagonal(j_matrix, axis1=0, axis2=2), axis1=0, axis2=1
         )
     )
-
-    # Create 4D normalization array: sqrt(I(r1) * I(r2))
-    # Shape: (hh, ww, hh, ww)
-    i1: Float[Array, " hh ww 1 1"] = intensity[:, :, jnp.newaxis, jnp.newaxis]
-    i2: Float[Array, " 1 1 hh ww"] = intensity[jnp.newaxis, jnp.newaxis, :, :]
-    normalization: Float[Array, " hh ww hh ww"] = jnp.sqrt(i1 * i2 + 1e-20)
-
-    # Normalize
+    intensity_r1: Float[Array, " hh ww 1 1"] = intensity[
+        :, :, jnp.newaxis, jnp.newaxis
+    ]
+    intensity_r2: Float[Array, " 1 1 hh ww"] = intensity[
+        jnp.newaxis, jnp.newaxis, :, :
+    ]
+    normalization: Float[Array, " hh ww hh ww"] = jnp.sqrt(
+        intensity_r1 * intensity_r2 + 1e-20
+    )
     mu: Complex[Array, " hh ww hh ww"] = j_matrix / normalization
-
     return mu
 
 
@@ -390,20 +360,15 @@ def jax_bessel_j1(x: Float[Array, "..."]) -> Float[Array, "..."]:
     j1 : Float[Array, "..."]
         J1(x) values.
     """
-    # Use rational approximation for |x| < 8 and asymptotic for larger
     ax = jnp.abs(x)
 
-    # For small x, use series approximation
-    # J1(x) ~ x/2 - x^3/16 + x^5/384 - ...
-    def small_x(x: Float[Array, "..."]) -> Float[Array, "..."]:
+    def small_x_approximation(x: Float[Array, "..."]) -> Float[Array, "..."]:
         x2 = x * x
         return x * (
             0.5 - x2 * (0.0625 - x2 * (0.00260417 - x2 * 0.0000542535))
         )
 
-    # For larger x, use polynomial approximation
-    def large_x(x: Float[Array, "..."]) -> Float[Array, "..."]:
-        # Rational approximation coefficients (Abramowitz & Stegun)
+    def poly_approx(x: Float[Array, "..."]) -> Float[Array, "..."]:
         y = x / 3.0
         y2 = y * y
         p1 = 0.5 + y2 * (
@@ -416,8 +381,7 @@ def jax_bessel_j1(x: Float[Array, "..."]) -> Float[Array, "..."]:
         )
         return x * p1 / p2
 
-    # Asymptotic expansion for very large x
-    def asymptotic(x: Float[Array, "..."]) -> Float[Array, "..."]:
+    def asymptotic_approx(x: Float[Array, "..."]) -> Float[Array, "..."]:
         z = 8.0 / x
         z2 = z * z
         theta = x - 0.75 * jnp.pi
@@ -429,8 +393,11 @@ def jax_bessel_j1(x: Float[Array, "..."]) -> Float[Array, "..."]:
 
     result = jnp.where(
         ax < 1.0,
-        small_x(x),
-        jnp.where(ax < 8.0, large_x(x), asymptotic(ax) * jnp.sign(x)),
+        small_x_approximation(x),
+        jnp.where(
+            ax < 8.0,
+            poly_approx(x),
+            asymptotic_approx(ax) * jnp.sign(x),
+        ),
     )
-
     return result

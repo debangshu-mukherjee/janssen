@@ -3,42 +3,32 @@
 Extended Summary
 ----------------
 Comprehensive algorithms for phase retrieval and ptychographic
-reconstruction
-using differentiable programming techniques. Includes various
-optimization
-strategies and loss functions for reconstructing complex-valued fields.
-
-Submodules
-----------
-engine
-    Reconstruction engine
-ptychography
-    Ptychographic algorithms
-loss_functions
-    Loss function definitions
-initialization
-    Sample initialization strategies
+reconstruction using differentiable programming techniques. Includes
+various optimization strategies and loss functions for reconstructing
+complex-valued fields.
 
 Routine Listings
 ----------------
-compute_fov_and_positions : function
-    Compute FOV size and normalized positions from experimental data
-create_loss_function : function
-    Factory function for creating various loss functions
-epie_optical : function
-    Extended PIE algorithm for optical ptychography
-init_simple_microscope : function
-    Initialize reconstruction by inverting the simple microscope forward model
-simple_microscope_epie : function
-    Ptychography reconstruction using extended PIE algorithm
-simple_microscope_ptychography : function
-    Resumable ptychography reconstruction using gradient-based optimization
-single_pie_iteration : function
-    Single iteration of PIE algorithm
-single_pie_sequential : function
-    Sequential PIE implementation for multiple positions
-single_pie_vmap : function
-    Vectorized PIE implementation using vmap
+:func:`epie_optical`
+    Extended PIE algorithm for optical ptychography.
+:func:`single_pie_iteration`
+    Single iteration of PIE algorithm.
+:func:`single_pie_sequential`
+    Sequential PIE implementation for multiple positions.
+:func:`single_pie_vmap`
+    Vectorized PIE implementation using vmap.
+:func:`simple_microscope_epie`
+    Ptychography reconstruction using extended PIE algorithm.
+:func:`simple_microscope_ptychography`
+    Resumable ptychography reconstruction using gradient-based optimization.
+:func:`create_loss_function`
+    Factory function for creating various loss functions.
+:func:`compute_fov_and_positions`
+    Compute FOV size and normalized positions from experimental data.
+:func:`init_simple_microscope`
+    Initialize reconstruction by inverting simple microscope forward model.
+:func:`init_simple_epie`
+    Initialize ePIE reconstruction.
 
 Notes
 -----

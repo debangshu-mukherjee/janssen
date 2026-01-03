@@ -131,12 +131,9 @@ def create_spatial_grid(
     >>> grid_size = jnp.asarray((256, 512), dtype=jnp.int32)
     >>> xx, yy = create_spatial_grid(jnp.array([1e-3, 2e-3]), grid_size)
     """
-    # Convert to arrays - scalars become (1,), arrays of shape (2,) stay (2,)
     diameter_arr: Num[Array, "..."] = jnp.atleast_1d(diameter)
     num_points_arr: Int[Array, "..."] = jnp.atleast_1d(num_points)
 
-    # Pad scalar inputs to shape (2,) by repeating the value
-    # If already shape (2,), take first 2 elements; if shape (1,), repeat
     diameter_arr = jnp.broadcast_to(diameter_arr, (2,))
     num_points_arr = jnp.broadcast_to(num_points_arr, (2,))
 

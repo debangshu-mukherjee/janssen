@@ -487,7 +487,8 @@ def supergaussian_apodizer(
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = _arrayed_grids(arr_zeros, arr_zeros, incoming.dx)
-    x0, y0 = center[0], center[1]
+    center_arr = jnp.broadcast_to(jnp.asarray(center), (2,))
+    x0, y0 = center_arr[0], center_arr[1]
     r2: Float[Array, " hh ww"] = (xx - x0) ** 2 + (yy - y0) ** 2
     super_gauss: Float[Array, " hh ww"] = jnp.exp(-((r2 / (sigma**2)) ** m))
     tmap: Float[Array, " hh ww"] = jnp.clip(

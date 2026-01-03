@@ -5,21 +5,16 @@ Extended Summary
 Functions for visualizing optical wavefronts, diffraction patterns,
 and other data structures from the janssen package.
 
-Submodules
-----------
-wavefront
-    Wavefront visualization functions
-
 Routine Listings
 ----------------
-plot_amplitude : function
-    Plot the amplitude of an optical wavefront
-plot_complex_wavefront : function
-    Plot a complex optical wavefront using HSV color mapping
-plot_intensity : function
-    Plot the intensity of an optical wavefront
-plot_phase : function
-    Plot the phase of an optical wavefront using HSV color mapping
+:func:`plot_intensity`
+    Plot the intensity of an optical wavefront.
+:func:`plot_amplitude`
+    Plot the amplitude of an optical wavefront.
+:func:`plot_phase`
+    Plot the phase of an optical wavefront using HSV color mapping.
+:func:`plot_complex_wavefront`
+    Plot a complex optical wavefront using HSV color mapping.
 
 Notes
 -----

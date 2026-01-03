@@ -418,7 +418,6 @@ def make_optical_wavefront(
     z_position: Float[Array, " "] = jnp.asarray(z_position, dtype=jnp.float64)
     polarization: Bool[Array, " "] = jnp.asarray(polarization, dtype=jnp.bool_)
 
-    # Override polarization if field dimensions indicate polarized field
     polarization = jnp.where(
         field.ndim == polar_dim,
         jnp.asarray(field.shape[-1] == non_polar_dim, dtype=jnp.bool_),
@@ -585,7 +584,6 @@ def make_propagating_wavefront(
         polarization, dtype=jnp.bool_
     )
 
-    # Override polarization if field dimensions indicate polarized field
     polarization_arr = jnp.where(
         field.ndim == polar_dim,
         jnp.asarray(
@@ -736,19 +734,14 @@ def optical2propagating(
     if len(wavefronts) == 0:
         raise ValueError("wavefronts tuple cannot be empty")
 
-    # Stack fields along axis 0
-    fields = jnp.stack([wf.field for wf in wavefronts], axis=0)
-
-    # Extract z_positions from each wavefront
+    stacked_fields = jnp.stack([wf.field for wf in wavefronts], axis=0)
     z_positions = jnp.array([wf.z_position for wf in wavefronts])
-
-    # Use first wavefront's properties
     wavelength = wavefronts[0].wavelength
     dx = wavefronts[0].dx
     polarization = wavefronts[0].polarization
 
     return make_propagating_wavefront(
-        field=fields,
+        field=stacked_fields,
         wavelength=wavelength,
         dx=dx,
         z_positions=z_positions,
@@ -1521,7 +1514,7 @@ def make_epie_params(
 
 
 @jaxtyped(typechecker=beartype)
-def make_ptychography_reconstruction( # noqa: PLR0913
+def make_ptychography_reconstruction(  # noqa: PLR0913
     sample: SampleFunction,
     lightwave: OpticalWavefront,
     translated_positions: Float[Array, " N 2"],

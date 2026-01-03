@@ -562,43 +562,45 @@ def gaussian_beam(
     lam: Float[Array, " "] = jnp.asarray(wavelength, dtype=jnp.float64)
     k: Float[Array, " "] = 2.0 * jnp.pi / lam
 
-    # Rayleigh range
-    z_R: Float[Array, " "] = jnp.pi * w0**2 / lam
+    rayleigh_range: Float[Array, " "] = jnp.pi * w0**2 / lam
 
-    # Beam radius at position z
-    w_z: Float[Array, " "] = w0 * jnp.sqrt(1.0 + (z / z_R) ** 2)
-
-    # Radius of curvature at position z (handle z=0 case)
-    z_safe: Float[Array, " "] = jnp.where(jnp.abs(z) < 1e-15, 1e-15, z)
-    R_z: Float[Array, " "] = z_safe * (1.0 + (z_R / z_safe) ** 2)
-
-    # Gouy phase
-    gouy: Float[Array, " "] = jnp.arctan2(z, z_R)
-
-    # Radial distance squared from center
-    r2: Float[Array, " ny nx"] = (xx - x0) ** 2 + (yy - y0) ** 2
-
-    # Amplitude: includes w0/w(z) factor for energy conservation
-    amp: Float[Array, " ny nx"] = (
-        jnp.asarray(amplitude, dtype=jnp.float64)
-        * (w0 / w_z)
-        * jnp.exp(-r2 / (w_z**2))
+    beam_radius_at_z: Float[Array, " "] = w0 * jnp.sqrt(
+        1.0 + (z / rayleigh_range) ** 2
     )
 
-    # Phase: curvature term + Gouy phase (axial phase kz omitted as
-    # it's a global phase)
-    curvature_phase: Float[Array, " ny nx"] = -k * r2 / (2.0 * R_z)
+    z_safe: Float[Array, " "] = jnp.where(jnp.abs(z) < 1e-15, 1e-15, z)
+    radius_of_curvature: Float[Array, " "] = z_safe * (
+        1.0 + (rayleigh_range / z_safe) ** 2
+    )
 
-    # At waist (z=0), R_z -> infinity, so curvature_phase -> 0
-    # Handle this by checking if we're very close to waist
+    gouy_phase: Float[Array, " "] = jnp.arctan2(z, rayleigh_range)
+
+    radial_distance_squared: Float[Array, " ny nx"] = (xx - x0) ** 2 + (
+        yy - y0
+    ) ** 2
+
+    amplitude_with_energy_conservation: Float[Array, " ny nx"] = (
+        jnp.asarray(amplitude, dtype=jnp.float64)
+        * (w0 / beam_radius_at_z)
+        * jnp.exp(-radial_distance_squared / (beam_radius_at_z**2))
+    )
+
+    curvature_phase: Float[Array, " ny nx"] = (
+        -k * radial_distance_squared / (2.0 * radius_of_curvature)
+    )
+
     is_at_waist: Float[Array, " "] = jnp.abs(z) < 1e-12
     curvature_phase = jnp.where(is_at_waist, 0.0, curvature_phase)
 
-    gouy_phase: Float[Array, " "] = jnp.where(include_gouy_phase, gouy, 0.0)
+    gouy_phase_adjusted: Float[Array, " "] = jnp.where(
+        include_gouy_phase, gouy_phase, 0.0
+    )
 
-    total_phase: Float[Array, " ny nx"] = curvature_phase + gouy_phase
+    total_phase: Float[Array, " ny nx"] = curvature_phase + gouy_phase_adjusted
 
-    field: Complex[Array, " ny nx"] = amp * jnp.exp(1j * total_phase)
+    field: Complex[Array, " ny nx"] = amplitude_with_energy_conservation * jnp.exp(
+        1j * total_phase
+    )
 
     wavefront: OpticalWavefront = make_optical_wavefront(
         field=field,
@@ -673,18 +675,20 @@ def bessel_beam(
     xx, yy = create_spatial_grid(diameter, num_points)
 
     k: Float[Array, " "] = 2.0 * jnp.pi / jnp.asarray(wavelength)
-    k_r: Float[Array, " "] = k * jnp.sin(jnp.asarray(cone_angle))
+    transverse_wave_vector: Float[Array, " "] = k * jnp.sin(
+        jnp.asarray(cone_angle)
+    )
 
-    # Radial distance from center
-    r: Float[Array, " ny nx"] = jnp.sqrt(xx**2 + yy**2)
+    radial_distance: Float[Array, " ny nx"] = jnp.sqrt(xx**2 + yy**2)
 
-    # Bessel function J_0(k_r * r)
-    bessel_profile: Float[Array, " ny nx"] = bessel_j0(k_r * r)
+    bessel_profile: Float[Array, " ny nx"] = bessel_j0(
+        transverse_wave_vector * radial_distance
+    )
 
     field: Complex[Array, " ny nx"] = (
         jnp.asarray(amplitude, dtype=jnp.float64)
         * bessel_profile
-        * jnp.ones_like(r, dtype=jnp.complex128)
+        * jnp.ones_like(radial_distance, dtype=jnp.complex128)
     )
 
     wavefront: OpticalWavefront = make_optical_wavefront(

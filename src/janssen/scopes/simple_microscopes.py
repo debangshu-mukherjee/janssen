@@ -212,8 +212,6 @@ def simple_diffractogram(
         zoomed_wave, aperture_diameter, center_to_use
     )
 
-    # Use scaled Fraunhofer propagation - output is same shape as input
-    # but with the specified camera pixel size
     at_camera: OpticalWavefront = fraunhofer_prop_scaled(
         after_aperture, travel_distance, camera_pixel_size
     )

@@ -108,24 +108,19 @@ def hermite_gaussian_modes(
     w: Float[Array, " "] = jnp.asarray(beam_waist, dtype=jnp.float64)
     max_ord: int = int(max_order)
 
-    # Create coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
 
-    # Normalized coordinates
     x_norm: Float[Array, " hh ww"] = xx * jnp.sqrt(2.0) / w
     y_norm: Float[Array, " hh ww"] = yy * jnp.sqrt(2.0) / w
 
-    # Gaussian envelope
     gaussian: Float[Array, " hh ww"] = jnp.exp(-(xx**2 + yy**2) / w**2)
 
-    # Count modes: sum of (n+m <= max_order) = (max_order+1)*(max_order+2)/2
     num_modes: int = (max_ord + 1) * (max_ord + 2) // 2
 
-    # Generate mode indices
     mode_indices: list = []
     for total in range(max_ord + 1):
         for n in range(total + 1):
@@ -148,25 +143,21 @@ def hermite_gaussian_modes(
             h_prev1 = h_curr
         return h_prev1
 
-    # Generate all modes
     modes_list = []
     for n, m in mode_indices:
         h_n = _hermite_polynomial(n, x_norm)
         h_m = _hermite_polynomial(m, y_norm)
         mode = h_n * h_m * gaussian
 
-        # Normalize to unit energy
-        energy = jnp.sum(jnp.abs(mode) ** 2)
-        mode = mode / jnp.sqrt(energy + 1e-20)
+        mode_energy = jnp.sum(jnp.abs(mode) ** 2)
+        mode = mode / jnp.sqrt(mode_energy + 1e-20)
         modes_list.append(mode)
 
     modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
         modes_list, axis=0
     ).astype(jnp.complex128)
 
-    # Set weights
     if mode_weights is None:
-        # Thermal distribution: exponentially decreasing
         mode_numbers = jnp.arange(num_modes)
         weights: Float[Array, " num_modes"] = jnp.exp(-mode_numbers / 2.0)
         weights = weights / jnp.sum(weights)
@@ -248,34 +239,31 @@ def gaussian_schell_model_modes(
         coherence_width, dtype=jnp.float64
     )
 
-    # GSM parameter
-    ratio: Float[Array, " "] = 2.0 * sigma_i / sigma_mu
-    a: Float[Array, " "] = 1.0 / jnp.sqrt(1.0 + ratio**2)
+    beam_to_coherence_ratio: Float[Array, " "] = 2.0 * sigma_i / sigma_mu
+    gsm_parameter: Float[Array, " "] = 1.0 / jnp.sqrt(
+        1.0 + beam_to_coherence_ratio**2
+    )
 
-    # Mode width
-    sigma_eff: Float[Array, " "] = sigma_i * a
-    w_mode: Float[Array, " "] = jnp.sqrt(sigma_i * sigma_eff)
+    effective_width: Float[Array, " "] = sigma_i * gsm_parameter
+    mode_width: Float[Array, " "] = jnp.sqrt(sigma_i * effective_width)
 
-    # Eigenvalues (analytical formula)
     n_arr: Float[Array, " num_modes"] = jnp.arange(n_modes, dtype=jnp.float64)
-    eigenvalues: Float[Array, " num_modes"] = ((1.0 - a) / (1.0 + a)) * (
-        a / (1.0 + a)
-    ) ** n_arr
+    eigenvalues: Float[Array, " num_modes"] = (
+        (1.0 - gsm_parameter) / (1.0 + gsm_parameter)
+    ) * (gsm_parameter / (1.0 + gsm_parameter)) ** n_arr
 
-    # Create coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
 
-    # For 1D GSM, modes are 1D Hermite-Gaussians
-    # For 2D, we use product of 1D modes
-    # Here we generate 1D modes and form 2D products
-    x_norm: Float[Array, " hh ww"] = xx * jnp.sqrt(2.0) / w_mode
-    y_norm: Float[Array, " hh ww"] = yy * jnp.sqrt(2.0) / w_mode
+    x_norm: Float[Array, " hh ww"] = xx * jnp.sqrt(2.0) / mode_width
+    y_norm: Float[Array, " hh ww"] = yy * jnp.sqrt(2.0) / mode_width
 
-    gaussian: Float[Array, " hh ww"] = jnp.exp(-(xx**2 + yy**2) / w_mode**2)
+    gaussian: Float[Array, " hh ww"] = jnp.exp(
+        -(xx**2 + yy**2) / mode_width**2
+    )
 
     def _hermite_polynomial_jax(
         order: Int[Array, " "], x: Float[Array, " hh ww"]
@@ -306,21 +294,13 @@ def gaussian_schell_model_modes(
         )
         return result
 
-    # Generate modes using separable Hermite-Gaussians
-    # For simplicity, 1D mode structure: mode_n = H_n(x) * H_0(y) * gaussian
-    # A more complete 2D GSM would have different x and y mode indices
-
     def generate_mode(n: int) -> Complex[Array, " hh ww"]:
         h_n = _hermite_polynomial_jax(n, x_norm)
-        # For 2D isotropic GSM, we use symmetric modes
-        # Here using 1D modes in x direction for simplicity
         mode = h_n * gaussian
 
-        # Normalize
-        energy = jnp.sum(jnp.abs(mode) ** 2)
-        return (mode / jnp.sqrt(energy + 1e-20)).astype(jnp.complex128)
+        mode_energy = jnp.sum(jnp.abs(mode) ** 2)
+        return (mode / jnp.sqrt(mode_energy + 1e-20)).astype(jnp.complex128)
 
-    # Generate all modes
     modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
         [generate_mode(n) for n in range(n_modes)], axis=0
     )
@@ -376,38 +356,32 @@ def eigenmode_decomposition(
     ww: int = j_matrix.shape[1]
     n_modes: int = int(num_modes)
 
-    # Reshape 4D mutual intensity to 2D matrix: (hh*ww, hh*ww)
     n_pixels: int = hh * ww
     j_2d: Complex[Array, " n n"] = j_matrix.reshape(n_pixels, n_pixels)
 
-    # Eigendecomposition of Hermitian matrix
-    # eigenvalues are sorted in ascending order by eigh
     eigenvalues: Float[Array, " n"]
     eigenvectors: Complex[Array, " n n"]
     eigenvalues, eigenvectors = jax.scipy.linalg.eigh(j_2d)
 
-    # Reverse to get descending order (largest eigenvalues first)
-    eigenvalues = eigenvalues[::-1]
-    eigenvectors = eigenvectors[:, ::-1]
+    eigenvalues_descending = eigenvalues[::-1]
+    eigenvectors_descending = eigenvectors[:, ::-1]
 
-    # Extract top num_modes modes
-    top_eigenvalues: Float[Array, " num_modes"] = eigenvalues[:n_modes]
-    top_eigenvectors: Complex[Array, " n num_modes"] = eigenvectors[
+    top_eigenvalues: Float[Array, " num_modes"] = eigenvalues_descending[
+        :n_modes
+    ]
+    top_eigenvectors: Complex[Array, " n num_modes"] = eigenvectors_descending[
         :, :n_modes
     ]
 
-    # Clip small negative eigenvalues (numerical artifacts)
-    top_eigenvalues = jnp.maximum(top_eigenvalues, 0.0)
+    clipped_eigenvalues = jnp.maximum(top_eigenvalues, 0.0)
 
-    # Reshape eigenvectors back to 2D spatial modes
-    # Each column is a flattened mode
     modes: Complex[Array, " num_modes hh ww"] = top_eigenvectors.T.reshape(
         n_modes, hh, ww
     )
 
     return make_coherent_mode_set(
         modes=modes,
-        weights=top_eigenvalues,
+        weights=clipped_eigenvalues,
         wavelength=mutual_intensity.wavelength,
         dx=mutual_intensity.dx,
         z_position=mutual_intensity.z_position,
@@ -528,20 +502,14 @@ def mutual_intensity_from_modes(
     hh: int = modes.shape[1]
     ww: int = modes.shape[2]
 
-    # Compute J(r1, r2) = sum_n w_n * mode_n^*(r1) * mode_n(r2)
-    # Reshape modes for outer product computation
-    # modes_conj[n, i, j] * modes[n, k, l] -> J[i, j, k, l]
-
     def compute_j_term(
         n: int,
     ) -> Complex[Array, " hh ww hh ww"]:
         mode_n = modes[n]
         weight_n = weights[n]
-        # Outer product: conj(mode_n)[i,j] * mode_n[k,l]
         j_n = weight_n * jnp.einsum("ij,kl->ijkl", jnp.conj(mode_n), mode_n)
         return j_n
 
-    # Sum over all modes
     j_matrix: Complex[Array, " hh ww hh ww"] = jnp.sum(
         jnp.stack([compute_j_term(n) for n in range(modes.shape[0])], axis=0),
         axis=0,

@@ -1,85 +1,71 @@
-"""Lens implementations and optical calculations.
+"""Optical beam and material models for testing and validation.
 
 Extended Summary
 ----------------
 Models for generating datasets for testing and validation.
 
-Submodules
-----------
-beams
-    Beam generation functions
-material_models
-    Material models for optical simulations
-polar_beams
-    Polarized beam generators for vector optics
-usaf_pattern
-    USAF test pattern generation
-
 Routine Listings
 ----------------
-bessel_beam : function
-    Creates a Bessel beam with specified cone angle
-biological_cell : function
-    Creates a biological cell model with nucleus
-calculate_usaf_group_range : function
-    Calculates the viable USAF group range for given parameters
-collimated_gaussian : function
-    Creates a collimated Gaussian beam with flat phase
-converging_gaussian : function
-    Creates a Gaussian beam converging to a focus
-create_bar_triplet : function
-    Creates 3 parallel bars (horizontal or vertical)
-create_element_pattern : function
-    Creates a single element pattern (horizontal + vertical bars)
-create_group_pattern : function
-    Creates a group pattern with multiple elements
-diverging_gaussian : function
-    Creates a Gaussian beam diverging from a virtual source
-gaussian_beam : function
-    Creates a Gaussian beam from complex beam parameter q
-generate_usaf_pattern : function
-    Generates USAF 1951 resolution test pattern
-get_bar_width_pixels : function
-    Calculate bar width in pixels for a given group and element
-gradient_index_material : function
-    Creates a gradient-index (GRIN) material with radial profile
-hermite_gaussian : function
-    Creates Hermite-Gaussian modes
-layered_material : function
-    Creates alternating layers of materials
-laguerre_gaussian : function
-    Creates Laguerre-Gaussian modes
-plane_wave : function
-    Creates a uniform plane wave with optional tilt
-propagate_beam : function
-    Generates a beam at multiple z positions as a PropagatingWavefront
-radially_polarized_beam : function
-    Generate a radially polarized beam
-azimuthally_polarized_beam : function
-    Generate an azimuthally polarized beam
-linear_polarized_beam : function
-    Generate a linearly polarized beam with arbitrary angle
-x_polarized_beam : function
-    Generate an x-polarized beam
-y_polarized_beam : function
-    Generate a y-polarized beam
-circular_polarized_beam : function
-    Generate a circularly polarized beam
-generalized_cylindrical_vector_beam : function
-    Generate a generalized cylindrical vector beam
-sinusoidal_wave : function
-    Creates a sinusoidal interference pattern
-spherical_inclusion : function
-    Creates a material with spherical inclusion
-uniform_material : function
-    Creates a uniform 3D material with constant refractive index
-
+:func:`plane_wave`
+    Creates a uniform plane wave with optional tilt.
+:func:`gaussian_beam`
+    Creates a Gaussian beam from complex beam parameter q.
+:func:`collimated_gaussian`
+    Creates a collimated Gaussian beam with flat phase.
+:func:`converging_gaussian`
+    Creates a Gaussian beam converging to a focus.
+:func:`diverging_gaussian`
+    Creates a Gaussian beam diverging from a virtual source.
+:func:`bessel_beam`
+    Creates a Bessel beam with specified cone angle.
+:func:`hermite_gaussian`
+    Creates Hermite-Gaussian modes.
+:func:`laguerre_gaussian`
+    Creates Laguerre-Gaussian modes.
+:func:`sinusoidal_wave`
+    Creates a sinusoidal interference pattern.
+:func:`propagate_beam`
+    Generates a beam at multiple z positions as a PropagatingWavefront.
+:func:`radially_polarized_beam`
+    Generate a radially polarized beam.
+:func:`azimuthally_polarized_beam`
+    Generate an azimuthally polarized beam.
+:func:`linear_polarized_beam`
+    Generate a linearly polarized beam with arbitrary angle.
+:func:`x_polarized_beam`
+    Generate an x-polarized beam.
+:func:`y_polarized_beam`
+    Generate a y-polarized beam.
+:func:`circular_polarized_beam`
+    Generate a circularly polarized beam.
+:func:`generalized_cylindrical_vector_beam`
+    Generate a generalized cylindrical vector beam.
+:func:`uniform_material`
+    Creates a uniform 3D material with constant refractive index.
+:func:`layered_material`
+    Creates alternating layers of materials.
+:func:`gradient_index_material`
+    Creates a gradient-index (GRIN) material with radial profile.
+:func:`spherical_inclusion`
+    Creates a material with spherical inclusion.
+:func:`biological_cell`
+    Creates a biological cell model with nucleus.
+:func:`generate_usaf_pattern`
+    Generates USAF 1951 resolution test pattern.
+:func:`calculate_usaf_group_range`
+    Calculates the viable USAF group range for given parameters.
+:func:`get_bar_width_pixels`
+    Calculate bar width in pixels for a given group and element.
+:func:`create_bar_triplet`
+    Creates 3 parallel bars (horizontal or vertical).
+:func:`create_element_pattern`
+    Creates a single element pattern (horizontal + vertical bars).
+:func:`create_group_pattern`
+    Creates a group pattern with multiple elements.
 
 Notes
 -----
-All propagation functions are JAX-compatible and support automatic
-differentiation. The lens functions can model both ideal and realistic
-optical elements with aberrations.
+All functions are JAX-compatible and support automatic differentiation.
 """
 
 from .beams import (

@@ -754,8 +754,6 @@ def init_simple_epie(  # noqa: PLR0915
         wavelength_arr * travel_distance_arr
     )
     df_fft: Float[Array, " "] = 1.0 / (image_size * effective_dx_arr)
-    # Scale factor for map_coordinates: output-to-input mapping
-    # FFT has finer frequency spacing than camera, so we stretch camera image
     scale_factor: Float[Array, " "] = df_fft / df_camera
     cam_size_y: int = experimental_data.image_data.shape[1]
     cam_size_x: int = experimental_data.image_data.shape[2]

@@ -298,38 +298,32 @@ def fraunhofer_prop(
     k: Float[Array, " "] = 2 * jnp.pi / incoming.wavelength
     path_length: Float[Array, " "] = refractive_index * z_move
 
-    # Compute output pixel size first (needed for quadratic phase)
     dx_out: Float[Array, " "] = (
         incoming.wavelength * path_length / (nx * incoming.dx)
     )
 
-    # FFT of input field (centered)
     field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
         jnp.fft.fft2(jnp.fft.ifftshift(incoming.field))
     )
 
-    # Create output coordinate grid for quadratic phase
     x_out: Float[Array, " ww"] = (jnp.arange(nx) - nx / 2) * dx_out
     y_out: Float[Array, " hh"] = (jnp.arange(ny) - ny / 2) * dx_out
     x_mesh: Float[Array, " hh ww"]
     y_mesh: Float[Array, " hh ww"]
     x_mesh, y_mesh = jnp.meshgrid(x_out, y_out)
 
-    # Quadratic phase term: exp(i*k*(x'^2 + y'^2)/(2*z))
     quadratic_phase: Complex[Array, " hh ww"] = jnp.exp(
         1j * k * (x_mesh**2 + y_mesh**2) / (2 * path_length)
     )
 
-    # Global phase and amplitude scaling
     global_phase: Complex[Array, " "] = jnp.exp(1j * k * path_length)
-    scale_factor: Complex[Array, " "] = 1 / (
+    amplitude_scale_factor: Complex[Array, " "] = 1 / (
         1j * incoming.wavelength * path_length
     )
 
-    # Combine all terms
     propagated_field: Complex[Array, " hh ww"] = (
         global_phase
-        * scale_factor
+        * amplitude_scale_factor
         * quadratic_phase
         * field_ft
         * (incoming.dx**2)
@@ -403,42 +397,29 @@ def fraunhofer_prop_scaled(
     k: Float[Array, " "] = 2 * jnp.pi / incoming.wavelength
     path_length: Float[Array, " "] = refractive_index * z_move
 
-    # Standard Fraunhofer dx for reference
     dx_fraunhofer: Float[Array, " "] = (
         incoming.wavelength * path_length / (nx * incoming.dx)
     )
 
-    # Scaling factor: how much to zoom the FFT result
-    # scale > 1 means output_dx > dx_fraunhofer (zoom out / larger pixels)
-    # scale < 1 means output_dx < dx_fraunhofer (zoom in / smaller pixels)
-    scale: Float[Array, " "] = output_dx / dx_fraunhofer
+    fft_zoom_scale: Float[Array, " "] = output_dx / dx_fraunhofer
 
-    # FFT of input field (centered)
     field_ft: Complex[Array, " hh ww"] = jnp.fft.fftshift(
         jnp.fft.fft2(jnp.fft.ifftshift(incoming.field))
     )
 
-    # Create interpolation coordinates to resample FFT at scaled frequencies
-    # Original FFT is sampled at indices 0..N-1 (after fftshift, centered)
-    # We want to sample at scaled positions
     center_y: Float[Array, " "] = (ny - 1) / 2.0
     center_x: Float[Array, " "] = (nx - 1) / 2.0
 
-    # Output indices (0 to N-1)
     out_y: Float[Array, " hh"] = jnp.arange(ny, dtype=jnp.float64)
     out_x: Float[Array, " ww"] = jnp.arange(nx, dtype=jnp.float64)
 
-    # Map output indices to input FFT indices via scaling
-    # (out - center) * scale + center = input_index
-    in_y: Float[Array, " hh"] = (out_y - center_y) * scale + center_y
-    in_x: Float[Array, " ww"] = (out_x - center_x) * scale + center_x
+    in_y: Float[Array, " hh"] = (out_y - center_y) * fft_zoom_scale + center_y
+    in_x: Float[Array, " ww"] = (out_x - center_x) * fft_zoom_scale + center_x
 
-    # Create meshgrid for 2D interpolation
     in_y_mesh: Float[Array, " hh ww"]
     in_x_mesh: Float[Array, " hh ww"]
     in_y_mesh, in_x_mesh = jnp.meshgrid(in_y, in_x, indexing="ij")
 
-    # Interpolate FFT (real and imaginary separately)
     scaled_ft_real: Float[Array, " hh ww"] = jax.scipy.ndimage.map_coordinates(
         field_ft.real,
         [in_y_mesh, in_x_mesh],
@@ -455,28 +436,24 @@ def fraunhofer_prop_scaled(
     )
     scaled_ft: Complex[Array, " hh ww"] = scaled_ft_real + 1j * scaled_ft_imag
 
-    # Output coordinate grid for quadratic phase
     x_out: Float[Array, " ww"] = (jnp.arange(nx) - nx / 2) * output_dx
     y_out: Float[Array, " hh"] = (jnp.arange(ny) - ny / 2) * output_dx
     x_mesh: Float[Array, " hh ww"]
     y_mesh: Float[Array, " hh ww"]
     x_mesh, y_mesh = jnp.meshgrid(x_out, y_out)
 
-    # Quadratic phase term: exp(i*k*(x'^2 + y'^2)/(2*z))
     quadratic_phase: Complex[Array, " hh ww"] = jnp.exp(
         1j * k * (x_mesh**2 + y_mesh**2) / (2 * path_length)
     )
 
-    # Global phase and amplitude scaling
     global_phase: Complex[Array, " "] = jnp.exp(1j * k * path_length)
-    scale_factor: Complex[Array, " "] = 1 / (
+    amplitude_scale_factor: Complex[Array, " "] = 1 / (
         1j * incoming.wavelength * path_length
     )
 
-    # Combine all terms
     propagated_field: Complex[Array, " hh ww"] = (
         global_phase
-        * scale_factor
+        * amplitude_scale_factor
         * quadratic_phase
         * scaled_ft
         * (incoming.dx**2)

@@ -7,44 +7,40 @@ using JAX for automatic differentiation and acceleration. Supports both
 optical and electron microscopy applications with fully differentiable
 and JIT-compilable functions.
 
-Submodules
-----------
-coherence
+Routine Listings
+----------------
+:mod:`coherence`
     Partial coherence support for spatial and temporal coherence effects.
-invert
+:mod:`invert`
     Inversion algorithms for phase retrieval and ptychography.
-lenses
+:mod:`lenses`
     Lens implementations and optical calculations.
-models
+:mod:`models`
     Models for generating datasets for testing and validation.
-optics
+:mod:`optics`
     Variety of different optical elements.
-plots
+:mod:`plots`
     Plotting utilities for optical data visualization.
-prop
+:mod:`prop`
     Propagation methods for optical wavefronts.
-scopes
+:mod:`scopes`
     Microscope implementations and forward models.
-utils
+:mod:`utils`
     Common utility functions used throughout the code.
 
-Key Features
-------------
-- JAX-compatible:
-    All functions support jit, grad, vmap, and other JAX transformations
-- Automatic differentiation:
-    Full support for gradient-based optimization
-- Complex-valued optimization: Wirtinger calculus for complex parameters
-- Multi-modal support: Handles both single and multi-modal probes
-- Parallel processing: Device mesh support for distributed computing
-- Type safety: Comprehensive type checking with jaxtyping and beartype
+Examples
+--------
+>>> import janssen as js
+>>> wavefront = js.models.collimated_gaussian(
+...     wavelength=632.8e-9, waist=1e-3, grid_size=(256, 256), dx=10e-6
+... )
+>>> propagated = js.prop.angular_spectrum_prop(wavefront, distance=0.1)
+>>> js.plots.plot_intensity(propagated)
 
 Notes
 -----
-This package is designed for research and development in ptychography.
-All functions are optimized for JAX transformations and support both
-CPU and GPU execution. For best performance, use JIT compilation
-and consider using the provided factory functions for data validation.
+All computations are JAX-compatible and support automatic differentiation
+for gradient-based optimization of optical systems and phase retrieval.
 """
 
 import os

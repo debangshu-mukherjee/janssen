@@ -96,8 +96,6 @@ def propagate_coherent_modes(
     """
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
     num_modes: int = modes.shape[0]
-
-    # Select propagation function
     if method == "angular_spectrum":
         prop_fn = angular_spectrum_prop
     elif method == "fresnel":
@@ -109,8 +107,7 @@ def propagate_coherent_modes(
         mode: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
         """Propagate a single mode."""
-        # Create temporary OpticalWavefront for propagation
-        wavefront = make_optical_wavefront(
+        temporary_wavefront = make_optical_wavefront(
             field=mode,
             wavelength=mode_set.wavelength,
             dx=mode_set.dx,
@@ -118,25 +115,19 @@ def propagate_coherent_modes(
             polarization=False,
         )
 
-        # Propagate
-        propagated_wf = prop_fn(
-            wavefront,
+        propagated_wavefront = prop_fn(
+            temporary_wavefront,
             z_move=distance,
             refractive_index=refractive_index,
         )
+        return propagated_wavefront.field
 
-        return propagated_wf.field
-
-    # Vectorize over all modes
     propagated_modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
         propagate_single_mode
     )(modes)
-
-    # New z_position
     new_z: Float[Array, " "] = mode_set.z_position + jnp.asarray(
         distance, dtype=jnp.float64
     ) * jnp.asarray(refractive_index, dtype=jnp.float64)
-
     return make_coherent_mode_set(
         modes=propagated_modes,
         weights=mode_set.weights,
@@ -144,7 +135,7 @@ def propagate_coherent_modes(
         dx=mode_set.dx,
         z_position=new_z,
         polarization=mode_set.polarization,
-        normalize_weights=False,  # Keep existing normalization
+        normalize_weights=False,
     )
 
 
@@ -192,8 +183,6 @@ def propagate_polychromatic(
     """
     fields: Complex[Array, " num_wavelengths hh ww"] = wavefront.fields
     wavelengths: Float[Array, " num_wavelengths"] = wavefront.wavelengths
-
-    # Select propagation function
     if method == "angular_spectrum":
         prop_fn = angular_spectrum_prop
     elif method == "fresnel":
@@ -220,16 +209,12 @@ def propagate_polychromatic(
         )
         return propagated_wf.field
 
-    # Vectorize over all wavelengths
     propagated_fields: Complex[Array, " num_wavelengths hh ww"] = jax.vmap(
         propagate_at_wavelength
     )(fields, wavelengths)
-
-    # New z_position
     new_z: Float[Array, " "] = wavefront.z_position + jnp.asarray(
         distance, dtype=jnp.float64
     ) * jnp.asarray(refractive_index, dtype=jnp.float64)
-
     return make_polychromatic_wavefront(
         fields=propagated_fields,
         wavelengths=wavelengths,
@@ -291,12 +276,9 @@ def apply_element_to_modes(
         transformed_wf = element_fn(wavefront)
         return transformed_wf.field
 
-    # Vectorize over all modes
     transformed_modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
         apply_to_single_mode
     )(modes)
-
-    # Get z_position from transformed wavefront (may have changed)
     sample_wf = make_optical_wavefront(
         field=modes[0],
         wavelength=mode_set.wavelength,
@@ -305,7 +287,6 @@ def apply_element_to_modes(
         polarization=False,
     )
     transformed_sample = element_fn(sample_wf)
-
     return make_coherent_mode_set(
         modes=transformed_modes,
         weights=mode_set.weights,
@@ -345,20 +326,16 @@ def intensity_from_modes(
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
     weights: Float[Array, " num_modes"] = mode_set.weights
 
-    # Compute intensity for each mode
     if mode_set.polarization:
-        # For polarized modes, sum over polarization components
         mode_intensities: Float[Array, " num_modes hh ww"] = jnp.sum(
             jnp.abs(modes) ** 2, axis=-1
         )
     else:
         mode_intensities = jnp.abs(modes) ** 2
 
-    # Weighted sum
     intensity: Float[Array, " hh ww"] = jnp.sum(
         weights[:, jnp.newaxis, jnp.newaxis] * mode_intensities, axis=0
     )
-
     return intensity
 
 
@@ -392,7 +369,6 @@ def intensity_from_polychromatic(
         wavefront.spectral_weights
     )
 
-    # Compute intensity for each wavelength
     if wavefront.polarization:
         field_intensities: Float[Array, " num_wavelengths hh ww"] = jnp.sum(
             jnp.abs(fields) ** 2, axis=-1
@@ -400,12 +376,10 @@ def intensity_from_polychromatic(
     else:
         field_intensities = jnp.abs(fields) ** 2
 
-    # Weighted sum
     intensity: Float[Array, " hh ww"] = jnp.sum(
         spectral_weights[:, jnp.newaxis, jnp.newaxis] * field_intensities,
         axis=0,
     )
-
     return intensity
 
 
@@ -448,27 +422,23 @@ def propagate_and_focus_modes(
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
     hh: int = modes.shape[1]
     ww: int = modes.shape[2]
-
-    # Create coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * mode_set.dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * mode_set.dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
     r2: Float[Array, " hh ww"] = xx**2 + yy**2
-
-    # Thin lens phase
-    k: Float[Array, " "] = 2.0 * jnp.pi / mode_set.wavelength
-    f: Float[Array, " "] = jnp.asarray(focal_length, dtype=jnp.float64)
-    lens_phase: Float[Array, " hh ww"] = -k * r2 / (2.0 * f)
-
-    # Apply lens to all modes
-    lens_transmission: Complex[Array, " hh ww"] = jnp.exp(1j * lens_phase)
+    wavenumber: Float[Array, " "] = 2.0 * jnp.pi / mode_set.wavelength
+    focal_length_arr: Float[Array, " "] = jnp.asarray(
+        focal_length, dtype=jnp.float64
+    )
+    thin_lens_phase: Float[Array, " hh ww"] = (
+        -wavenumber * r2 / (2.0 * focal_length_arr)
+    )
+    lens_transmission: Complex[Array, " hh ww"] = jnp.exp(1j * thin_lens_phase)
     modes_after_lens: Complex[Array, " num_modes hh ww"] = (
         modes * lens_transmission[jnp.newaxis, :, :]
     )
-
-    # Create mode set after lens
     mode_set_after_lens = make_coherent_mode_set(
         modes=modes_after_lens,
         weights=mode_set.weights,
@@ -478,8 +448,6 @@ def propagate_and_focus_modes(
         polarization=mode_set.polarization,
         normalize_weights=False,
     )
-
-    # Propagate to focal plane
     return propagate_coherent_modes(
         mode_set_after_lens,
         distance=propagation_distance,

@@ -110,8 +110,6 @@ def led_source(
     - Typical LED die: 0.3-1 mm
     - At 10 cm distance: sigma_c ~ 50-200 um
     """
-    # Spatial coherence: use Gaussian Schell-model
-    # Beam width should be larger than coherence width for LED
     beam_width: Float[Array, " "] = jnp.asarray(
         spatial_coherence_width * 3.0, dtype=jnp.float64
     )
@@ -125,7 +123,6 @@ def led_source(
         num_modes=num_spatial_modes,
     )
 
-    # Temporal/spectral: Gaussian spectrum
     wavelengths: Float[Array, " n"]
     spectral_weights: Float[Array, " n"]
     wavelengths, spectral_weights = gaussian_spectrum(
@@ -198,16 +195,13 @@ def thermal_source(
     """
     from .temporal import blackbody_spectrum
 
-    # Coherence width from van Cittert-Zernike
     if center_wavelength is None:
-        # Wien's law
         center_wl: Float[Array, " "] = 2.898e-3 / jnp.asarray(
             temperature, dtype=jnp.float64
         )
     else:
         center_wl = jnp.asarray(center_wavelength, dtype=jnp.float64)
 
-    # Coherence width
     coherence_width: Float[Array, " "] = (
         0.44
         * center_wl
@@ -215,10 +209,8 @@ def thermal_source(
         / jnp.asarray(source_diameter, dtype=jnp.float64)
     )
 
-    # Extended beam width (thermal source is typically large)
     beam_width: Float[Array, " "] = coherence_width * 5.0
 
-    # Spatial modes
     mode_set: CoherentModeSet = gaussian_schell_model_modes(
         wavelength=center_wl,
         dx=dx,
@@ -228,7 +220,6 @@ def thermal_source(
         num_modes=num_modes,
     )
 
-    # Blackbody spectrum
     wavelengths: Float[Array, " n"]
     spectral_weights: Float[Array, " n"]
     wavelengths, spectral_weights = blackbody_spectrum(
@@ -294,7 +285,6 @@ def synchrotron_source(
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
 
-    # Mode widths (geometric mean approach)
     sigma_h: Float[Array, " "] = jnp.asarray(
         horizontal_coherence, dtype=jnp.float64
     )
@@ -302,18 +292,15 @@ def synchrotron_source(
         vertical_coherence, dtype=jnp.float64
     )
 
-    # Create coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
 
-    # Normalized coordinates for each direction
     x_norm: Float[Array, " hh ww"] = xx * jnp.sqrt(2.0) / sigma_h
     y_norm: Float[Array, " hh ww"] = yy * jnp.sqrt(2.0) / sigma_v
 
-    # Gaussian envelopes
     gaussian: Float[Array, " hh ww"] = jnp.exp(
         -(xx**2) / sigma_h**2 - (yy**2) / sigma_v**2
     )
@@ -334,7 +321,6 @@ def synchrotron_source(
             h_prev1 = h_curr
         return h_prev1
 
-    # Generate 2D modes as products of 1D modes
     n_h: int = int(num_modes_h)
     n_v: int = int(num_modes_v)
     total_modes: int = n_h * n_v
@@ -344,20 +330,19 @@ def synchrotron_source(
 
     for ih in range(n_h):
         h_h = _hermite_polynomial(ih, x_norm)
-        weight_h = jnp.exp(-ih / 2.0)  # Thermal-like distribution
+        thermal_weight_h = jnp.exp(-ih / 2.0)
 
         for iv in range(n_v):
             h_v = _hermite_polynomial(iv, y_norm)
-            weight_v = jnp.exp(-iv / 2.0)
+            thermal_weight_v = jnp.exp(-iv / 2.0)
 
             mode = h_h * h_v * gaussian
 
-            # Normalize
-            energy = jnp.sum(jnp.abs(mode) ** 2)
-            mode = mode / jnp.sqrt(energy + 1e-20)
+            mode_energy = jnp.sum(jnp.abs(mode) ** 2)
+            mode = mode / jnp.sqrt(mode_energy + 1e-20)
 
             modes_list.append(mode)
-            weights_list.append(weight_h * weight_v)
+            weights_list.append(thermal_weight_h * thermal_weight_v)
 
     modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
         modes_list, axis=0
@@ -429,41 +414,34 @@ def laser_with_mode_noise(
     purity: Float[Array, " "] = jnp.asarray(mode_purity, dtype=jnp.float64)
     purity = jnp.clip(purity, 0.0, 1.0)
 
-    # Generate Hermite-Gaussian modes
     hg_modes: CoherentModeSet = hermite_gaussian_modes(
         wavelength=wavelength,
         dx=dx,
         grid_size=grid_size,
         beam_waist=beam_waist,
-        max_order=int(jnp.sqrt(n_modes)) + 1,  # Approximate order needed
+        max_order=int(jnp.sqrt(n_modes)) + 1,
     )
 
-    # Take first n_modes
     modes: Complex[Array, " num_modes hh ww"] = hg_modes.modes[:n_modes]
 
-    # Custom weights based on mode purity
     n_arr: Float[Array, " num_modes"] = jnp.arange(n_modes, dtype=jnp.float64)
 
-    # Weight for TEM00
-    w0: Float[Array, " "] = purity
+    tem00_weight: Float[Array, " "] = purity
 
-    # Weights for higher modes (exponentially decreasing)
     higher_mode_weights: Float[Array, " num_modes"] = jnp.where(
         n_arr == 0,
         0.0,
         jnp.exp(-n_arr),
     )
 
-    # Normalize higher mode weights and scale by (1 - purity)
     higher_mode_sum: Float[Array, " "] = jnp.sum(higher_mode_weights)
     higher_mode_weights = (
         (1.0 - purity) * higher_mode_weights / (higher_mode_sum + 1e-20)
     )
 
-    # Combine
     weights: Float[Array, " num_modes"] = jnp.where(
         n_arr == 0,
-        w0,
+        tem00_weight,
         higher_mode_weights,
     )
 
@@ -531,7 +509,6 @@ def multimode_fiber_output(
     n_modes: int = int(num_modes)
     a: Float[Array, " "] = jnp.asarray(fiber_core_radius, dtype=jnp.float64)
 
-    # Create coordinate grids
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
@@ -540,11 +517,8 @@ def multimode_fiber_output(
     r: Float[Array, " hh ww"] = jnp.sqrt(xx**2 + yy**2)
     phi: Float[Array, " hh ww"] = jnp.arctan2(yy, xx)
 
-    # Fiber core mask
     core_mask: Float[Array, " hh ww"] = jnp.where(r <= a, 1.0, 0.0)
 
-    # Generate LP modes (simplified: using cos/sin variations)
-    # LP_lm modes have l azimuthal nodes and m radial nodes
     modes_list = []
 
     mode_idx = 0
@@ -553,31 +527,25 @@ def multimode_fiber_output(
             if mode_idx >= n_modes:
                 break
 
-            # Radial part: simplified Bessel-like profile
-            # Using Gaussian-Laguerre as approximation
             rho = r / a
-            radial = jnp.exp(-(rho**2) / 2.0) * (rho ** abs(l))
+            radial_profile = jnp.exp(-(rho**2) / 2.0) * (rho ** abs(l))
 
-            # Azimuthal part
             if l == 0:
-                azimuthal = jnp.ones_like(phi)
+                azimuthal_profile = jnp.ones_like(phi)
             else:
-                # Include both cos and sin variants
-                azimuthal = jnp.cos(l * phi)
+                azimuthal_profile = jnp.cos(l * phi)
 
-            mode = radial * azimuthal * core_mask
+            mode = radial_profile * azimuthal_profile * core_mask
 
-            # Normalize
-            energy = jnp.sum(jnp.abs(mode) ** 2)
-            if energy > 1e-20:
-                mode = mode / jnp.sqrt(energy)
+            mode_energy = jnp.sum(jnp.abs(mode) ** 2)
+            if mode_energy > 1e-20:
+                mode = mode / jnp.sqrt(mode_energy)
                 modes_list.append(mode)
                 mode_idx += 1
 
             if mode_idx >= n_modes:
                 break
 
-    # Pad with zeros if we don't have enough modes
     while len(modes_list) < n_modes:
         modes_list.append(jnp.zeros((hh, ww)))
 
@@ -585,7 +553,6 @@ def multimode_fiber_output(
         modes_list[:n_modes], axis=0
     ).astype(jnp.complex128)
 
-    # Mode weights
     if mode_distribution == "uniform":
         weights: Float[Array, " num_modes"] = jnp.ones(n_modes) / n_modes
     elif mode_distribution == "thermal":

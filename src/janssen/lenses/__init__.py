@@ -6,31 +6,26 @@ Comprehensive lens modeling for simulating optical elements. Includes
 implementations of common lens types and their optical properties.
 For propagation algorithms, see the janssen.prop submodule.
 
-Submodules
-----------
-lens_elements
-    Lens elements for optical simulations
-
 Routine Listings
 ----------------
-create_lens_phase : function
+:func:`create_lens_phase`
     Create phase profile for a lens based on its parameters.
-double_concave_lens : function
-    Create parameters for a double concave lens.
-double_convex_lens : function
-    Create parameters for a double convex lens.
-lens_focal_length : function
+:func:`lens_focal_length`
     Calculate focal length from lens parameters.
-lens_thickness_profile : function
+:func:`lens_thickness_profile`
     Calculate thickness profile of a lens.
-meniscus_lens : function
-    Create parameters for a meniscus lens.
-plano_concave_lens : function
-    Create parameters for a plano-concave lens.
-plano_convex_lens : function
-    Create parameters for a plano-convex lens.
-propagate_through_lens : function
+:func:`propagate_through_lens`
     Propagate optical wavefront through a lens.
+:func:`plano_convex_lens`
+    Create parameters for a plano-convex lens.
+:func:`plano_concave_lens`
+    Create parameters for a plano-concave lens.
+:func:`double_convex_lens`
+    Create parameters for a double convex lens.
+:func:`double_concave_lens`
+    Create parameters for a double concave lens.
+:func:`meniscus_lens`
+    Create parameters for a meniscus lens.
 
 Notes
 -----

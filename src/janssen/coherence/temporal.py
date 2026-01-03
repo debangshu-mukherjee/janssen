@@ -53,7 +53,6 @@ from jaxtyping import Array, Float, jaxtyped
 
 from janssen.utils import ScalarFloat, ScalarInteger
 
-# Speed of light in vacuum (m/s)
 C_LIGHT: float = 299792458.0
 
 
@@ -103,29 +102,19 @@ def gaussian_spectrum(
     lam0: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     fwhm: Float[Array, " "] = jnp.asarray(bandwidth_fwhm, dtype=jnp.float64)
     n: int = int(num_wavelengths)
-
-    # Convert FWHM to sigma
-    sigma: Float[Array, " "] = fwhm / (2.0 * jnp.sqrt(2.0 * jnp.log(2.0)))
-
-    # Determine wavelength range
+    fwhm_to_sigma: float = 2.0 * jnp.sqrt(2.0 * jnp.log(2.0))
+    sigma: Float[Array, " "] = fwhm / fwhm_to_sigma
     if wavelength_range is None:
         lam_min: Float[Array, " "] = lam0 - 3.0 * sigma
         lam_max: Float[Array, " "] = lam0 + 3.0 * sigma
     else:
         lam_min = jnp.asarray(wavelength_range[0], dtype=jnp.float64)
         lam_max = jnp.asarray(wavelength_range[1], dtype=jnp.float64)
-
-    # Generate wavelength samples
     wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-
-    # Gaussian weights
-    weights: Float[Array, " n"] = jnp.exp(
+    gaussian_weights: Float[Array, " n"] = jnp.exp(
         -((wavelengths - lam0) ** 2) / (2.0 * sigma**2)
     )
-
-    # Normalize to sum to 1
-    weights = weights / jnp.sum(weights)
-
+    weights: Float[Array, " n"] = gaussian_weights / jnp.sum(gaussian_weights)
     return wavelengths, weights
 
 
@@ -173,27 +162,20 @@ def lorentzian_spectrum(
     lam0: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     gamma: Float[Array, " "] = jnp.asarray(bandwidth_fwhm, dtype=jnp.float64)
     n: int = int(num_wavelengths)
-
-    # Determine wavelength range (broader than Gaussian due to tails)
     if wavelength_range is None:
         lam_min: Float[Array, " "] = lam0 - 5.0 * gamma
         lam_max: Float[Array, " "] = lam0 + 5.0 * gamma
     else:
         lam_min = jnp.asarray(wavelength_range[0], dtype=jnp.float64)
         lam_max = jnp.asarray(wavelength_range[1], dtype=jnp.float64)
-
-    # Generate wavelength samples
     wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-
-    # Lorentzian weights
     half_gamma: Float[Array, " "] = gamma / 2.0
-    weights: Float[Array, " n"] = half_gamma**2 / (
+    lorentzian_weights: Float[Array, " n"] = half_gamma**2 / (
         (wavelengths - lam0) ** 2 + half_gamma**2
     )
-
-    # Normalize to sum to 1
-    weights = weights / jnp.sum(weights)
-
+    weights: Float[Array, " n"] = lorentzian_weights / jnp.sum(
+        lorentzian_weights
+    )
     return wavelengths, weights
 
 
@@ -231,17 +213,10 @@ def rectangular_spectrum(
     lam0: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     delta_lam: Float[Array, " "] = jnp.asarray(bandwidth, dtype=jnp.float64)
     n: int = int(num_wavelengths)
-
-    # Wavelength range
     lam_min: Float[Array, " "] = lam0 - delta_lam / 2.0
     lam_max: Float[Array, " "] = lam0 + delta_lam / 2.0
-
-    # Generate wavelength samples
     wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-
-    # Uniform weights
     weights: Float[Array, " n"] = jnp.ones(n, dtype=jnp.float64) / n
-
     return wavelengths, weights
 
 
@@ -280,11 +255,9 @@ def blackbody_spectrum(
 
     For a 5800 K blackbody (Sun), the peak is near 500 nm.
     """
-    # Physical constants
-    h: float = 6.62607015e-34  # Planck constant (J*s)
-    k_B: float = 1.380649e-23  # Boltzmann constant (J/K)
+    planck_constant: float = 6.62607015e-34
+    boltzmann_constant: float = 1.380649e-23
     c: float = C_LIGHT
-
     temp: Float[Array, " "] = jnp.asarray(temperature, dtype=jnp.float64)
     lam_min: Float[Array, " "] = jnp.asarray(
         wavelength_range[0], dtype=jnp.float64
@@ -293,22 +266,17 @@ def blackbody_spectrum(
         wavelength_range[1], dtype=jnp.float64
     )
     n: int = int(num_wavelengths)
-
-    # Generate wavelength samples
     wavelengths: Float[Array, " n"] = jnp.linspace(lam_min, lam_max, n)
-
-    # Planck distribution (spectral radiance)
-    exponent: Float[Array, " n"] = h * c / (wavelengths * k_B * temp)
-    # Clip exponent to avoid overflow
-    exponent_clipped: Float[Array, " n"] = jnp.clip(exponent, -700, 700)
-
-    weights: Float[Array, " n"] = (2.0 * h * c**2 / wavelengths**5) / (
-        jnp.exp(exponent_clipped) - 1.0
+    planck_exponent: Float[Array, " n"] = (
+        planck_constant * c / (wavelengths * boltzmann_constant * temp)
     )
-
-    # Normalize to sum to 1
-    weights = weights / jnp.sum(weights)
-
+    planck_exponent_clipped: Float[Array, " n"] = jnp.clip(
+        planck_exponent, -700, 700
+    )
+    planck_weights: Float[Array, " n"] = (
+        2.0 * planck_constant * c**2 / wavelengths**5
+    ) / (jnp.exp(planck_exponent_clipped) - 1.0)
+    weights: Float[Array, " n"] = planck_weights / jnp.sum(planck_weights)
     return wavelengths, weights
 
 
@@ -356,12 +324,8 @@ def coherence_length(
     """
     lam: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     delta_lam: Float[Array, " "] = jnp.asarray(bandwidth, dtype=jnp.float64)
-
-    # Factor for Gaussian spectrum
-    factor: float = 2.0 * jnp.log(2.0) / jnp.pi  # ~ 0.44
-
-    l_c: Float[Array, " "] = factor * lam**2 / delta_lam
-
+    gaussian_coherence_factor: float = 2.0 * jnp.log(2.0) / jnp.pi
+    l_c: Float[Array, " "] = gaussian_coherence_factor * lam**2 / delta_lam
     return l_c
 
 
@@ -397,7 +361,6 @@ def coherence_time(
     """
     l_c: Float[Array, " "] = coherence_length(center_wavelength, bandwidth)
     tau_c: Float[Array, " "] = l_c / C_LIGHT
-
     return tau_c
 
 
@@ -424,12 +387,8 @@ def bandwidth_from_coherence_length(
     """
     lam: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     l_c: Float[Array, " "] = jnp.asarray(coh_length, dtype=jnp.float64)
-
-    # Factor for Gaussian spectrum (inverse of coherence_length)
-    factor: float = 2.0 * jnp.log(2.0) / jnp.pi
-
-    bandwidth: Float[Array, " "] = factor * lam**2 / l_c
-
+    gaussian_coherence_factor: float = 2.0 * jnp.log(2.0) / jnp.pi
+    bandwidth: Float[Array, " "] = gaussian_coherence_factor * lam**2 / l_c
     return bandwidth
 
 
@@ -475,16 +434,10 @@ def spectral_phase_from_dispersion(
     lam0: Float[Array, " "] = jnp.asarray(center_wavelength, dtype=jnp.float64)
     gdd_val: Float[Array, " "] = jnp.asarray(gdd, dtype=jnp.float64)
     tod_val: Float[Array, " "] = jnp.asarray(tod, dtype=jnp.float64)
-
-    # Convert wavelength to angular frequency
     omega: Float[Array, " n"] = 2.0 * jnp.pi * C_LIGHT / wavelengths
     omega0: Float[Array, " "] = 2.0 * jnp.pi * C_LIGHT / lam0
-
     delta_omega: Float[Array, " n"] = omega - omega0
-
-    # Taylor expansion of spectral phase
     phase: Float[Array, " n"] = (
         0.5 * gdd_val * delta_omega**2 + (1.0 / 6.0) * tod_val * delta_omega**3
     )
-
     return phase

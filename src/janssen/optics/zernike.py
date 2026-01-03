@@ -805,7 +805,6 @@ def compute_phase_from_coeffs(
         start_noll, start_noll + num_coeffs, dtype=jnp.int32
     )
 
-    # Convert Noll indices to (n, m) pairs using vectorized operations
     n_float: Float[Array, " N"] = (-1 + jnp.sqrt(1 + 8 * noll_indices)) / 2
     n_indices: Int[Array, " N"] = (jnp.ceil(n_float) - 1).astype(jnp.int32)
 
@@ -825,7 +824,6 @@ def compute_phase_from_coeffs(
     )
     m_indices: Int[Array, " N"] = jnp.where(m_abs == 0, 0, m_with_sign)
 
-    # Accumulate phase using scan
     def scan_fn(
         phase_acc: Float[Array, " *batch"],
         inputs: Tuple[Int[Array, " "], Int[Array, " "], Float[Array, " "]],

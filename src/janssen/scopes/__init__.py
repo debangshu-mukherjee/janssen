@@ -5,21 +5,16 @@ Extended Summary
 Complete forward models for optical microscopy including diffraction
 patterns, light-sample interactions, and multi-position imaging.
 
-Submodules
-----------
-simple_microscopes
-    Simple microscope forward models for optical microscopy
-
 Routine Listings
 ----------------
-diffractogram_noscale : function
-    Calculates the diffractogram without scaling camera pixel size
-linear_interaction : function
-    Propagates an optical wavefront through a sample using linear interaction
-simple_diffractogram : function
-    Calculates the diffractogram using a simple model
-simple_microscope : function
-    Calculates 3D diffractograms at all pixel positions in parallel
+:func:`simple_microscope`
+    Calculates 3D diffractograms at all pixel positions in parallel.
+:func:`simple_diffractogram`
+    Calculates the diffractogram using a simple model.
+:func:`diffractogram_noscale`
+    Calculates the diffractogram without scaling camera pixel size.
+:func:`linear_interaction`
+    Propagates optical wavefront through sample using linear interaction.
 
 Notes
 -----
