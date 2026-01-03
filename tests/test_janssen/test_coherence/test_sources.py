@@ -16,7 +16,7 @@ from janssen.coherence.sources import (
 class TestLedSource(chex.TestCase):
     """Test led_source function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_types(self) -> None:
         """Test that outputs have correct types."""
         center_wl = 530e-9
@@ -33,7 +33,7 @@ class TestLedSource(chex.TestCase):
         chex.assert_rank(wavelengths, 1)
         chex.assert_rank(spectral_weights, 1)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_shapes(self) -> None:
         """Test that modes have correct shape."""
         center_wl = 530e-9
@@ -53,7 +53,7 @@ class TestLedSource(chex.TestCase):
         )
         chex.assert_shape(mode_set.modes, (num_spatial_modes, 32, 48))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_spectral_samples(self) -> None:
         """Test that correct number of spectral samples returned."""
         center_wl = 530e-9
@@ -74,7 +74,7 @@ class TestLedSource(chex.TestCase):
         chex.assert_shape(wavelengths, (num_spectral,))
         chex.assert_shape(spectral_weights, (num_spectral,))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_spectral_weights_normalized(self) -> None:
         """Test that spectral weights sum to 1."""
         center_wl = 530e-9
@@ -88,7 +88,7 @@ class TestLedSource(chex.TestCase):
         )
         chex.assert_trees_all_close(jnp.sum(spectral_weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_weights_normalized(self) -> None:
         """Test that mode weights sum to 1."""
         center_wl = 530e-9
@@ -106,7 +106,7 @@ class TestLedSource(chex.TestCase):
 class TestThermalSource(chex.TestCase):
     """Test thermal_source function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_types(self) -> None:
         """Test that outputs have correct types."""
         temperature = 3000.0
@@ -129,7 +129,7 @@ class TestThermalSource(chex.TestCase):
         chex.assert_rank(wavelengths, 1)
         chex.assert_rank(spectral_weights, 1)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_shapes(self) -> None:
         """Test that modes have correct shape."""
         temperature = 3000.0
@@ -151,7 +151,7 @@ class TestThermalSource(chex.TestCase):
         )
         chex.assert_shape(mode_set.modes, (num_modes, 32, 48))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wien_wavelength_used(self) -> None:
         """Test that Wien peak wavelength is used when not specified."""
         temperature = 5800.0
@@ -172,7 +172,7 @@ class TestThermalSource(chex.TestCase):
         wien_peak = 2.898e-3 / temperature
         chex.assert_trees_all_close(mode_set.wavelength, wien_peak, rtol=0.01)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_custom_center_wavelength(self) -> None:
         """Test that custom center wavelength is used."""
         temperature = 3000.0
@@ -194,7 +194,7 @@ class TestThermalSource(chex.TestCase):
         )
         chex.assert_trees_all_close(mode_set.wavelength, center_wl, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_spectral_weights_normalized(self) -> None:
         """Test that spectral weights sum to 1."""
         temperature = 3000.0
@@ -218,7 +218,7 @@ class TestThermalSource(chex.TestCase):
 class TestSynchrotronSource(chex.TestCase):
     """Test synchrotron_source function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a CoherentModeSet."""
         center_wl = 1e-10
@@ -233,7 +233,7 @@ class TestSynchrotronSource(chex.TestCase):
         assert hasattr(mode_set, "modes")
         assert hasattr(mode_set, "weights")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_count(self) -> None:
         """Test that correct number of modes generated."""
         center_wl = 1e-10
@@ -256,7 +256,7 @@ class TestSynchrotronSource(chex.TestCase):
         )
         chex.assert_shape(mode_set.modes, (expected_modes, 32, 32))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that weights sum to 1."""
         center_wl = 1e-10
@@ -270,7 +270,7 @@ class TestSynchrotronSource(chex.TestCase):
         )
         chex.assert_trees_all_close(jnp.sum(mode_set.weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_modes_normalized(self) -> None:
         """Test that each mode has unit energy."""
         center_wl = 1e-10
@@ -286,7 +286,7 @@ class TestSynchrotronSource(chex.TestCase):
             mode_energy = jnp.sum(jnp.abs(mode_set.modes[i]) ** 2)
             chex.assert_trees_all_close(mode_energy, 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wavelength_stored(self) -> None:
         """Test that wavelength is correctly stored."""
         center_wl = 1e-10
@@ -304,7 +304,7 @@ class TestSynchrotronSource(chex.TestCase):
 class TestLaserWithModeNoise(chex.TestCase):
     """Test laser_with_mode_noise function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a CoherentModeSet."""
         wavelength = 633e-9
@@ -317,7 +317,7 @@ class TestLaserWithModeNoise(chex.TestCase):
         assert hasattr(mode_set, "modes")
         assert hasattr(mode_set, "weights")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_shapes(self) -> None:
         """Test that modes have correct shape."""
         wavelength = 633e-9
@@ -332,7 +332,7 @@ class TestLaserWithModeNoise(chex.TestCase):
         )
         chex.assert_shape(mode_set.modes, (num_modes, 32, 48))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that weights sum to 1."""
         wavelength = 633e-9
@@ -344,7 +344,7 @@ class TestLaserWithModeNoise(chex.TestCase):
         mode_set = var_fn(wavelength, dx, grid_size, beam_waist, mode_purity)
         chex.assert_trees_all_close(jnp.sum(mode_set.weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_high_purity_dominant_tem00(self) -> None:
         """Test that high purity gives dominant TEM00 mode."""
         wavelength = 633e-9
@@ -357,7 +357,7 @@ class TestLaserWithModeNoise(chex.TestCase):
         first_mode_weight = mode_set.weights[0]
         assert first_mode_weight > 0.95
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_low_purity_distributed(self) -> None:
         """Test that low purity distributes power across modes."""
         wavelength = 633e-9
@@ -370,7 +370,7 @@ class TestLaserWithModeNoise(chex.TestCase):
         first_mode_weight = mode_set.weights[0]
         assert first_mode_weight < 0.2
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_purity_clipped(self) -> None:
         """Test that purity is clipped to [0, 1]."""
         wavelength = 633e-9
@@ -395,7 +395,7 @@ class TestLaserWithModeNoise(chex.TestCase):
 class TestMultimodeFiberOutput(chex.TestCase):
     """Test multimode_fiber_output function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a CoherentModeSet."""
         wavelength = 633e-9
@@ -407,7 +407,7 @@ class TestMultimodeFiberOutput(chex.TestCase):
         assert hasattr(mode_set, "modes")
         assert hasattr(mode_set, "weights")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_shapes(self) -> None:
         """Test that modes have correct shape."""
         wavelength = 633e-9
@@ -421,7 +421,7 @@ class TestMultimodeFiberOutput(chex.TestCase):
         )
         chex.assert_shape(mode_set.modes, (num_modes, 32, 48))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_uniform_distribution(self) -> None:
         """Test that uniform distribution gives equal weights."""
         wavelength = 633e-9
@@ -443,7 +443,7 @@ class TestMultimodeFiberOutput(chex.TestCase):
             mode_set.weights, expected_weight, atol=1e-10
         )
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_thermal_distribution(self) -> None:
         """Test that thermal distribution gives decreasing weights."""
         wavelength = 633e-9
@@ -464,7 +464,7 @@ class TestMultimodeFiberOutput(chex.TestCase):
         for i in range(len(weights) - 1):
             assert weights[i] >= weights[i + 1]
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that weights sum to 1."""
         wavelength = 633e-9

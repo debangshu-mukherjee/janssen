@@ -15,15 +15,19 @@ Real light sources are never perfectly coherent:
 Routine Listings
 ----------------
 led_source : function
-    Model an LED source with spatial and temporal partial coherence
+    Model an LED source with spatial and temporal partial coherence.
 thermal_source : function
-    Model a thermal (blackbody) source
+    Model a thermal (blackbody) source.
 synchrotron_source : function
-    Model a synchrotron X-ray source with anisotropic coherence
+    Model a synchrotron X-ray source with anisotropic coherence.
 laser_with_mode_noise : function
-    Model a laser with imperfect mode purity
+    Model a laser with imperfect mode purity.
 multimode_fiber_output : function
-    Model the output of a multimode optical fiber
+    Model the output of a multimode optical fiber.
+_synchrotron_source_impl : function, internal (pure JAX)
+    JIT-compiled synchrotron source mode generation.
+_multimode_fiber_output_impl : function, internal (pure JAX)
+    JIT-compiled multimode fiber mode generation.
 
 Notes
 -----
@@ -52,7 +56,7 @@ from janssen.utils import (
 )
 
 from .modes import gaussian_schell_model_modes, hermite_gaussian_modes
-from .temporal import gaussian_spectrum
+from .temporal import blackbody_spectrum, gaussian_spectrum
 
 
 @jaxtyped(typechecker=beartype)
@@ -196,8 +200,6 @@ def thermal_source(
     - Incandescent bulb (2800 K): peak at 1035 nm
     - Human body (310 K): peak at 9.3 um
     """
-    from .temporal import blackbody_spectrum
-
     if center_wavelength is None:
         center_wl: Float[Array, " "] = 2.898e-3 / jnp.asarray(
             temperature, dtype=jnp.float64
@@ -260,7 +262,33 @@ def _synchrotron_source_impl(
     ww: int,
     mode_indices: Tuple[Tuple[int, int], ...],
 ) -> Tuple[Complex[Array, " num_modes hh ww"], Float[Array, " num_modes"]]:
-    """JIT-compiled implementation of synchrotron_source."""
+    """JIT-compiled synchrotron source mode generation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    horizontal_coherence : Float[Array, " "]
+        Horizontal coherence width in meters.
+    vertical_coherence : Float[Array, " "]
+        Vertical coherence width in meters.
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    mode_indices : Tuple[Tuple[int, int], ...]
+        Tuple of (n_h, n_v) mode index pairs (static).
+
+    Returns
+    -------
+    modes : Complex[Array, " num_modes hh ww"]
+        Normalized anisotropic Gaussian mode fields.
+    weights : Float[Array, " num_modes"]
+        Mode weights based on coherence anisotropy.
+    """
     sigma_h: Float[Array, " "] = horizontal_coherence
     sigma_v: Float[Array, " "] = vertical_coherence
 
@@ -480,14 +508,14 @@ def laser_with_mode_noise(
 
 
 def _generate_fiber_mode_indices(n_modes: int) -> Tuple[Tuple[int, int], ...]:
-    """Generate (l, m) indices for fiber modes."""
+    """Generate (azimuthal_idx, radial_idx) indices for fiber modes."""
     mode_indices = []
     max_order = int(n_modes**0.5) + 2
-    for l in range(max_order):
-        for m in range(1, max_order):
+    for azimuthal_idx in range(max_order):
+        for radial_idx in range(1, max_order):
             if len(mode_indices) >= n_modes:
                 break
-            mode_indices.append((l, m))
+            mode_indices.append((azimuthal_idx, radial_idx))
         if len(mode_indices) >= n_modes:
             break
     return tuple(mode_indices[:n_modes])
@@ -502,7 +530,31 @@ def _multimode_fiber_output_impl(
     n_modes: int,
     mode_indices: Tuple[Tuple[int, int], ...],
 ) -> Complex[Array, " num_modes hh ww"]:
-    """JIT-compiled implementation of multimode_fiber_output."""
+    """JIT-compiled multimode fiber mode generation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    fiber_core_radius : Float[Array, " "]
+        Fiber core radius in meters.
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    n_modes : int
+        Number of modes (static).
+    mode_indices : Tuple[Tuple[int, int], ...]
+        Tuple of (azimuthal_idx, radial_idx) index pairs (static).
+
+    Returns
+    -------
+    modes : Complex[Array, " num_modes hh ww"]
+        Normalized LP-like fiber mode fields.
+    """
     a: Float[Array, " "] = fiber_core_radius
 
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
@@ -517,13 +569,13 @@ def _multimode_fiber_output_impl(
     rho: Float[Array, " hh ww"] = r / a
 
     modes_list = []
-    for l, m in mode_indices:
-        radial_profile = jnp.exp(-(rho**2) / 2.0) * (rho ** abs(l))
-
-        if l == 0:
-            azimuthal_profile = jnp.ones_like(phi)
-        else:
-            azimuthal_profile = jnp.cos(l * phi)
+    for azimuthal_idx, _radial_idx in mode_indices:
+        radial_profile = jnp.exp(-(rho**2) / 2.0) * (rho ** abs(azimuthal_idx))
+        azimuthal_profile = jnp.where(
+            azimuthal_idx == 0,
+            jnp.ones_like(phi),
+            jnp.cos(azimuthal_idx * phi),
+        )
 
         mode = radial_profile * azimuthal_profile * core_mask
 

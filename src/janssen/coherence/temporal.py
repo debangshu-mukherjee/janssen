@@ -18,19 +18,29 @@ different phase velocities, leading to temporal decoherence.
 Routine Listings
 ----------------
 gaussian_spectrum : function
-    Generate Gaussian spectral distribution
+    Generate Gaussian spectral distribution.
 lorentzian_spectrum : function
-    Generate Lorentzian spectral distribution (natural lineshape)
+    Generate Lorentzian spectral distribution (natural lineshape).
 rectangular_spectrum : function
-    Generate rectangular (flat-top) spectral distribution
+    Generate rectangular (flat-top) spectral distribution.
 blackbody_spectrum : function
-    Generate blackbody (Planck) spectral distribution
+    Generate blackbody (Planck) spectral distribution.
 coherence_length : function
-    Calculate coherence length L_c = lambda^2 / Delta_lambda
+    Calculate coherence length L_c = lambda^2 / Delta_lambda.
 coherence_time : function
-    Calculate coherence time tau_c = lambda^2 / (c * Delta_lambda)
+    Calculate coherence time tau_c = lambda^2 / (c * Delta_lambda).
 bandwidth_from_coherence_length : function
-    Calculate bandwidth from coherence length
+    Calculate bandwidth from coherence length.
+spectral_phase_from_dispersion : function
+    Calculate spectral phase from material dispersion.
+_gaussian_spectrum_impl : function, internal (pure JAX)
+    JIT-compiled Gaussian spectrum computation.
+_lorentzian_spectrum_impl : function, internal (pure JAX)
+    JIT-compiled Lorentzian spectrum computation.
+_rectangular_spectrum_impl : function, internal (pure JAX)
+    JIT-compiled rectangular spectrum computation.
+_blackbody_spectrum_impl : function, internal (pure JAX)
+    JIT-compiled blackbody spectrum computation.
 
 Notes
 -----
@@ -70,7 +80,31 @@ def _gaussian_spectrum_impl(
     lam_min: Float[Array, " "],
     lam_max: Float[Array, " "],
 ) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
-    """JIT-compiled implementation of gaussian_spectrum."""
+    """JIT-compiled Gaussian spectrum computation.
+
+    Pure JAX implementation with static num_wavelengths for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    center_wavelength : Float[Array, " "]
+        Center wavelength in meters.
+    bandwidth_fwhm : Float[Array, " "]
+        Full width at half maximum in meters.
+    num_wavelengths : int
+        Number of wavelength samples (static).
+    lam_min : Float[Array, " "]
+        Minimum wavelength in meters.
+    lam_max : Float[Array, " "]
+        Maximum wavelength in meters.
+
+    Returns
+    -------
+    wavelengths : Float[Array, " n"]
+        Array of wavelengths.
+    weights : Float[Array, " n"]
+        Normalized spectral weights.
+    """
     fwhm_to_sigma: float = 2.0 * jnp.sqrt(2.0 * jnp.log(2.0))
     sigma: Float[Array, " "] = bandwidth_fwhm / fwhm_to_sigma
     wavelengths: Float[Array, " n"] = jnp.linspace(
@@ -148,7 +182,31 @@ def _lorentzian_spectrum_impl(
     lam_min: Float[Array, " "],
     lam_max: Float[Array, " "],
 ) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
-    """JIT-compiled implementation of lorentzian_spectrum."""
+    """JIT-compiled Lorentzian spectrum computation.
+
+    Pure JAX implementation with static num_wavelengths for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    center_wavelength : Float[Array, " "]
+        Center wavelength in meters.
+    bandwidth_fwhm : Float[Array, " "]
+        Full width at half maximum in meters.
+    num_wavelengths : int
+        Number of wavelength samples (static).
+    lam_min : Float[Array, " "]
+        Minimum wavelength in meters.
+    lam_max : Float[Array, " "]
+        Maximum wavelength in meters.
+
+    Returns
+    -------
+    wavelengths : Float[Array, " n"]
+        Array of wavelengths.
+    weights : Float[Array, " n"]
+        Normalized spectral weights.
+    """
     wavelengths: Float[Array, " n"] = jnp.linspace(
         lam_min, lam_max, num_wavelengths
     )
@@ -221,7 +279,27 @@ def _rectangular_spectrum_impl(
     bandwidth: Float[Array, " "],
     num_wavelengths: int,
 ) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
-    """JIT-compiled implementation of rectangular_spectrum."""
+    """JIT-compiled rectangular spectrum computation.
+
+    Pure JAX implementation with static num_wavelengths for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    center_wavelength : Float[Array, " "]
+        Center wavelength in meters.
+    bandwidth : Float[Array, " "]
+        Total bandwidth in meters.
+    num_wavelengths : int
+        Number of wavelength samples (static).
+
+    Returns
+    -------
+    wavelengths : Float[Array, " n"]
+        Array of wavelengths.
+    weights : Float[Array, " n"]
+        Uniform spectral weights (normalized).
+    """
     lam_min: Float[Array, " "] = center_wavelength - bandwidth / 2.0
     lam_max: Float[Array, " "] = center_wavelength + bandwidth / 2.0
     wavelengths: Float[Array, " n"] = jnp.linspace(
@@ -277,7 +355,29 @@ def _blackbody_spectrum_impl(
     num_wavelengths: int,
     lam_max: Float[Array, " "],
 ) -> Tuple[Float[Array, " n"], Float[Array, " n"]]:
-    """JIT-compiled implementation of blackbody_spectrum."""
+    """JIT-compiled blackbody (Planck) spectrum computation.
+
+    Pure JAX implementation with static num_wavelengths for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    temperature : Float[Array, " "]
+        Blackbody temperature in Kelvin.
+    lam_min : Float[Array, " "]
+        Minimum wavelength in meters.
+    num_wavelengths : int
+        Number of wavelength samples (static).
+    lam_max : Float[Array, " "]
+        Maximum wavelength in meters.
+
+    Returns
+    -------
+    wavelengths : Float[Array, " n"]
+        Array of wavelengths.
+    weights : Float[Array, " n"]
+        Normalized Planck spectral weights.
+    """
     planck_constant: float = 6.62607015e-34
     boltzmann_constant: float = 1.380649e-23
     c: float = C_LIGHT

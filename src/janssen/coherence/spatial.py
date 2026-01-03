@@ -17,17 +17,25 @@ the source intensity distribution.
 Routine Listings
 ----------------
 gaussian_coherence_kernel : function
-    Generate Gaussian spatial coherence kernel mu(Delta r)
+    Generate Gaussian spatial coherence kernel mu(Delta r).
 jinc_coherence_kernel : function
-    Generate jinc coherence kernel from circular incoherent source
+    Generate jinc coherence kernel from circular incoherent source.
 rectangular_coherence_kernel : function
-    Generate sinc coherence kernel from rectangular incoherent source
+    Generate sinc coherence kernel from rectangular incoherent source.
 coherence_width_from_source : function
-    Calculate coherence width from source size using van Cittert-Zernike
-apply_partial_coherence : function
-    Apply partial spatial coherence to a fully coherent wavefront
+    Calculate coherence width from source size using van Cittert-Zernike.
 complex_degree_of_coherence : function
-    Compute normalized coherence mu(r1, r2) from mutual intensity
+    Compute normalized coherence mu(r1, r2) from mutual intensity.
+jax_bessel_j1 : function
+    Bessel function J1(x) with polynomial approximation for JAX.
+_gaussian_coherence_kernel_impl : function, internal (pure JAX)
+    JIT-compiled Gaussian kernel computation with static grid dimensions.
+_jinc_coherence_kernel_impl : function, internal (pure JAX)
+    JIT-compiled jinc kernel computation with static grid dimensions.
+_rectangular_coherence_kernel_impl : function, internal (pure JAX)
+    JIT-compiled rectangular kernel computation with static grid dimensions.
+_complex_degree_of_coherence_impl : function, internal (pure JAX)
+    JIT-compiled complex degree of coherence computation.
 
 Notes
 -----
@@ -36,6 +44,11 @@ The van Cittert-Zernike theorem gives the coherence width as:
 
 where lambda is wavelength, z is propagation distance, and D_source is
 the source diameter.
+
+The internal ``_impl`` functions are pure JAX functions with
+``static_argnums`` for grid dimensions, enabling efficient JIT compilation
+while supporting Python control flow for shape-determining parameters.
+These can be used directly in pure JAX workflows for maximum performance.
 
 References
 ----------
@@ -53,6 +66,10 @@ from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import ScalarFloat, ScalarInteger
 
+SMALL_ARG_THRESHOLD: float = 1e-10
+BESSEL_SMALL_X_THRESHOLD: float = 1.0
+BESSEL_POLY_THRESHOLD: float = 8.0
+
 
 @partial(jax.jit, static_argnums=(0, 1))
 def _gaussian_coherence_kernel_impl(
@@ -61,7 +78,27 @@ def _gaussian_coherence_kernel_impl(
     dx: Float[Array, " "],
     coherence_width: Float[Array, " "],
 ) -> Float[Array, " hh ww"]:
-    """JIT-compiled implementation of gaussian_coherence_kernel."""
+    """JIT-compiled Gaussian coherence kernel computation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    coherence_width : Float[Array, " "]
+        1/e width of coherence function in meters.
+
+    Returns
+    -------
+    kernel : Float[Array, " hh ww"]
+        Coherence kernel in FFT-shifted format.
+    """
     yr: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     xr: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
@@ -122,7 +159,9 @@ def gaussian_coherence_kernel(
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
     dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
-    coh_arr: Float[Array, " "] = jnp.asarray(coherence_width, dtype=jnp.float64)
+    coh_arr: Float[Array, " "] = jnp.asarray(
+        coherence_width, dtype=jnp.float64
+    )
     return _gaussian_coherence_kernel_impl(hh, ww, dx_arr, coh_arr)
 
 
@@ -135,7 +174,31 @@ def _jinc_coherence_kernel_impl(
     wavelength: Float[Array, " "],
     propagation_distance: Float[Array, " "],
 ) -> Float[Array, " hh ww"]:
-    """JIT-compiled implementation of jinc_coherence_kernel."""
+    """JIT-compiled jinc coherence kernel computation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    source_diameter : Float[Array, " "]
+        Diameter of the circular incoherent source in meters.
+    wavelength : Float[Array, " "]
+        Wavelength of light in meters.
+    propagation_distance : Float[Array, " "]
+        Distance from source to observation plane in meters.
+
+    Returns
+    -------
+    kernel : Float[Array, " hh ww"]
+        Coherence kernel in FFT-shifted format.
+    """
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
@@ -149,16 +212,16 @@ def _jinc_coherence_kernel_impl(
         jnp.pi * d * radial_distance / (lam * z)
     )
     j1_value: Float[Array, " hh ww"] = jnp.where(
-        jinc_argument < 1e-10,
+        jinc_argument < SMALL_ARG_THRESHOLD,
         jinc_argument / 2.0,
         jax_bessel_j1(jinc_argument),
     )
-    kernel: Float[Array, " hh ww"] = jnp.where(
-        jinc_argument < 1e-10,
+    kernel_centered: Float[Array, " hh ww"] = jnp.where(
+        jinc_argument < SMALL_ARG_THRESHOLD,
         1.0,
         2.0 * j1_value / jinc_argument,
     )
-    kernel = jnp.fft.ifftshift(kernel)
+    kernel: Float[Array, " hh ww"] = jnp.fft.ifftshift(kernel_centered)
     return kernel
 
 
@@ -235,7 +298,33 @@ def _rectangular_coherence_kernel_impl(
     wavelength: Float[Array, " "],
     propagation_distance: Float[Array, " "],
 ) -> Float[Array, " hh ww"]:
-    """JIT-compiled implementation of rectangular_coherence_kernel."""
+    """JIT-compiled rectangular coherence kernel computation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    source_width_x : Float[Array, " "]
+        Width of the rectangular source in x direction (meters).
+    source_width_y : Float[Array, " "]
+        Width of the rectangular source in y direction (meters).
+    wavelength : Float[Array, " "]
+        Wavelength of light in meters.
+    propagation_distance : Float[Array, " "]
+        Distance from source to observation plane in meters.
+
+    Returns
+    -------
+    kernel : Float[Array, " hh ww"]
+        Coherence kernel in FFT-shifted format.
+    """
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
     xx: Float[Array, " hh ww"]
@@ -247,10 +336,10 @@ def _rectangular_coherence_kernel_impl(
     wy: Float[Array, " "] = jnp.asarray(source_width_y, dtype=jnp.float64)
     sinc_arg_x: Float[Array, " hh ww"] = wx * xx / (lam * z)
     sinc_arg_y: Float[Array, " hh ww"] = wy * yy / (lam * z)
-    kernel: Float[Array, " hh ww"] = jnp.sinc(sinc_arg_x) * jnp.sinc(
+    kernel_centered: Float[Array, " hh ww"] = jnp.sinc(sinc_arg_x) * jnp.sinc(
         sinc_arg_y
     )
-    kernel = jnp.fft.ifftshift(kernel)
+    kernel: Float[Array, " hh ww"] = jnp.fft.ifftshift(kernel_centered)
     return kernel
 
 
@@ -359,7 +448,21 @@ def coherence_width_from_source(
 def _complex_degree_of_coherence_impl(
     j_matrix: Complex[Array, " hh ww hh ww"],
 ) -> Complex[Array, " hh ww hh ww"]:
-    """JIT-compiled implementation of complex_degree_of_coherence."""
+    """JIT-compiled complex degree of coherence computation.
+
+    Pure JAX implementation for efficient JIT compilation.
+    Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    j_matrix : Complex[Array, " hh ww hh ww"]
+        Mutual intensity matrix J(r1, r2).
+
+    Returns
+    -------
+    mu : Complex[Array, " hh ww hh ww"]
+        Complex degree of coherence.
+    """
     intensity: Float[Array, " hh ww"] = jnp.real(
         jnp.diagonal(
             jnp.diagonal(j_matrix, axis1=0, axis2=2), axis1=0, axis2=1
@@ -457,11 +560,11 @@ def jax_bessel_j1(x: Float[Array, "..."]) -> Float[Array, "..."]:
             p0 * jnp.cos(theta) - q0 * jnp.sin(theta)
         )
 
-    result = jnp.where(
-        ax < 1.0,
+    result: Float[Array, "..."] = jnp.where(
+        ax < BESSEL_SMALL_X_THRESHOLD,
         small_x_approximation(x),
         jnp.where(
-            ax < 8.0,
+            ax < BESSEL_POLY_THRESHOLD,
             poly_approx(x),
             asymptotic_approx(ax) * jnp.sign(x),
         ),

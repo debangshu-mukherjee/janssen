@@ -95,7 +95,6 @@ def propagate_coherent_modes(
     modes may couple and a new eigendecomposition may be needed.
     """
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
-    num_modes: int = modes.shape[0]
     if method == "angular_spectrum":
         prop_fn = angular_spectrum_prop
     elif method == "fresnel":

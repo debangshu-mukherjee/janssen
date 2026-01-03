@@ -19,15 +19,25 @@ number of coherent modes and summing intensities.
 Routine Listings
 ----------------
 hermite_gaussian_modes : function
-    Generate Hermite-Gaussian coherent mode set
+    Generate Hermite-Gaussian coherent mode set.
 gaussian_schell_model_modes : function
-    Generate modes for Gaussian Schell-model source
+    Generate modes for Gaussian Schell-model source.
 eigenmode_decomposition : function
-    Decompose mutual intensity into coherent modes
+    Decompose mutual intensity into coherent modes.
 effective_mode_count : function
-    Calculate effective number of modes (participation ratio)
-orthonormalize_modes : function
-    Gram-Schmidt orthonormalization of mode set
+    Calculate effective number of modes (participation ratio).
+modes_from_wavefront : function
+    Wrap a coherent field as a single-mode set.
+mutual_intensity_from_modes : function
+    Reconstruct mutual intensity from coherent modes.
+_hermite_gaussian_modes_impl : function, internal (pure JAX)
+    JIT-compiled Hermite-Gaussian mode generation.
+_gaussian_schell_model_modes_impl : function, internal (pure JAX)
+    JIT-compiled Gaussian Schell-model mode generation.
+_eigenmode_decomposition_impl : function, internal (pure JAX)
+    JIT-compiled eigenmode decomposition computation.
+_mutual_intensity_from_modes_impl : function, internal (pure JAX)
+    JIT-compiled mutual intensity reconstruction.
 
 Notes
 -----
@@ -48,7 +58,7 @@ import jax
 import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional, Tuple
-from jaxtyping import Array, Complex, Float, Int, jaxtyped
+from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import (
     CoherentModeSet,
@@ -56,6 +66,7 @@ from janssen.utils import (
     ScalarFloat,
     ScalarInteger,
     make_coherent_mode_set,
+    make_mutual_intensity,
 )
 
 
@@ -86,16 +97,37 @@ def _generate_mode_indices(max_order: int) -> list:
     return mode_indices
 
 
-@partial(jax.jit, static_argnums=(2, 3, 4, 5))
+@partial(jax.jit, static_argnums=(2, 3, 4))
 def _hermite_gaussian_modes_impl(
     dx: Float[Array, " "],
     beam_waist: Float[Array, " "],
     hh: int,
     ww: int,
-    max_order: int,
     mode_indices_tuple: Tuple[Tuple[int, int], ...],
 ) -> Complex[Array, " num_modes hh ww"]:
-    """JIT-compiled implementation of hermite_gaussian_modes."""
+    """JIT-compiled Hermite-Gaussian mode generation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    beam_waist : Float[Array, " "]
+        Gaussian beam waist parameter w0 in meters.
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    mode_indices_tuple : Tuple[Tuple[int, int], ...]
+        Tuple of (n, m) index pairs for modes to generate (static).
+
+    Returns
+    -------
+    modes : Complex[Array, " num_modes hh ww"]
+        Normalized Hermite-Gaussian mode fields.
+    """
     w: Float[Array, " "] = beam_waist
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
@@ -181,7 +213,7 @@ def hermite_gaussian_modes(
     mode_indices_tuple = tuple(mode_indices)
 
     modes = _hermite_gaussian_modes_impl(
-        dx_arr, w_arr, hh, ww, max_ord, mode_indices_tuple
+        dx_arr, w_arr, hh, ww, mode_indices_tuple
     )
 
     if mode_weights is None:
@@ -211,7 +243,33 @@ def _gaussian_schell_model_modes_impl(
     ww: int,
     n_modes: int,
 ) -> Tuple[Complex[Array, " num_modes hh ww"], Float[Array, " num_modes"]]:
-    """JIT-compiled implementation of gaussian_schell_model_modes."""
+    """JIT-compiled Gaussian Schell-model mode generation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+    beam_width : Float[Array, " "]
+        Source beam width (sigma_i) in meters.
+    coherence_width : Float[Array, " "]
+        Spatial coherence width (sigma_mu) in meters.
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    n_modes : int
+        Number of modes to generate (static).
+
+    Returns
+    -------
+    modes : Complex[Array, " num_modes hh ww"]
+        Normalized Hermite-Gaussian mode fields.
+    eigenvalues : Float[Array, " num_modes"]
+        Analytical eigenvalues (mode weights).
+    """
     sigma_i: Float[Array, " "] = beam_width
     sigma_mu: Float[Array, " "] = coherence_width
 
@@ -224,9 +282,8 @@ def _gaussian_schell_model_modes_impl(
     mode_width: Float[Array, " "] = jnp.sqrt(sigma_i * effective_width)
 
     n_arr: Float[Array, " num_modes"] = jnp.arange(n_modes, dtype=jnp.float64)
-    eigenvalues: Float[Array, " num_modes"] = (
-        (1.0 - gsm_parameter) / (1.0 + gsm_parameter)
-    ) * (gsm_parameter / (1.0 + gsm_parameter)) ** n_arr
+    q: Float[Array, " "] = (1.0 - gsm_parameter) / (1.0 + gsm_parameter)
+    eigenvalues: Float[Array, " num_modes"] = q**n_arr
 
     y: Float[Array, " hh"] = (jnp.arange(hh) - hh / 2) * dx
     x: Float[Array, " ww"] = (jnp.arange(ww) - ww / 2) * dx
@@ -339,7 +396,29 @@ def _eigenmode_decomposition_impl(
     ww: int,
     n_modes: int,
 ) -> Tuple[Complex[Array, " num_modes hh ww"], Float[Array, " num_modes"]]:
-    """JIT-compiled implementation of eigenmode_decomposition."""
+    """JIT-compiled eigenmode decomposition computation.
+
+    Pure JAX implementation with static grid dimensions for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    j_matrix : Complex[Array, " hh ww hh ww"]
+        Mutual intensity matrix J(r1, r2).
+    hh : int
+        Grid height in pixels (static).
+    ww : int
+        Grid width in pixels (static).
+    n_modes : int
+        Number of modes to extract (static).
+
+    Returns
+    -------
+    modes : Complex[Array, " num_modes hh ww"]
+        Coherent mode fields (eigenvectors reshaped to 2D).
+    eigenvalues : Float[Array, " num_modes"]
+        Eigenvalues (mode weights), sorted descending.
+    """
     n_pixels: int = hh * ww
     j_2d: Complex[Array, " n n"] = j_matrix.reshape(n_pixels, n_pixels)
 
@@ -507,12 +586,32 @@ def _mutual_intensity_from_modes_impl(
     weights: Float[Array, " num_modes"],
     n_modes: int,
 ) -> Complex[Array, " hh ww hh ww"]:
-    """JIT-compiled implementation of mutual_intensity_from_modes."""
+    """JIT-compiled mutual intensity reconstruction.
+
+    Pure JAX implementation with static num_modes for efficient
+    JIT compilation. Use this directly in pure JAX workflows.
+
+    Parameters
+    ----------
+    modes : Complex[Array, " num_modes hh ww"]
+        Coherent mode fields.
+    weights : Float[Array, " num_modes"]
+        Mode weights (eigenvalues).
+    n_modes : int
+        Number of modes (static).
+
+    Returns
+    -------
+    j_matrix : Complex[Array, " hh ww hh ww"]
+        Reconstructed mutual intensity matrix.
+    """
 
     def compute_j_term(n: int) -> Complex[Array, " hh ww hh ww"]:
         mode_n = modes[n]
         weight_n = weights[n]
-        j_n = weight_n * jnp.einsum("ij,kl->ijkl", jnp.conj(mode_n), mode_n)
+        j_n: Complex[Array, " hh ww hh ww"] = weight_n * jnp.einsum(
+            "ij,kl->ijkl", jnp.conj(mode_n), mode_n
+        )
         return j_n
 
     j_matrix: Complex[Array, " hh ww hh ww"] = jnp.sum(
@@ -546,8 +645,6 @@ def mutual_intensity_from_modes(
     This creates an O(N^4) array from an O(M*N^2) representation.
     Use with caution for large grids.
     """
-    from janssen.utils import make_mutual_intensity
-
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
     weights: Float[Array, " num_modes"] = mode_set.weights
     n_modes: int = int(modes.shape[0])

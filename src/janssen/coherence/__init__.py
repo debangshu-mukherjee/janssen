@@ -85,6 +85,27 @@ The total intensity from coherent modes is:
     I(r) = Σₙ wₙ |φₙ(r)|²
 
 where wₙ are the modal weights and φₙ are the modes.
+
+Internal Functions
+------------------
+Each submodule exposes internal ``_impl`` functions that are pure JAX
+implementations with ``static_argnums`` for grid dimensions. These can
+be imported directly for use in pure JAX workflows where maximum
+performance is needed:
+
+- ``janssen.coherence.spatial``: ``_gaussian_coherence_kernel_impl``,
+  ``_jinc_coherence_kernel_impl``, ``_rectangular_coherence_kernel_impl``,
+  ``_complex_degree_of_coherence_impl``
+- ``janssen.coherence.temporal``: ``_gaussian_spectrum_impl``,
+  ``_lorentzian_spectrum_impl``, ``_rectangular_spectrum_impl``,
+  ``_blackbody_spectrum_impl``
+- ``janssen.coherence.modes``: ``_hermite_gaussian_modes_impl``,
+  ``_gaussian_schell_model_modes_impl``, ``_eigenmode_decomposition_impl``,
+  ``_mutual_intensity_from_modes_impl``
+- ``janssen.coherence.sources``: ``_synchrotron_source_impl``,
+  ``_multimode_fiber_output_impl``
+
+See individual module docstrings for detailed parameter documentation.
 """
 
 from .modes import (
@@ -95,7 +116,6 @@ from .modes import (
     modes_from_wavefront,
     mutual_intensity_from_modes,
 )
-
 from .propagation import (
     apply_element_to_modes,
     intensity_from_modes,
@@ -104,7 +124,6 @@ from .propagation import (
     propagate_coherent_modes,
     propagate_polychromatic,
 )
-
 from .sources import (
     laser_with_mode_noise,
     led_source,
@@ -119,7 +138,6 @@ from .spatial import (
     jinc_coherence_kernel,
     rectangular_coherence_kernel,
 )
-
 from .temporal import (
     bandwidth_from_coherence_length,
     blackbody_spectrum,

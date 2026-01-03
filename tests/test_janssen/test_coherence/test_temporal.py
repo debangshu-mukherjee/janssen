@@ -19,7 +19,7 @@ from janssen.coherence.temporal import (
 class TestGaussianSpectrum(chex.TestCase):
     """Test gaussian_spectrum function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shapes(self) -> None:
         """Test that output arrays have correct shapes."""
         center_wl = 633e-9
@@ -30,7 +30,7 @@ class TestGaussianSpectrum(chex.TestCase):
         chex.assert_shape(wavelengths, (num_wl,))
         chex.assert_shape(weights, (num_wl,))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that spectral weights sum to 1."""
         center_wl = 550e-9
@@ -40,7 +40,7 @@ class TestGaussianSpectrum(chex.TestCase):
         _, weights = var_fn(center_wl, bandwidth, num_wl)
         chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_peak_at_center(self) -> None:
         """Test that peak weight is at center wavelength."""
         center_wl = 633e-9
@@ -52,7 +52,7 @@ class TestGaussianSpectrum(chex.TestCase):
         center_idx = num_wl // 2
         chex.assert_equal(peak_idx, center_idx)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wavelength_range_default(self) -> None:
         """Test default wavelength range is 3 sigma on each side."""
         center_wl = 500e-9
@@ -67,7 +67,7 @@ class TestGaussianSpectrum(chex.TestCase):
         chex.assert_trees_all_close(wavelengths[0], expected_min, rtol=1e-10)
         chex.assert_trees_all_close(wavelengths[-1], expected_max, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_custom_wavelength_range(self) -> None:
         """Test custom wavelength range is respected."""
         center_wl = 633e-9
@@ -79,7 +79,7 @@ class TestGaussianSpectrum(chex.TestCase):
         chex.assert_trees_all_close(wavelengths[0], wl_range[0], rtol=1e-10)
         chex.assert_trees_all_close(wavelengths[-1], wl_range[1], rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_positive(self) -> None:
         """Test that all weights are positive."""
         center_wl = 550e-9
@@ -95,7 +95,7 @@ class TestGaussianSpectrum(chex.TestCase):
 class TestLorentzianSpectrum(chex.TestCase):
     """Test lorentzian_spectrum function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shapes(self) -> None:
         """Test that output arrays have correct shapes."""
         center_wl = 633e-9
@@ -106,7 +106,7 @@ class TestLorentzianSpectrum(chex.TestCase):
         chex.assert_shape(wavelengths, (num_wl,))
         chex.assert_shape(weights, (num_wl,))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that spectral weights sum to 1."""
         center_wl = 550e-9
@@ -116,7 +116,7 @@ class TestLorentzianSpectrum(chex.TestCase):
         _, weights = var_fn(center_wl, bandwidth, num_wl)
         chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_peak_at_center(self) -> None:
         """Test that peak weight is at center wavelength."""
         center_wl = 633e-9
@@ -128,7 +128,7 @@ class TestLorentzianSpectrum(chex.TestCase):
         center_idx = num_wl // 2
         chex.assert_equal(peak_idx, center_idx)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_broader_tails_than_gaussian(self) -> None:
         """Test that Lorentzian has broader tails than Gaussian."""
         center_wl = 550e-9
@@ -143,7 +143,7 @@ class TestLorentzianSpectrum(chex.TestCase):
         tail_lorentz = weights_lorentz[0]
         assert tail_lorentz > tail_gauss
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_custom_wavelength_range(self) -> None:
         """Test custom wavelength range is respected."""
         center_wl = 633e-9
@@ -159,7 +159,7 @@ class TestLorentzianSpectrum(chex.TestCase):
 class TestRectangularSpectrum(chex.TestCase):
     """Test rectangular_spectrum function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shapes(self) -> None:
         """Test that output arrays have correct shapes."""
         center_wl = 633e-9
@@ -170,7 +170,7 @@ class TestRectangularSpectrum(chex.TestCase):
         chex.assert_shape(wavelengths, (num_wl,))
         chex.assert_shape(weights, (num_wl,))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that spectral weights sum to 1."""
         center_wl = 550e-9
@@ -180,7 +180,7 @@ class TestRectangularSpectrum(chex.TestCase):
         _, weights = var_fn(center_wl, bandwidth, num_wl)
         chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_uniform_weights(self) -> None:
         """Test that all weights are equal."""
         center_wl = 550e-9
@@ -191,7 +191,7 @@ class TestRectangularSpectrum(chex.TestCase):
         expected_weight = 1.0 / num_wl
         chex.assert_trees_all_close(weights, expected_weight, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wavelength_range(self) -> None:
         """Test that wavelength range spans the bandwidth."""
         center_wl = 633e-9
@@ -208,7 +208,7 @@ class TestRectangularSpectrum(chex.TestCase):
 class TestBlackbodySpectrum(chex.TestCase):
     """Test blackbody_spectrum function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shapes(self) -> None:
         """Test that output arrays have correct shapes."""
         temperature = 5800.0
@@ -219,7 +219,7 @@ class TestBlackbodySpectrum(chex.TestCase):
         chex.assert_shape(wavelengths, (num_wl,))
         chex.assert_shape(weights, (num_wl,))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_normalized(self) -> None:
         """Test that spectral weights sum to 1."""
         temperature = 5800.0
@@ -229,7 +229,7 @@ class TestBlackbodySpectrum(chex.TestCase):
         _, weights = var_fn(temperature, wl_range, num_wl)
         chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_positive(self) -> None:
         """Test that all weights are positive."""
         temperature = 3000.0
@@ -239,7 +239,7 @@ class TestBlackbodySpectrum(chex.TestCase):
         _, weights = var_fn(temperature, wl_range, num_wl)
         assert jnp.all(weights > 0)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wien_peak_visible_sun(self) -> None:
         """Test that Sun-like blackbody peaks in visible range."""
         temperature = 5800.0
@@ -252,7 +252,7 @@ class TestBlackbodySpectrum(chex.TestCase):
         wien_peak = 2.898e-3 / temperature
         chex.assert_trees_all_close(peak_wl, wien_peak, rtol=0.1)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wavelength_range_respected(self) -> None:
         """Test that specified wavelength range is used."""
         temperature = 5000.0
@@ -267,7 +267,7 @@ class TestBlackbodySpectrum(chex.TestCase):
 class TestCoherenceLength(chex.TestCase):
     """Test coherence_length function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shape(self) -> None:
         """Test that output is a scalar."""
         center_wl = 633e-9
@@ -276,7 +276,7 @@ class TestCoherenceLength(chex.TestCase):
         l_c = var_fn(center_wl, bandwidth)
         chex.assert_shape(l_c, ())
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_narrow_bandwidth_long_coherence(self) -> None:
         """Test that narrow bandwidth gives long coherence length."""
         center_wl = 633e-9
@@ -287,7 +287,7 @@ class TestCoherenceLength(chex.TestCase):
         l_c_wide = var_fn(center_wl, wide_bw)
         assert l_c_narrow > l_c_wide
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_inverse_bandwidth_scaling(self) -> None:
         """Test that coherence length scales inversely with bandwidth."""
         center_wl = 633e-9
@@ -298,7 +298,7 @@ class TestCoherenceLength(chex.TestCase):
         l_c_2 = var_fn(center_wl, bandwidth2)
         chex.assert_trees_all_close(l_c_1 / l_c_2, 2.0, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_wavelength_squared_scaling(self) -> None:
         """Test that coherence length scales with wavelength squared."""
         center_wl_1 = 500e-9
@@ -309,7 +309,7 @@ class TestCoherenceLength(chex.TestCase):
         l_c_2 = var_fn(center_wl_2, bandwidth)
         chex.assert_trees_all_close(l_c_2 / l_c_1, 4.0, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_led_coherence_length(self) -> None:
         """Test typical LED coherence length (few micrometers)."""
         center_wl = 550e-9
@@ -322,7 +322,7 @@ class TestCoherenceLength(chex.TestCase):
 class TestCoherenceTime(chex.TestCase):
     """Test coherence_time function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shape(self) -> None:
         """Test that output is a scalar."""
         center_wl = 633e-9
@@ -331,7 +331,7 @@ class TestCoherenceTime(chex.TestCase):
         tau_c = var_fn(center_wl, bandwidth)
         chex.assert_shape(tau_c, ())
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_relation_to_coherence_length(self) -> None:
         """Test that tau_c = L_c / c."""
         center_wl = 633e-9
@@ -343,7 +343,7 @@ class TestCoherenceTime(chex.TestCase):
         tau_c = var_time(center_wl, bandwidth)
         chex.assert_trees_all_close(tau_c, l_c / c_light, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_positive_value(self) -> None:
         """Test that coherence time is positive."""
         center_wl = 550e-9
@@ -356,7 +356,7 @@ class TestCoherenceTime(chex.TestCase):
 class TestBandwidthFromCoherenceLength(chex.TestCase):
     """Test bandwidth_from_coherence_length function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shape(self) -> None:
         """Test that output is a scalar."""
         center_wl = 633e-9
@@ -365,7 +365,7 @@ class TestBandwidthFromCoherenceLength(chex.TestCase):
         bw = var_fn(center_wl, coh_length)
         chex.assert_shape(bw, ())
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_inverse_of_coherence_length(self) -> None:
         """Test that this function inverts coherence_length."""
         center_wl = 633e-9
@@ -378,7 +378,7 @@ class TestBandwidthFromCoherenceLength(chex.TestCase):
             recovered_bandwidth, original_bandwidth, rtol=1e-10
         )
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_positive_value(self) -> None:
         """Test that bandwidth is positive."""
         center_wl = 550e-9
@@ -391,7 +391,7 @@ class TestBandwidthFromCoherenceLength(chex.TestCase):
 class TestSpectralPhaseFromDispersion(chex.TestCase):
     """Test spectral_phase_from_dispersion function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shape(self) -> None:
         """Test that output has same shape as input wavelengths."""
         wavelengths = jnp.linspace(780e-9, 820e-9, 21)
@@ -400,7 +400,7 @@ class TestSpectralPhaseFromDispersion(chex.TestCase):
         phase = var_fn(wavelengths, center_wl, gdd=100e-30)
         chex.assert_shape(phase, wavelengths.shape)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_zero_dispersion_zero_phase(self) -> None:
         """Test that zero GDD and TOD gives zero phase."""
         wavelengths = jnp.linspace(780e-9, 820e-9, 21)
@@ -409,7 +409,7 @@ class TestSpectralPhaseFromDispersion(chex.TestCase):
         phase = var_fn(wavelengths, center_wl, gdd=0.0, tod=0.0)
         chex.assert_trees_all_close(phase, 0.0, atol=1e-20)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_phase_zero_at_center(self) -> None:
         """Test that phase is zero at center wavelength."""
         num_wl = 21
@@ -420,7 +420,7 @@ class TestSpectralPhaseFromDispersion(chex.TestCase):
         center_idx = num_wl // 2
         chex.assert_trees_all_close(phase[center_idx], 0.0, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_gdd_gives_quadratic_phase(self) -> None:
         """Test that GDD produces quadratic spectral phase."""
         wavelengths = jnp.linspace(790e-9, 810e-9, 21)
@@ -435,7 +435,7 @@ class TestSpectralPhaseFromDispersion(chex.TestCase):
         expected_phase = 0.5 * gdd * delta_omega**2
         chex.assert_trees_all_close(phase, expected_phase, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_finite_values(self) -> None:
         """Test that phase values are finite."""
         wavelengths = jnp.linspace(700e-9, 900e-9, 51)

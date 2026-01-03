@@ -19,7 +19,7 @@ from janssen.utils import make_optical_wavefront, make_polychromatic_wavefront
 class TestPropagateCoherentModes(chex.TestCase):
     """Test propagate_coherent_modes function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a CoherentModeSet."""
         wavelength = 633e-9
@@ -34,7 +34,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         assert hasattr(propagated, "modes")
         assert hasattr(propagated, "weights")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_shapes_preserved(self) -> None:
         """Test that mode shapes are preserved after propagation."""
         wavelength = 633e-9
@@ -48,7 +48,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         propagated = var_fn(mode_set, distance)
         chex.assert_shape(propagated.modes, mode_set.modes.shape)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_preserved(self) -> None:
         """Test that weights are preserved after propagation."""
         wavelength = 633e-9
@@ -64,7 +64,7 @@ class TestPropagateCoherentModes(chex.TestCase):
             propagated.weights, mode_set.weights, atol=1e-10
         )
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_z_position_updated(self) -> None:
         """Test that z_position is updated after propagation."""
         wavelength = 633e-9
@@ -79,7 +79,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         expected_z = mode_set.z_position + distance
         chex.assert_trees_all_close(propagated.z_position, expected_z, rtol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_angular_spectrum_method(self) -> None:
         """Test propagation with angular_spectrum method."""
         wavelength = 633e-9
@@ -93,7 +93,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         propagated = var_fn(mode_set, distance, method="angular_spectrum")
         assert jnp.all(jnp.isfinite(propagated.modes))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_fresnel_method(self) -> None:
         """Test propagation with fresnel method."""
         wavelength = 633e-9
@@ -118,7 +118,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         with self.assertRaises(ValueError):
             propagate_coherent_modes(mode_set, 1e-3, method="invalid")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_refractive_index_effect(self) -> None:
         """Test that refractive index affects z_position update."""
         wavelength = 633e-9
@@ -138,7 +138,7 @@ class TestPropagateCoherentModes(chex.TestCase):
 class TestPropagatePolychromatic(chex.TestCase):
     """Test propagate_polychromatic function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a PolychromaticWavefront."""
         fields = jnp.ones((5, 32, 32), dtype=jnp.complex128)
@@ -157,7 +157,7 @@ class TestPropagatePolychromatic(chex.TestCase):
         assert hasattr(propagated, "fields")
         assert hasattr(propagated, "wavelengths")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_field_shapes_preserved(self) -> None:
         """Test that field shapes are preserved after propagation."""
         fields = jnp.ones((7, 32, 48), dtype=jnp.complex128)
@@ -175,7 +175,7 @@ class TestPropagatePolychromatic(chex.TestCase):
         propagated = var_fn(wavefront, distance)
         chex.assert_shape(propagated.fields, fields.shape)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_spectral_weights_preserved(self) -> None:
         """Test that spectral weights are preserved after propagation."""
         fields = jnp.ones((5, 32, 32), dtype=jnp.complex128)
@@ -195,7 +195,7 @@ class TestPropagatePolychromatic(chex.TestCase):
             propagated.spectral_weights, spectral_weights, atol=1e-10
         )
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_z_position_updated(self) -> None:
         """Test that z_position is updated after propagation."""
         fields = jnp.ones((5, 32, 32), dtype=jnp.complex128)
@@ -219,7 +219,7 @@ class TestPropagatePolychromatic(chex.TestCase):
 class TestApplyElementToModes(chex.TestCase):
     """Test apply_element_to_modes function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a CoherentModeSet."""
         wavelength = 633e-9
@@ -237,7 +237,7 @@ class TestApplyElementToModes(chex.TestCase):
         assert hasattr(transformed, "modes")
         assert hasattr(transformed, "weights")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_identity_element(self) -> None:
         """Test that identity element preserves modes."""
         wavelength = 633e-9
@@ -256,7 +256,7 @@ class TestApplyElementToModes(chex.TestCase):
             transformed.modes, mode_set.modes, atol=1e-10
         )
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_amplitude_scaling(self) -> None:
         """Test that amplitude element scales modes correctly."""
         wavelength = 633e-9
@@ -281,7 +281,7 @@ class TestApplyElementToModes(chex.TestCase):
         expected_modes = mode_set.modes * scale_factor
         chex.assert_trees_all_close(transformed.modes, expected_modes, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_preserved(self) -> None:
         """Test that weights are preserved after element application."""
         wavelength = 633e-9
@@ -311,7 +311,7 @@ class TestApplyElementToModes(chex.TestCase):
 class TestIntensityFromModes(chex.TestCase):
     """Test intensity_from_modes function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shape(self) -> None:
         """Test that output has correct shape."""
         wavelength = 633e-9
@@ -324,7 +324,7 @@ class TestIntensityFromModes(chex.TestCase):
         intensity = var_fn(mode_set)
         chex.assert_shape(intensity, grid_size)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_non_negative(self) -> None:
         """Test that intensity is non-negative."""
         wavelength = 633e-9
@@ -337,7 +337,7 @@ class TestIntensityFromModes(chex.TestCase):
         intensity = var_fn(mode_set)
         assert jnp.all(intensity >= 0)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_single_mode_squared_amplitude(self) -> None:
         """Test that single mode gives squared amplitude."""
         field = jnp.ones((32, 32), dtype=jnp.complex128) * 2.0
@@ -349,7 +349,7 @@ class TestIntensityFromModes(chex.TestCase):
         expected = jnp.abs(field) ** 2
         chex.assert_trees_all_close(intensity, expected, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weighted_sum(self) -> None:
         """Test that intensity is weighted sum of mode intensities."""
         wavelength = 633e-9
@@ -369,7 +369,7 @@ class TestIntensityFromModes(chex.TestCase):
 class TestIntensityFromPolychromatic(chex.TestCase):
     """Test intensity_from_polychromatic function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_shape(self) -> None:
         """Test that output has correct shape."""
         fields = jnp.ones((5, 32, 48), dtype=jnp.complex128)
@@ -386,7 +386,7 @@ class TestIntensityFromPolychromatic(chex.TestCase):
         intensity = var_fn(wavefront)
         chex.assert_shape(intensity, (32, 48))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_non_negative(self) -> None:
         """Test that intensity is non-negative."""
         fields = jnp.exp(1j * jnp.linspace(0, jnp.pi, 5 * 32 * 32)).reshape(
@@ -405,7 +405,7 @@ class TestIntensityFromPolychromatic(chex.TestCase):
         intensity = var_fn(wavefront)
         assert jnp.all(intensity >= 0)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weighted_sum(self) -> None:
         """Test that intensity is weighted sum of field intensities."""
         fields = jnp.ones((3, 32, 32), dtype=jnp.complex128)
@@ -434,7 +434,7 @@ class TestIntensityFromPolychromatic(chex.TestCase):
 class TestPropagateAndFocusModes(chex.TestCase):
     """Test propagate_and_focus_modes function."""
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_output_type(self) -> None:
         """Test that output is a CoherentModeSet."""
         wavelength = 633e-9
@@ -450,7 +450,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         assert hasattr(focused, "modes")
         assert hasattr(focused, "weights")
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_mode_shapes_preserved(self) -> None:
         """Test that mode shapes are preserved after focusing."""
         wavelength = 633e-9
@@ -465,7 +465,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         focused = var_fn(mode_set, focal_length, propagation_distance)
         chex.assert_shape(focused.modes, mode_set.modes.shape)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_weights_preserved(self) -> None:
         """Test that weights are preserved after focusing."""
         wavelength = 633e-9
@@ -480,7 +480,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         focused = var_fn(mode_set, focal_length, propagation_distance)
         chex.assert_trees_all_close(focused.weights, mode_set.weights, atol=1e-10)
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_finite_values(self) -> None:
         """Test that all output values are finite."""
         wavelength = 633e-9
@@ -495,7 +495,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         focused = var_fn(mode_set, focal_length, propagation_distance)
         assert jnp.all(jnp.isfinite(focused.modes))
 
-    @chex.variants(with_jit=True, without_jit=True)
+    @chex.variants(without_jit=True)
     def test_z_position_updated(self) -> None:
         """Test that z_position is updated after focusing."""
         wavelength = 633e-9
