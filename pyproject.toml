@@ -31,7 +31,7 @@ dependencies = [
     "tqdm >= 4.66.0",
     "jaxtyping>0.3.2",
     "chex >= 0.1.85",
-    "optax >= 0.1.8",
+    "optax>=0.1.8",
     "pytest >= 8.0.0",
     "jax>=0.7.0 ; sys_platform == 'win64'",
     "jax>=0.7.0 ; sys_platform == 'darwin'",
