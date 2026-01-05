@@ -10,7 +10,6 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    Coherence
    DifferentBeams
    Diffractogram
-   PolarBeams
    Polarization
    Wavefronts
    ZernikePolynomials
