@@ -79,6 +79,9 @@ class VectorWavefront3D(NamedTuple):
     wavelength: Float[Array, " "]
     dx: Float[Array, " "]
     z_position: Float[Array, " "]
+    intensity: Float[Array, " hh ww"]
+    intensity_transverse: Float[Array, " hh ww"]
+    intensity_longitudinal: Float[Array, " hh ww"]
 
     def tree_flatten(
         self,
@@ -88,6 +91,9 @@ class VectorWavefront3D(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Float[Array, " "],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
         ],
         None,
     ]:
@@ -98,6 +104,9 @@ class VectorWavefront3D(NamedTuple):
                 self.wavelength,
                 self.dx,
                 self.z_position,
+                self.intensity,
+                self.intensity_transverse,
+                self.intensity_longitudinal,
             ),
             None,
         )
@@ -111,46 +120,13 @@ class VectorWavefront3D(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Float[Array, " "],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
+            Float[Array, " hh ww"],
         ],
     ) -> "VectorWavefront3D":
         """Unflatten the VectorWavefront3D from a tuple of its components."""
         return cls(*children)
-
-    @property
-    def ex(self) -> Complex[Array, " hh ww"]:
-        """Return the Ex (x-polarization) component."""
-        return self.field[..., 0]
-
-    @property
-    def ey(self) -> Complex[Array, " hh ww"]:
-        """Return the Ey (y-polarization) component."""
-        return self.field[..., 1]
-
-    @property
-    def ez(self) -> Complex[Array, " hh ww"]:
-        """Return the Ez (longitudinal) component."""
-        return self.field[..., 2]
-
-    @property
-    def intensity(self) -> Float[Array, " hh ww"]:
-        """Return the total intensity |Ex|² + |Ey|² + |Ez|²."""
-        return (
-            jnp.abs(self.field[..., 0]) ** 2
-            + jnp.abs(self.field[..., 1]) ** 2
-            + jnp.abs(self.field[..., 2]) ** 2
-        )
-
-    @property
-    def intensity_transverse(self) -> Float[Array, " hh ww"]:
-        """Return the transverse intensity |Ex|² + |Ey|²."""
-        return (
-            jnp.abs(self.field[..., 0]) ** 2 + jnp.abs(self.field[..., 1]) ** 2
-        )
-
-    @property
-    def intensity_longitudinal(self) -> Float[Array, " hh ww"]:
-        """Return the longitudinal intensity |Ez|²."""
-        return jnp.abs(self.field[..., 2]) ** 2
 
 
 @jaxtyped(typechecker=beartype)
@@ -263,11 +239,46 @@ def make_vector_wavefront_3d(
         validated_dx: Float[Array, " "] = check_dx()
         validated_z_position: Float[Array, " "] = check_z_position()
 
+        def _compute_intensity_int() -> Float[Array, " hh ww"]:
+            """Compute total intensity |Ex|² + |Ey|² + |Ez|²."""
+            total: Float[Array, " hh ww"] = (
+                jnp.abs(validated_field[..., 0]) ** 2
+                + jnp.abs(validated_field[..., 1]) ** 2
+                + jnp.abs(validated_field[..., 2]) ** 2
+            )
+            return total
+
+        def _compute_intensity_transverse_int() -> Float[Array, " hh ww"]:
+            """Compute transverse intensity |Ex|² + |Ey|²."""
+            transverse: Float[Array, " hh ww"] = (
+                jnp.abs(validated_field[..., 0]) ** 2
+                + jnp.abs(validated_field[..., 1]) ** 2
+            )
+            return transverse
+
+        def _compute_intensity_longitudinal_int() -> Float[Array, " hh ww"]:
+            """Compute longitudinal intensity |Ez|²."""
+            longitudinal: Float[Array, " hh ww"] = (
+                jnp.abs(validated_field[..., 2]) ** 2
+            )
+            return longitudinal
+
+        intensity: Float[Array, " hh ww"] = _compute_intensity_int()
+        intensity_transverse: Float[Array, " hh ww"] = (
+            _compute_intensity_transverse_int()
+        )
+        intensity_longitudinal: Float[Array, " hh ww"] = (
+            _compute_intensity_longitudinal_int()
+        )
+
         return VectorWavefront3D(
             field=validated_field,
             wavelength=validated_wavelength,
             dx=validated_dx,
             z_position=validated_z_position,
+            intensity=intensity,
+            intensity_transverse=intensity_transverse,
+            intensity_longitudinal=intensity_longitudinal,
         )
 
     return validate_and_create()

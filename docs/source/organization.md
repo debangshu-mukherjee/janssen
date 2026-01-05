@@ -2,17 +2,25 @@
 
 ## Overview
 
-Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into seven main modules: `utils` for common utilities, `optics` for optical elements, `prop` for propagation algorithms, `scopes` for microscope forward models, `lenses` for lens implementations, `models` for test pattern generation, and `invert` for reconstruction algorithms.
+Janssen is a typed and tested JAX based library for optical microscopy and ptychography, to utilize two of JAX's capabilities - multi-device computation and autodifferentiation. The package is organized into nine main modules: `types` for PyTree data structures, `utils` for common math utilities, `optics` for optical elements, `prop` for propagation algorithms, `scopes` for microscope forward models, `lenses` for lens implementations, `models` for test pattern generation, `cohere` for coherence modeling, and `invert` for reconstruction algorithms.
 
 ## Module Structure
 
+### **janssen.types**
+
+PyTree data structures and factory functions for type-safe JAX programming. Includes `OpticalWavefront`, `CoherentModeSet`, `MixedStatePtychoData`, and other core types.
+
 ### **janssen.utils**
 
-Common utilities and shared data structures used throughout the package.
+Common mathematical utilities including Bessel functions, Fourier shifting, Wirtinger gradients, and distributed computing helpers.
 
 ### **janssen.optics**
 
 Optical elements and transformations for simulating light propagation through various optical components.
+
+### **janssen.cohere**
+
+Coherence modeling for partially coherent optical fields. Includes Gaussian Schell-model mode generation, spatial coherence kernels, and coherent mode propagation.
 
 ### **janssen.scopes**
 
@@ -28,12 +36,11 @@ Lens element definitions and optical calculations for modeling various lens type
 
 ### **janssen.models**
 
-Models for generating test patterns and datasets for testing and validation.
+Models for generating test patterns and optical beams for testing and validation.
 
 ### **janssen.invert**
 
-The reconstruction module containing phase retrieval algorithms and optimization routines.
-
+The reconstruction module containing phase retrieval algorithms, ptychography, and mixed-state reconstruction for partially coherent sources.
 
 ## Design Principles
 
@@ -56,34 +63,48 @@ The package structure is organized for clarity and maintainability:
 ```text
 src/janssen/
 ├── __init__.py           # Top-level exports
+├── types/
+│   ├── __init__.py       # Types module exports
+│   ├── scalars.py        # Scalar type definitions
+│   ├── wavefronts.py     # OpticalWavefront, PropagatingWavefront
+│   ├── coherence_types.py # CoherentModeSet, MixedStatePtychoData
+│   └── factory.py        # PyTree factory functions
 ├── utils/
 │   ├── __init__.py       # Utils module exports
-│   ├── types.py          # Shared type definitions
-│   └── factory.py        # PyTree factory functions
+│   ├── bessel.py         # Bessel functions (J, K)
+│   ├── math.py           # Fourier shift, Wirtinger gradients
+│   └── distributed.py    # Multi-device utilities
 ├── optics/
 │   ├── __init__.py       # Optics module exports
 │   ├── apertures.py      # Aperture functions
 │   ├── elements.py       # Optical elements
 │   ├── helper.py         # Utility functions
 │   └── zernike.py        # Zernike polynomials
+├── cohere/
+│   ├── __init__.py       # Coherence module exports
+│   ├── modes.py          # Gaussian Schell-model modes
+│   ├── spatial.py        # Spatial coherence kernels
+│   └── propagation.py    # Coherent mode propagation
 ├── prop/
 │   ├── __init__.py       # Prop module exports
 │   ├── free_space_prop.py # Free-space propagation algorithms
-│   └── material_prop.py  # Material propagation (in development)
+│   └── material_prop.py  # Material propagation
 ├── scopes/
 │   ├── __init__.py       # Scopes module exports
 │   └── simple_microscopes.py  # Simple microscope forward models
 ├── models/
 │   ├── __init__.py       # Models module exports
+│   ├── beams.py          # Optical beam generation
 │   └── usaf_pattern.py   # USAF test pattern generation
 ├── lenses/
 │   ├── __init__.py       # Lenses module exports
 │   └── lens_elements.py  # Lens element definitions
 └── invert/
     ├── __init__.py       # Invert module exports
-    ├── engine.py         # Reconstruction engine
+    ├── engine.py         # PIE reconstruction engine
     ├── ptychography.py   # Ptychographic algorithms
-    ├── optimizers.py     # Optimization routines
+    ├── mixed_state.py    # Mixed-state ptychography
+    ├── initialization.py # Reconstruction initialization
     └── loss_functions.py # Loss function definitions
 ```
 
@@ -100,6 +121,7 @@ The package is designed to be extensible:
 ## Future Directions
 
 The package architecture supports future extensions:
+
 - Real-time microscopy inversion
 - Adaptive optics simulations
-- Non-linear optics.
+- Non-linear optics

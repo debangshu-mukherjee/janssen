@@ -111,6 +111,8 @@ class CoherentModeSet(NamedTuple):
     dx: Float[Array, " "]
     z_position: Float[Array, " "]
     polarization: Bool[Array, " "]
+    intensity: Float[Array, " hh ww"]
+    effective_mode_count: Float[Array, " "]
 
     def tree_flatten(
         self,
@@ -125,6 +127,8 @@ class CoherentModeSet(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Bool[Array, " "],
+            Float[Array, " hh ww"],
+            Float[Array, " "],
         ],
         None,
     ]:
@@ -137,6 +141,8 @@ class CoherentModeSet(NamedTuple):
                 self.dx,
                 self.z_position,
                 self.polarization,
+                self.intensity,
+                self.effective_mode_count,
             ),
             None,
         )
@@ -155,43 +161,12 @@ class CoherentModeSet(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Bool[Array, " "],
+            Float[Array, " hh ww"],
+            Float[Array, " "],
         ],
     ) -> "CoherentModeSet":
         """Unflatten the CoherentModeSet from a tuple of its components."""
         return cls(*children)
-
-    @property
-    def num_modes(self) -> int:
-        """Return the number of coherent modes."""
-        return self.modes.shape[0]
-
-    @property
-    def intensity(self) -> Float[Array, " hh ww"]:
-        """Return the total intensity from incoherent mode sum.
-
-        I(r) = Σₙ weights[n] × |modes[n](r)|²
-        """
-        mode_intensities: Float[Array, " num_modes hh ww"] = (
-            jnp.sum(jnp.abs(self.modes) ** 2, axis=-1)
-            if self.polarization
-            else jnp.abs(self.modes) ** 2
-        )
-        return jnp.sum(
-            self.weights[:, jnp.newaxis, jnp.newaxis] * mode_intensities,
-            axis=0,
-        )
-
-    @property
-    def effective_mode_count(self) -> Float[Array, " "]:
-        """Return the effective number of modes (participation ratio).
-
-        N_eff = (Σ wₙ)² / Σ(wₙ²) = 1 / Σ(pₙ²)
-
-        where pₙ = wₙ / Σwₙ are normalized probabilities.
-        """
-        weights_sum: Float[Array, " "] = jnp.sum(self.weights)
-        weights_sq_sum: Float[Array, " "] = jnp.sum(self.weights**2)
-        return weights_sum**2 / (weights_sq_sum + 1e-12)
 
 
 @register_pytree_node_class
@@ -241,6 +216,8 @@ class PolychromaticWavefront(NamedTuple):
     dx: Float[Array, " "]
     z_position: Float[Array, " "]
     polarization: Bool[Array, " "]
+    intensity: Float[Array, " hh ww"]
+    center_wavelength: Float[Array, " "]
 
     def tree_flatten(
         self,
@@ -255,6 +232,8 @@ class PolychromaticWavefront(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Bool[Array, " "],
+            Float[Array, " hh ww"],
+            Float[Array, " "],
         ],
         None,
     ]:
@@ -267,6 +246,8 @@ class PolychromaticWavefront(NamedTuple):
                 self.dx,
                 self.z_position,
                 self.polarization,
+                self.intensity,
+                self.center_wavelength,
             ),
             None,
         )
@@ -285,37 +266,12 @@ class PolychromaticWavefront(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Bool[Array, " "],
+            Float[Array, " hh ww"],
+            Float[Array, " "],
         ],
     ) -> "PolychromaticWavefront":
         """Unflatten PolychromaticWavefront from a tuple of its components."""
         return cls(*children)
-
-    @property
-    def num_wavelengths(self) -> int:
-        """Return the number of wavelength samples."""
-        return self.wavelengths.shape[0]
-
-    @property
-    def center_wavelength(self) -> Float[Array, " "]:
-        """Return the weighted center wavelength."""
-        return jnp.sum(self.spectral_weights * self.wavelengths)
-
-    @property
-    def intensity(self) -> Float[Array, " hh ww"]:
-        """Return the total intensity from spectral sum.
-
-        I(r) = Σᵢ spectral_weights[i] × |fields[i](r)|²
-        """
-        field_intensities: Float[Array, " num_wavelengths hh ww"] = (
-            jnp.sum(jnp.abs(self.fields) ** 2, axis=-1)
-            if self.polarization
-            else jnp.abs(self.fields) ** 2
-        )
-        return jnp.sum(
-            self.spectral_weights[:, jnp.newaxis, jnp.newaxis]
-            * field_intensities,
-            axis=0,
-        )
 
 
 @register_pytree_node_class
@@ -362,6 +318,7 @@ class MutualIntensity(NamedTuple):
     wavelength: Float[Array, " "]
     dx: Float[Array, " "]
     z_position: Float[Array, " "]
+    intensity: Float[Array, " hh ww"]
 
     def tree_flatten(
         self,
@@ -371,6 +328,7 @@ class MutualIntensity(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Float[Array, " "],
+            Float[Array, " hh ww"],
         ],
         None,
     ]:
@@ -381,6 +339,7 @@ class MutualIntensity(NamedTuple):
                 self.wavelength,
                 self.dx,
                 self.z_position,
+                self.intensity,
             ),
             None,
         )
@@ -394,25 +353,11 @@ class MutualIntensity(NamedTuple):
             Float[Array, " "],
             Float[Array, " "],
             Float[Array, " "],
+            Float[Array, " hh ww"],
         ],
     ) -> "MutualIntensity":
         """Unflatten the MutualIntensity from a tuple of its components."""
         return cls(*children)
-
-    @property
-    def intensity(self) -> Float[Array, " hh ww"]:
-        """Return intensity I(r) = J(r, r) (diagonal of mutual intensity)."""
-        diagonal_elements: Float[Array, " hh ww"] = jnp.real(
-            jnp.diagonal(
-                jnp.diagonal(self.j_matrix, axis1=0, axis2=2), axis1=0, axis2=1
-            )
-        )
-        return diagonal_elements
-
-    @property
-    def grid_size(self) -> Tuple[int, int]:
-        """Return the spatial grid size (height, width)."""
-        return (self.j_matrix.shape[0], self.j_matrix.shape[1])
 
 
 @jaxtyped(typechecker=beartype)
@@ -569,6 +514,29 @@ def make_coherent_mode_set(
         validated_wavelength: Float[Array, " "] = check_wavelength()
         validated_dx: Float[Array, " "] = check_dx()
 
+        def _compute_intensity_int() -> Float[Array, " hh ww"]:
+            """Compute total intensity from incoherent mode sum."""
+            abs_squared: Float[Array, "..."] = jnp.abs(validated_modes) ** 2
+            is_polarized: bool = validated_modes.ndim == 4
+            mode_intensities: Float[Array, " num_modes hh ww"] = (
+                jnp.sum(abs_squared, axis=-1) if is_polarized else abs_squared
+            )
+            total: Float[Array, " hh ww"] = jnp.sum(
+                validated_weights[:, jnp.newaxis, jnp.newaxis] * mode_intensities,
+                axis=0,
+            )
+            return total
+
+        def _compute_effective_mode_count_int() -> Float[Array, " "]:
+            """Compute effective number of modes (participation ratio)."""
+            weights_sum: Float[Array, " "] = jnp.sum(validated_weights)
+            weights_sq_sum: Float[Array, " "] = jnp.sum(validated_weights**2)
+            n_eff: Float[Array, " "] = weights_sum**2 / (weights_sq_sum + 1e-12)
+            return n_eff
+
+        intensity: Float[Array, " hh ww"] = _compute_intensity_int()
+        effective_mode_count: Float[Array, " "] = _compute_effective_mode_count_int()
+
         return CoherentModeSet(
             modes=validated_modes,
             weights=validated_weights,
@@ -576,6 +544,8 @@ def make_coherent_mode_set(
             dx=validated_dx,
             z_position=z_position_arr,
             polarization=polarization_arr,
+            intensity=intensity,
+            effective_mode_count=effective_mode_count,
         )
 
     return validate_and_create()
@@ -753,6 +723,30 @@ def make_polychromatic_wavefront(
         )
         validated_dx: Float[Array, " "] = check_dx()
 
+        def _compute_intensity_int() -> Float[Array, " hh ww"]:
+            """Compute total intensity from spectral sum."""
+            abs_squared: Float[Array, "..."] = jnp.abs(validated_fields) ** 2
+            is_polarized: bool = validated_fields.ndim == 4
+            field_intensities: Float[Array, " num_wavelengths hh ww"] = (
+                jnp.sum(abs_squared, axis=-1) if is_polarized else abs_squared
+            )
+            total: Float[Array, " hh ww"] = jnp.sum(
+                validated_spectral_weights[:, jnp.newaxis, jnp.newaxis]
+                * field_intensities,
+                axis=0,
+            )
+            return total
+
+        def _compute_center_wavelength_int() -> Float[Array, " "]:
+            """Compute weighted center wavelength."""
+            center: Float[Array, " "] = jnp.sum(
+                validated_spectral_weights * validated_wavelengths
+            )
+            return center
+
+        intensity: Float[Array, " hh ww"] = _compute_intensity_int()
+        center_wavelength: Float[Array, " "] = _compute_center_wavelength_int()
+
         return PolychromaticWavefront(
             fields=validated_fields,
             wavelengths=validated_wavelengths,
@@ -760,6 +754,8 @@ def make_polychromatic_wavefront(
             dx=validated_dx,
             z_position=z_position_arr,
             polarization=polarization_arr,
+            intensity=intensity,
+            center_wavelength=center_wavelength,
         )
 
     return validate_and_create()
@@ -852,11 +848,25 @@ def make_mutual_intensity(
         validated_wavelength: Float[Array, " "] = check_wavelength()
         validated_dx: Float[Array, " "] = check_dx()
 
+        def _compute_intensity_int() -> Float[Array, " hh ww"]:
+            """Compute intensity I(r) = J(r, r) from diagonal."""
+            diagonal: Float[Array, " hh ww"] = jnp.real(
+                jnp.diagonal(
+                    jnp.diagonal(validated_j_matrix, axis1=0, axis2=2),
+                    axis1=0,
+                    axis2=1,
+                )
+            )
+            return diagonal
+
+        intensity: Float[Array, " hh ww"] = _compute_intensity_int()
+
         return MutualIntensity(
             j_matrix=validated_j_matrix,
             wavelength=validated_wavelength,
             dx=validated_dx,
             z_position=z_position_arr,
+            intensity=intensity,
         )
 
     return validate_and_create()
