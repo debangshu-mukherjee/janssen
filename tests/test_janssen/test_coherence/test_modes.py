@@ -85,7 +85,9 @@ class TestHermiteGaussianModes(chex.TestCase):
         num_modes = (max_order + 1) * (max_order + 2) // 2
         weights = thermal_mode_weights(num_modes)
         var_fn = self.variant(hermite_gaussian_modes)
-        mode_set = var_fn(wavelength, dx, grid_size, beam_waist, max_order, weights)
+        mode_set = var_fn(
+            wavelength, dx, grid_size, beam_waist, max_order, weights
+        )
         assert hasattr(mode_set, "modes")
         assert hasattr(mode_set, "weights")
         assert hasattr(mode_set, "wavelength")
@@ -101,7 +103,9 @@ class TestHermiteGaussianModes(chex.TestCase):
         expected_modes = (max_order + 1) * (max_order + 2) // 2
         weights = thermal_mode_weights(expected_modes)
         var_fn = self.variant(hermite_gaussian_modes)
-        mode_set = var_fn(wavelength, dx, grid_size, beam_waist, max_order, weights)
+        mode_set = var_fn(
+            wavelength, dx, grid_size, beam_waist, max_order, weights
+        )
         chex.assert_shape(mode_set.modes, (expected_modes, 32, 32))
 
     @chex.variants(without_jit=True)
@@ -115,7 +119,9 @@ class TestHermiteGaussianModes(chex.TestCase):
         num_modes = (max_order + 1) * (max_order + 2) // 2
         weights = thermal_mode_weights(num_modes)
         var_fn = self.variant(hermite_gaussian_modes)
-        mode_set = var_fn(wavelength, dx, grid_size, beam_waist, max_order, weights)
+        mode_set = var_fn(
+            wavelength, dx, grid_size, beam_waist, max_order, weights
+        )
         chex.assert_trees_all_close(jnp.sum(mode_set.weights), 1.0, atol=1e-10)
 
     @chex.variants(without_jit=True)
@@ -129,7 +135,9 @@ class TestHermiteGaussianModes(chex.TestCase):
         num_modes = (max_order + 1) * (max_order + 2) // 2
         weights = thermal_mode_weights(num_modes)
         var_fn = self.variant(hermite_gaussian_modes)
-        mode_set = var_fn(wavelength, dx, grid_size, beam_waist, max_order, weights)
+        mode_set = var_fn(
+            wavelength, dx, grid_size, beam_waist, max_order, weights
+        )
         for i in range(mode_set.modes.shape[0]):
             mode_energy = jnp.sum(jnp.abs(mode_set.modes[i]) ** 2)
             chex.assert_trees_all_close(mode_energy, 1.0, atol=1e-10)
@@ -165,7 +173,9 @@ class TestHermiteGaussianModes(chex.TestCase):
         num_modes = (max_order + 1) * (max_order + 2) // 2
         weights = thermal_mode_weights(num_modes)
         var_fn = self.variant(hermite_gaussian_modes)
-        mode_set = var_fn(wavelength, dx, grid_size, beam_waist, max_order, weights)
+        mode_set = var_fn(
+            wavelength, dx, grid_size, beam_waist, max_order, weights
+        )
         chex.assert_trees_all_close(
             mode_set.wavelength, wavelength, rtol=1e-10
         )
@@ -181,7 +191,9 @@ class TestHermiteGaussianModes(chex.TestCase):
         num_modes = 1
         weights = thermal_mode_weights(num_modes)
         var_fn = self.variant(hermite_gaussian_modes)
-        mode_set = var_fn(wavelength, dx, grid_size, beam_waist, max_order, weights)
+        mode_set = var_fn(
+            wavelength, dx, grid_size, beam_waist, max_order, weights
+        )
         mode = mode_set.modes[0]
         center = grid_size[0] // 2
         center_value = jnp.abs(mode[center, center])

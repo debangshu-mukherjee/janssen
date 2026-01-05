@@ -559,6 +559,7 @@ def eigenmode_decomposition(
     )
     return mode_set
 
+
 @jaxtyped(typechecker=beartype)
 def effective_mode_count(
     mode_set: CoherentModeSet,

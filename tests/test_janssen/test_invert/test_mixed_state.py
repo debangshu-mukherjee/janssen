@@ -291,7 +291,5 @@ class TestMixedStateReconstruct(chex.TestCase):
         """Test that loss generally decreases during reconstruction."""
         data = _make_test_data()
         var_fn = self.variant(mixed_state_reconstruct)
-        _, loss_history = var_fn(
-            data, num_iterations=10, learning_rate=1e-4
-        )
+        _, loss_history = var_fn(data, num_iterations=10, learning_rate=1e-4)
         assert loss_history[-1] <= loss_history[0]

@@ -40,7 +40,6 @@ for convenience.
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from jax import lax
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.coherence import gaussian_schell_model_modes
@@ -49,6 +48,7 @@ from janssen.utils import (
     MixedStatePtychoData,
     ScalarInteger,
     make_coherent_mode_set,
+    make_mixed_state_ptycho_data,
 )
 
 
@@ -60,10 +60,15 @@ def _fourier_shift(
 ) -> Complex[Array, " H W"]:
     """Shift field using Fourier phase ramp."""
     h, w = field.shape
-    ky = jnp.fft.fftfreq(h)[:, None]
-    kx = jnp.fft.fftfreq(w)[None, :]
-    phase_ramp = jnp.exp(-2j * jnp.pi * (kx * shift_x + ky * shift_y))
-    return jnp.fft.ifft2(jnp.fft.fft2(field) * phase_ramp)
+    ky: Float[Array, " H 1"] = jnp.fft.fftfreq(h)[:, None]
+    kx: Float[Array, " 1 W"] = jnp.fft.fftfreq(w)[None, :]
+    phase_ramp: Complex[Array, " H W"] = jnp.exp(
+        -2j * jnp.pi * (kx * shift_x + ky * shift_y)
+    )
+    shifted: Complex[Array, " H W"] = jnp.fft.ifft2(
+        jnp.fft.fft2(field) * phase_ramp
+    )
+    return shifted
 
 
 @jaxtyped(typechecker=beartype)
@@ -96,18 +101,23 @@ def mixed_state_forward_single_position(
         Diffraction intensity (incoherent sum over modes).
     """
 
-    def single_mode_intensity(
+    def _single_mode_intensity_int(
         mode: Complex[Array, " H W"],
     ) -> Float[Array, " H W"]:
-        probe_shifted = _fourier_shift(mode, shift_x, shift_y)
-        exit_wave = obj * probe_shifted
-        exit_wave_ft = jnp.fft.fftshift(jnp.fft.fft2(exit_wave))
+        """Compute diffraction intensity for single probe mode."""
+        probe_shifted: Complex[Array, " H W"] = _fourier_shift(
+            mode, shift_x, shift_y
+        )
+        exit_wave: Complex[Array, " H W"] = obj * probe_shifted
+        exit_wave_ft: Complex[Array, " H W"] = jnp.fft.fftshift(
+            jnp.fft.fft2(exit_wave)
+        )
         intensity: Float[Array, " H W"] = jnp.abs(exit_wave_ft) ** 2
         return intensity
 
-    mode_intensities: Float[Array, " M H W"] = jax.vmap(single_mode_intensity)(
-        probe_modes
-    )
+    mode_intensities: Float[Array, " M H W"] = jax.vmap(
+        _single_mode_intensity_int
+    )(probe_modes)
     total: Float[Array, " H W"] = jnp.einsum(
         "m,mhw->hw", mode_weights, mode_intensities
     )
@@ -130,17 +140,20 @@ def mixed_state_forward(
     predicted : Float[Array, " N H W"]
         Predicted diffraction intensities.
     """
-    modes = data.probe_modes.modes
-    weights = data.probe_modes.weights
-    obj = data.sample
-    positions = data.positions
+    modes: Complex[Array, " M H W"] = data.probe_modes.modes
+    weights: Float[Array, " M"] = data.probe_modes.weights
+    obj: Complex[Array, " H W"] = data.sample
+    positions: Float[Array, " N 2"] = data.positions
 
-    def forward_one(pos: Float[Array, " 2"]) -> Float[Array, " H W"]:
-        return mixed_state_forward_single_position(
+    def _forward_one_int(pos: Float[Array, " 2"]) -> Float[Array, " H W"]:
+        """Compute forward model for single scan position."""
+        intensity: Float[Array, " H W"] = mixed_state_forward_single_position(
             modes, weights, obj, pos[0], pos[1]
         )
+        return intensity
 
-    return jax.vmap(forward_one)(positions)
+    predicted: Float[Array, " N H W"] = jax.vmap(_forward_one_int)(positions)
+    return predicted
 
 
 @jaxtyped(typechecker=beartype)
@@ -164,23 +177,24 @@ def mixed_state_loss(
     loss : Float[Array, " "]
         Scalar loss value.
     """
-    predicted = mixed_state_forward(data)
-    measured = data.diffraction_patterns
-
+    predicted: Float[Array, " N H W"] = mixed_state_forward(data)
+    measured: Float[Array, " N H W"] = data.diffraction_patterns
     if loss_type == "amplitude":
-        # Amplitude loss - better gradients in low-signal regions
-        amp_meas = jnp.sqrt(jnp.maximum(measured, 0.0))
-        amp_pred = jnp.sqrt(jnp.maximum(predicted, 1e-10))
-        return jnp.sum((amp_meas - amp_pred) ** 2)
-
+        amp_meas: Float[Array, " N H W"] = jnp.sqrt(jnp.maximum(measured, 0.0))
+        amp_pred: Float[Array, " N H W"] = jnp.sqrt(
+            jnp.maximum(predicted, 1e-10)
+        )
+        loss: Float[Array, " "] = jnp.sum((amp_meas - amp_pred) ** 2)
+        return loss
     if loss_type == "intensity":
-        return jnp.sum((measured - predicted) ** 2)
-
+        loss: Float[Array, " "] = jnp.sum((measured - predicted) ** 2)
+        return loss
     if loss_type == "poisson":
-        # Poisson negative log-likelihood (for photon counting)
-        eps = 1e-10
-        return jnp.sum(predicted - measured * jnp.log(predicted + eps))
-
+        eps: float = 1e-10
+        loss: Float[Array, " "] = jnp.sum(
+            predicted - measured * jnp.log(predicted + eps)
+        )
+        return loss
     raise ValueError(f"Unknown loss_type: {loss_type}")
 
 
@@ -233,10 +247,9 @@ def coherence_parameterized_loss(
 
     No hand-derived update rules needed!
     """
-    hh, ww = sample.shape
-
-    # Generate modes from coherence width
-    probe_modes = gaussian_schell_model_modes(
+    hh: int = sample.shape[0]
+    ww: int = sample.shape[1]
+    probe_modes: CoherentModeSet = gaussian_schell_model_modes(
         wavelength=wavelength,
         dx=dx,
         grid_size=(hh, ww),
@@ -244,9 +257,7 @@ def coherence_parameterized_loss(
         coherence_width=coherence_width,
         num_modes=num_modes,
     )
-
-    # Build data structure
-    data = MixedStatePtychoData(
+    data: MixedStatePtychoData = make_mixed_state_ptycho_data(
         diffraction_patterns=diffraction_patterns,
         probe_modes=probe_modes,
         sample=sample,
@@ -254,8 +265,8 @@ def coherence_parameterized_loss(
         wavelength=wavelength,
         dx=dx,
     )
-
-    return mixed_state_loss(data, loss_type="amplitude")
+    loss: Float[Array, " "] = mixed_state_loss(data, loss_type="amplitude")
+    return loss
 
 
 @jaxtyped(typechecker=beartype)
@@ -287,12 +298,13 @@ def mixed_state_gradient_step(
         State after one gradient step.
     """
 
-    def loss_fn(
+    def _loss_fn_int(
         sample: Complex[Array, " Hs Ws"],
         modes: Complex[Array, " M H W"],
         weights: Float[Array, " M"],
     ) -> Float[Array, " "]:
-        updated_probe = CoherentModeSet(
+        """Compute mixed-state loss for gradient computation."""
+        updated_probe: CoherentModeSet = make_coherent_mode_set(
             modes=modes,
             weights=weights,
             wavelength=data.probe_modes.wavelength,
@@ -300,7 +312,7 @@ def mixed_state_gradient_step(
             z_position=data.probe_modes.z_position,
             polarization=data.probe_modes.polarization,
         )
-        updated_data = MixedStatePtychoData(
+        updated_data: MixedStatePtychoData = make_mixed_state_ptycho_data(
             diffraction_patterns=data.diffraction_patterns,
             probe_modes=updated_probe,
             sample=sample,
@@ -308,49 +320,43 @@ def mixed_state_gradient_step(
             wavelength=data.wavelength,
             dx=data.dx,
         )
-        return mixed_state_loss(updated_data)
+        loss: Float[Array, " "] = mixed_state_loss(updated_data)
+        return loss
 
-    # Compute gradients
-    grad_fn = jax.grad(loss_fn, argnums=(0, 1, 2))
+    grad_fn = jax.grad(_loss_fn_int, argnums=(0, 1, 2))
+    grad_sample: Complex[Array, " Hs Ws"]
+    grad_modes: Complex[Array, " M H W"]
+    grad_weights: Float[Array, " M"]
     grad_sample, grad_modes, grad_weights = grad_fn(
         data.sample, data.probe_modes.modes, data.probe_modes.weights
     )
-
-    # Update parameters
-    new_sample = lax.cond(
+    new_sample: Complex[Array, " Hs Ws"] = jax.lax.cond(
         update_object,
         lambda: data.sample - learning_rate * grad_sample,
         lambda: data.sample,
     )
-
-    new_modes = lax.cond(
+    new_modes: Complex[Array, " M H W"] = jax.lax.cond(
         update_modes,
         lambda: data.probe_modes.modes - learning_rate * grad_modes,
         lambda: data.probe_modes.modes,
     )
-
-    new_weights = lax.cond(
+    new_weights: Float[Array, " M"] = jax.lax.cond(
         update_weights,
         lambda: data.probe_modes.weights - learning_rate * grad_weights,
         lambda: data.probe_modes.weights,
     )
-
-    # Ensure weights stay positive and normalized
     new_weights = jnp.maximum(new_weights, 1e-10)
     new_weights = new_weights / jnp.sum(new_weights)
-
-    # Reconstruct updated data
-    updated_probe = make_coherent_mode_set(
+    updated_probe: CoherentModeSet = make_coherent_mode_set(
         modes=new_modes,
         weights=new_weights,
         wavelength=data.probe_modes.wavelength,
         dx=data.probe_modes.dx,
         z_position=data.probe_modes.z_position,
         polarization=data.probe_modes.polarization,
-        normalize_weights=False,  # Already normalized
+        normalize_weights=False,
     )
-
-    return MixedStatePtychoData(
+    updated_data: MixedStatePtychoData = make_mixed_state_ptycho_data(
         diffraction_patterns=data.diffraction_patterns,
         probe_modes=updated_probe,
         sample=new_sample,
@@ -358,6 +364,7 @@ def mixed_state_gradient_step(
         wavelength=data.wavelength,
         dx=data.dx,
     )
+    return updated_data
 
 
 @jaxtyped(typechecker=beartype)
@@ -394,12 +401,13 @@ def mixed_state_reconstruct(
         Loss at each iteration.
     """
 
-    def step(
+    def _step_int(
         carry: MixedStatePtychoData, _: None
     ) -> tuple[MixedStatePtychoData, Float[Array, " "]]:
-        current_data = carry
-        loss = mixed_state_loss(current_data)
-        updated = mixed_state_gradient_step(
+        """Single gradient descent iteration."""
+        current_data: MixedStatePtychoData = carry
+        loss: Float[Array, " "] = mixed_state_loss(current_data)
+        updated: MixedStatePtychoData = mixed_state_gradient_step(
             current_data,
             learning_rate,
             update_object,
@@ -408,7 +416,9 @@ def mixed_state_reconstruct(
         )
         return updated, loss
 
-    final_data, loss_history = lax.scan(
-        step, data, None, length=int(num_iterations)
+    final_data: MixedStatePtychoData
+    loss_history: Float[Array, " I"]
+    final_data, loss_history = jax.lax.scan(
+        _step_int, data, None, length=int(num_iterations)
     )
     return final_data, loss_history
