@@ -15,7 +15,7 @@ from janssen.coherence.modes import (
     mutual_intensity_from_modes,
     thermal_mode_weights,
 )
-from janssen.utils import make_mutual_intensity
+from janssen.utils import make_coherent_mode_set, make_mutual_intensity
 
 
 class TestThermalModeWeights(chex.TestCase):
@@ -361,6 +361,20 @@ class TestEigenmodeDecomposition(chex.TestCase):
         assert jnp.all(mode_set.weights >= 0)
 
 
+def _make_mode_set(weights):
+    """Create a minimal CoherentModeSet for testing."""
+    n_modes = len(weights)
+    modes = jnp.ones((n_modes, 4, 4), dtype=jnp.complex128)
+    return make_coherent_mode_set(
+        modes=modes,
+        weights=weights,
+        wavelength=633e-9,
+        dx=1e-6,
+        z_position=0.0,
+        polarization=False,
+    )
+
+
 class TestEffectiveModeCount(chex.TestCase):
     """Test effective_mode_count function."""
 
@@ -368,16 +382,18 @@ class TestEffectiveModeCount(chex.TestCase):
     def test_output_shape(self) -> None:
         """Test that output is a scalar."""
         weights = jnp.array([0.5, 0.3, 0.2])
+        mode_set = _make_mode_set(weights)
         var_fn = self.variant(effective_mode_count)
-        m_eff = var_fn(weights)
+        m_eff = var_fn(mode_set)
         chex.assert_shape(m_eff, ())
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_single_mode(self) -> None:
         """Test that single mode gives M_eff = 1."""
         weights = jnp.array([1.0])
+        mode_set = _make_mode_set(weights)
         var_fn = self.variant(effective_mode_count)
-        m_eff = var_fn(weights)
+        m_eff = var_fn(mode_set)
         chex.assert_trees_all_close(m_eff, 1.0, atol=1e-10)
 
     @chex.variants(with_jit=True, without_jit=True)
@@ -385,16 +401,18 @@ class TestEffectiveModeCount(chex.TestCase):
         """Test that N equal weights gives M_eff = N."""
         n_modes = 5
         weights = jnp.ones(n_modes) / n_modes
+        mode_set = _make_mode_set(weights)
         var_fn = self.variant(effective_mode_count)
-        m_eff = var_fn(weights)
+        m_eff = var_fn(mode_set)
         chex.assert_trees_all_close(m_eff, float(n_modes), atol=1e-10)
 
     @chex.variants(with_jit=True, without_jit=True)
     def test_dominated_by_first(self) -> None:
         """Test that dominant first mode gives M_eff close to 1."""
         weights = jnp.array([0.99, 0.005, 0.005])
+        mode_set = _make_mode_set(weights)
         var_fn = self.variant(effective_mode_count)
-        m_eff = var_fn(weights)
+        m_eff = var_fn(mode_set)
         assert m_eff < 1.1
 
     @chex.variants(with_jit=True, without_jit=True)
@@ -402,8 +420,9 @@ class TestEffectiveModeCount(chex.TestCase):
         """Test that M_eff is between 1 and N."""
         weights = jnp.array([0.5, 0.3, 0.15, 0.05])
         n_modes = len(weights)
+        mode_set = _make_mode_set(weights)
         var_fn = self.variant(effective_mode_count)
-        m_eff = var_fn(weights)
+        m_eff = var_fn(mode_set)
         assert 1.0 <= m_eff <= n_modes
 
 

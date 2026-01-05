@@ -102,10 +102,10 @@ def propagate_coherent_modes(
     else:
         raise ValueError(f"Unknown propagation method: {method}")
 
-    def propagate_single_mode(
+    def _propagate_single_mode_int(
         mode: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
-        """Propagate a single mode."""
+        """Propagate single mode through free space."""
         temporary_wavefront = make_optical_wavefront(
             field=mode,
             wavelength=mode_set.wavelength,
@@ -122,7 +122,7 @@ def propagate_coherent_modes(
         return propagated_wavefront.field
 
     propagated_modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
-        propagate_single_mode
+        _propagate_single_mode_int
     )(modes)
     new_z: Float[Array, " "] = mode_set.z_position + jnp.asarray(
         distance, dtype=jnp.float64
@@ -189,7 +189,7 @@ def propagate_polychromatic(
     else:
         raise ValueError(f"Unknown propagation method: {method}")
 
-    def propagate_at_wavelength(
+    def _propagate_at_wavelength_int(
         field: Complex[Array, " hh ww"],
         wl: Float[Array, " "],
     ) -> Complex[Array, " hh ww"]:
@@ -209,7 +209,7 @@ def propagate_polychromatic(
         return propagated_wf.field
 
     propagated_fields: Complex[Array, " num_wavelengths hh ww"] = jax.vmap(
-        propagate_at_wavelength
+        _propagate_at_wavelength_int
     )(fields, wavelengths)
     new_z: Float[Array, " "] = wavefront.z_position + jnp.asarray(
         distance, dtype=jnp.float64
@@ -261,10 +261,10 @@ def apply_element_to_modes(
     """
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
 
-    def apply_to_single_mode(
+    def _apply_to_single_mode_int(
         mode: Complex[Array, " hh ww"],
     ) -> Complex[Array, " hh ww"]:
-        """Apply element to a single mode."""
+        """Apply optical element to single mode."""
         wavefront = make_optical_wavefront(
             field=mode,
             wavelength=mode_set.wavelength,
@@ -276,7 +276,7 @@ def apply_element_to_modes(
         return transformed_wf.field
 
     transformed_modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
-        apply_to_single_mode
+        _apply_to_single_mode_int
     )(modes)
     sample_wf = make_optical_wavefront(
         field=modes[0],

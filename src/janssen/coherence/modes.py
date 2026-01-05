@@ -67,13 +67,15 @@ from janssen.utils import (
     make_mutual_intensity,
 )
 
+MAX_HERMITE_ORDER: int = 50
+
 
 def _hermite_polynomial(
     order: Float[Array, " "], x: Float[Array, " hh ww"]
 ) -> Float[Array, " hh ww"]:
     """Compute physicist's Hermite polynomial H_n(x) using recurrence.
 
-    Uses jax.lax.fori_loop for JIT-compatible iteration over orders.
+    Uses jax.lax.scan for autodiff-compatible iteration over orders.
 
     Parameters
     ----------
@@ -87,21 +89,27 @@ def _hermite_polynomial(
     h_n : Float[Array, " hh ww"]
         Hermite polynomial H_order(x).
     """
-
-    def _body_fn_int(
-        k: int,
-        carry: Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]],
-    ) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
-        h_prev2, h_prev1 = carry
-        h_curr: Float[Array, " hh ww"] = (
-            2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
-        )
-        return h_prev1, h_curr
-
     h0: Float[Array, " hh ww"] = jnp.ones_like(x)
     h1: Float[Array, " hh ww"] = 2.0 * x
-    _, h_n = jax.lax.fori_loop(
-        2, order.astype(jnp.int32) + 1, _body_fn_int, (h0, h1)
+
+    def _scan_fn(
+        carry: Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"], int],
+        _: None,
+    ) -> Tuple[
+        Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"], int], None
+    ]:
+        h_prev2, h_prev1, k = carry
+        h_curr: Float[Array, " hh ww"] = 2.0 * x * h_prev1 - 2.0 * k * h_prev2
+        h_prev2_new: Float[Array, " hh ww"] = jnp.where(
+            k < order, h_prev1, h_prev2
+        )
+        h_prev1_new: Float[Array, " hh ww"] = jnp.where(
+            k < order, h_curr, h_prev1
+        )
+        return (h_prev2_new, h_prev1_new, k + 1), None
+
+    (_, h_n, _), _ = jax.lax.scan(
+        _scan_fn, (h0, h1, 1), None, length=MAX_HERMITE_ORDER
     )
     result: Float[Array, " hh ww"] = jnp.where(
         order == 0, h0, jnp.where(order == 1, h1, h_n)
@@ -553,7 +561,7 @@ def eigenmode_decomposition(
 
 @jaxtyped(typechecker=beartype)
 def effective_mode_count(
-    weights: Float[Array, " n"],
+    mode_set: CoherentModeSet,
 ) -> Float[Array, " "]:
     """Calculate effective number of modes (participation ratio).
 
@@ -564,8 +572,8 @@ def effective_mode_count(
 
     Parameters
     ----------
-    weights : Float[Array, " n"]
-        Modal weights (eigenvalues).
+    mode_set : CoherentModeSet
+        Coherent mode set containing modal weights.
 
     Returns
     -------
@@ -582,12 +590,11 @@ def effective_mode_count(
     This is also known as the inverse participation ratio (IPR) and
     appears in many contexts in physics (localization, entropy, etc.).
     """
+    weights: Float[Array, " n"] = mode_set.weights
     weights_sum: Float[Array, " "] = jnp.sum(weights)
     weights_sq_sum: Float[Array, " "] = jnp.sum(weights**2)
-    effective_mode_count: Float[Array, " "] = weights_sum**2 / (
-        weights_sq_sum + 1e-20
-    )
-    return effective_mode_count
+    m_eff: Float[Array, " "] = weights_sum**2 / (weights_sq_sum + 1e-20)
+    return m_eff
 
 
 @jaxtyped(typechecker=beartype)
@@ -658,19 +665,19 @@ def mutual_intensity_from_modes(
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
     weights: Float[Array, " num_modes"] = mode_set.weights
 
-    def compute_j_term(
+    def _compute_j_term_int(
         mode: Complex[Array, " hh ww"], weight: Float[Array, " "]
     ) -> Complex[Array, " hh ww hh ww"]:
+        """Compute weighted outer product for single mode."""
         j_n: Complex[Array, " hh ww hh ww"] = weight * jnp.einsum(
             "ij,kl->ijkl", jnp.conj(mode), mode
         )
         return j_n
 
     all_j_terms: Complex[Array, " num_modes hh ww hh ww"] = jax.vmap(
-        compute_j_term
+        _compute_j_term_int
     )(modes, weights)
     j_matrix: Complex[Array, " hh ww hh ww"] = jnp.sum(all_j_terms, axis=0)
-
     mutual_intensity: MutualIntensity = make_mutual_intensity(
         j_matrix=j_matrix,
         wavelength=mode_set.wavelength,
