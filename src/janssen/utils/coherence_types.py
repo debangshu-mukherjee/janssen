@@ -19,12 +19,16 @@ PolychromaticWavefront : NamedTuple
     PyTree structure for polychromatic/broadband field representation
 MutualIntensity : NamedTuple
     PyTree structure for full mutual intensity J(r1, r2) representation
+MixedStatePtychoData : NamedTuple
+    PyTree for mixed-state ptychography reconstruction state
 make_coherent_mode_set : function
     Factory function to create validated CoherentModeSet instances
 make_polychromatic_wavefront : function
     Factory function to create validated PolychromaticWavefront instances
 make_mutual_intensity : function
     Factory function to create validated MutualIntensity instances
+make_mixed_state_ptycho_data : function
+    Factory function to create validated MixedStatePtychoData instances
 
 Notes
 -----
@@ -853,6 +857,209 @@ def make_mutual_intensity(
             wavelength=validated_wavelength,
             dx=validated_dx,
             z_position=z_position_arr,
+        )
+
+    return validate_and_create()
+
+
+@register_pytree_node_class
+class MixedStatePtychoData(NamedTuple):
+    """PyTree structure for mixed-state ptychography reconstruction.
+
+    Extends standard ptychography data to support partially coherent
+    illumination via coherent mode decomposition.
+
+    Attributes
+    ----------
+    diffraction_patterns : Float[Array, " N H W"]
+        Measured diffraction intensities at each scan position.
+    probe_modes : CoherentModeSet
+        Coherent mode decomposition of the partially coherent probe.
+    sample : Complex[Array, " Hs Ws"]
+        Object transmission function estimate.
+    positions : Float[Array, " N 2"]
+        Scan positions in pixels.
+    wavelength : Float[Array, " "]
+        Wavelength in meters.
+    dx : Float[Array, " "]
+        Pixel spacing in meters.
+
+    Notes
+    -----
+    The forward model is:
+        I_i = Sigma_n w_n |FFT(probe_n * shift(object, r_i))|^2
+
+    Gradients flow through probe_modes.modes, probe_modes.weights,
+    and sample, enabling joint optimization of all parameters.
+    """
+
+    diffraction_patterns: Float[Array, " N H W"]
+    probe_modes: CoherentModeSet
+    sample: Complex[Array, " Hs Ws"]
+    positions: Float[Array, " N 2"]
+    wavelength: Float[Array, " "]
+    dx: Float[Array, " "]
+
+    def tree_flatten(
+        self,
+    ) -> Tuple[
+        Tuple[
+            Float[Array, " N H W"],
+            CoherentModeSet,
+            Complex[Array, " Hs Ws"],
+            Float[Array, " N 2"],
+            Float[Array, " "],
+            Float[Array, " "],
+        ],
+        None,
+    ]:
+        """Flatten for JAX pytree compatibility."""
+        children = (
+            self.diffraction_patterns,
+            self.probe_modes,
+            self.sample,
+            self.positions,
+            self.wavelength,
+            self.dx,
+        )
+        return (children, None)
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        _aux_data: None,
+        children: Tuple[
+            Float[Array, " N H W"],
+            CoherentModeSet,
+            Complex[Array, " Hs Ws"],
+            Float[Array, " N 2"],
+            Float[Array, " "],
+            Float[Array, " "],
+        ],
+    ) -> "MixedStatePtychoData":
+        """Unflatten from JAX pytree representation."""
+        return cls(*children)
+
+
+@jaxtyped(typechecker=beartype)
+def make_mixed_state_ptycho_data(
+    diffraction_patterns: Float[Array, " N H W"],
+    probe_modes: CoherentModeSet,
+    sample: Complex[Array, " Hs Ws"],
+    positions: Float[Array, " N 2"],
+    wavelength: ScalarNumeric,
+    dx: ScalarNumeric,
+) -> MixedStatePtychoData:
+    """Create validated MixedStatePtychoData.
+
+    Factory function that validates inputs and creates a MixedStatePtychoData
+    PyTree suitable for mixed-state ptychography reconstruction.
+
+    Parameters
+    ----------
+    diffraction_patterns : Float[Array, " N H W"]
+        Measured diffraction patterns.
+    probe_modes : CoherentModeSet
+        Partially coherent probe as coherent modes.
+    sample : Complex[Array, " Hs Ws"]
+        Initial object estimate.
+    positions : Float[Array, " N 2"]
+        Scan positions (x, y) in pixels.
+    wavelength : ScalarNumeric
+        Wavelength in meters. Must be positive.
+    dx : ScalarNumeric
+        Pixel size in meters. Must be positive.
+
+    Returns
+    -------
+    data : MixedStatePtychoData
+        Validated data structure.
+    """
+    diffraction_patterns_arr: Float[Array, " N H W"] = jnp.asarray(
+        diffraction_patterns, dtype=jnp.float64
+    )
+    sample_arr: Complex[Array, " Hs Ws"] = jnp.asarray(
+        sample, dtype=jnp.complex128
+    )
+    positions_arr: Float[Array, " N 2"] = jnp.asarray(
+        positions, dtype=jnp.float64
+    )
+    wavelength_arr: Float[Array, " "] = jnp.asarray(
+        wavelength, dtype=jnp.float64
+    )
+    dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
+
+    expected_dp_ndim: int = 3
+    expected_pos_cols: int = 2
+
+    def validate_and_create() -> MixedStatePtychoData:
+        def check_diffraction_patterns() -> Float[Array, " N H W"]:
+            dp_arr = diffraction_patterns_arr
+            is_valid_ndim: Bool[Array, " "] = dp_arr.ndim == expected_dp_ndim
+            is_non_negative: Bool[Array, " "] = jnp.all(dp_arr >= 0)
+            is_valid: Bool[Array, " "] = jnp.logical_and(
+                is_valid_ndim, is_non_negative
+            )
+            return lax.cond(
+                is_valid,
+                lambda: dp_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dp_arr, lambda: dp_arr)
+                ),
+            )
+
+        def check_positions(
+            dp: Float[Array, " N H W"],
+        ) -> Float[Array, " N 2"]:
+            num_positions: int = dp.shape[0]
+            is_valid_shape: Bool[Array, " "] = jnp.logical_and(
+                positions_arr.shape[0] == num_positions,
+                positions_arr.shape[1] == expected_pos_cols,
+            )
+            return lax.cond(
+                is_valid_shape,
+                lambda: positions_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: positions_arr, lambda: positions_arr
+                    )
+                ),
+            )
+
+        def check_wavelength() -> Float[Array, " "]:
+            return lax.cond(
+                wavelength_arr > 0,
+                lambda: wavelength_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(
+                        False, lambda: wavelength_arr, lambda: wavelength_arr
+                    )
+                ),
+            )
+
+        def check_dx() -> Float[Array, " "]:
+            return lax.cond(
+                dx_arr > 0,
+                lambda: dx_arr,
+                lambda: lax.stop_gradient(
+                    lax.cond(False, lambda: dx_arr, lambda: dx_arr)
+                ),
+            )
+
+        validated_dp: Float[Array, " N H W"] = check_diffraction_patterns()
+        validated_positions: Float[Array, " N 2"] = check_positions(
+            validated_dp
+        )
+        validated_wavelength: Float[Array, " "] = check_wavelength()
+        validated_dx: Float[Array, " "] = check_dx()
+
+        return MixedStatePtychoData(
+            diffraction_patterns=validated_dp,
+            probe_modes=probe_modes,
+            sample=sample_arr,
+            positions=validated_positions,
+            wavelength=validated_wavelength,
+            dx=validated_dx,
         )
 
     return validate_and_create()

@@ -26,6 +26,8 @@ Routine Listings
     Factory function for PolychromaticWavefront creation.
 :func:`make_mutual_intensity`
     Factory function for MutualIntensity creation.
+:func:`make_mixed_state_ptycho_data`
+    Factory function for MixedStatePtychoData creation.
 :func:`make_diffractogram`
     Factory function for Diffractogram creation.
 :func:`make_grid_params`
@@ -68,6 +70,8 @@ Routine Listings
     PyTree for polychromatic/broadband field representation.
 :class:`MutualIntensity`
     PyTree for full mutual intensity J(r1, r2) representation.
+:class:`MixedStatePtychoData`
+    PyTree for mixed-state ptychography reconstruction state.
 :class:`Diffractogram`
     PyTree for storing diffraction patterns.
 :class:`GridParams`
@@ -102,9 +106,11 @@ JAX and support automatic differentiation.
 
 from .coherence_types import (
     CoherentModeSet,
+    MixedStatePtychoData,
     MutualIntensity,
     PolychromaticWavefront,
     make_coherent_mode_set,
+    make_mixed_state_ptycho_data,
     make_mutual_intensity,
     make_polychromatic_wavefront,
 )
@@ -161,6 +167,7 @@ from .vector_types import (
 __all__: list[str] = [
     "CoherentModeSet",
     "Diffractogram",
+    "MixedStatePtychoData",
     "EpieData",
     "EpieParams",
     "GridParams",
@@ -193,6 +200,7 @@ __all__: list[str] = [
     "make_grid_params",
     "make_lens_params",
     "make_microscope_data",
+    "make_mixed_state_ptycho_data",
     "make_mutual_intensity",
     "make_optical_wavefront",
     "make_optimizer_state",
