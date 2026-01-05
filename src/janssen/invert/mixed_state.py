@@ -33,7 +33,7 @@ coherence. For M modes on an N×N grid, memory scales as O(M * N^2) versus
 O(N^4) for full mutual intensity.
 
 The MixedStatePtychoData PyTree and make_mixed_state_ptycho_data factory
-function are defined in janssen.utils.coherence_types and re-exported here
+function are defined in janssen.types.coherence_types and re-exported here
 for convenience.
 """
 
@@ -42,8 +42,8 @@ import jax.numpy as jnp
 from beartype import beartype
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.coherence import gaussian_schell_model_modes
-from janssen.utils import (
+from janssen.cohere import gaussian_schell_model_modes
+from janssen.types import (
     CoherentModeSet,
     MixedStatePtychoData,
     ScalarInteger,

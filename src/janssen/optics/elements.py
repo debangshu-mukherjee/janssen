@@ -59,7 +59,7 @@ from beartype.typing import Callable, Optional, Tuple
 from jax.lax import cond
 from jaxtyping import Array, Bool, Complex, Float, Num, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     ScalarBool,
     ScalarFloat,

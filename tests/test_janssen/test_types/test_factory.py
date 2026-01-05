@@ -1,4 +1,4 @@
-"""Tests for factory functions in janssen.utils.factory module."""
+"""Tests for factory functions in janssen.types.factory module."""
 
 import chex
 import jax
@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Float
 
-from janssen.utils import (
+from janssen.types import (
     LensParams,
     OpticalWavefront,
     make_diffractogram,

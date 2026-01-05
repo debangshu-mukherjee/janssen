@@ -62,8 +62,8 @@ from beartype import beartype
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.optics.bessel import bessel_jn
-from janssen.utils import ScalarFloat, ScalarInteger
+from janssen.utils import bessel_jn
+from janssen.types import ScalarFloat, ScalarInteger
 
 SMALL_ARG_THRESHOLD: float = 1e-10
 

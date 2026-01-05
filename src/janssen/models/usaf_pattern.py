@@ -40,7 +40,7 @@ from jaxtyping import (
     jaxtyped,
 )
 
-from janssen.utils import (
+from janssen.types import (
     SampleFunction,
     ScalarFloat,
     make_sample_function,

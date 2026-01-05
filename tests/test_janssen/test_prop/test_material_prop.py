@@ -9,7 +9,7 @@ from janssen.prop import (
     optical_path_length,
     total_transmit,
 )
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     SlicedMaterialFunction,
     make_optical_wavefront,

@@ -300,7 +300,7 @@ result = manual_propagate(field, wavelength)  # Loses structure
 For many modes, consider chunked processing:
 
 ```python
-from janssen.coherence import propagate_coherent_mode_set
+from janssen.cohere import propagate_coherent_mode_set
 
 # Process in chunks to manage memory
 output = propagate_coherent_mode_set(

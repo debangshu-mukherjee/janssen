@@ -46,7 +46,7 @@ from beartype.typing import Optional, Tuple, Union
 from jax import lax
 from jaxtyping import Array, Bool, Complex, Float, Int, Num, jaxtyped
 
-from .types import (
+from .common_types import (
     Diffractogram,
     EpieData,
     EpieParams,

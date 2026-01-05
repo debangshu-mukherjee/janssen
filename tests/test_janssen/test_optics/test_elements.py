@@ -21,7 +21,7 @@ from janssen.optics.elements import (
     quarter_waveplate,
     waveplate_jones,
 )
-from janssen.utils import make_optical_wavefront
+from janssen.types import make_optical_wavefront
 
 
 class TestElements(chex.TestCase, parameterized.TestCase):

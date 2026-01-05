@@ -16,7 +16,7 @@ from janssen.models.beams import (
     laguerre_gaussian,
     plane_wave,
 )
-from janssen.utils import OpticalWavefront
+from janssen.types import OpticalWavefront
 
 
 class TestPlaneWave(chex.TestCase, parameterized.TestCase):

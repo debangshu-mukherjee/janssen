@@ -44,7 +44,7 @@ from beartype.typing import Callable, Optional
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.prop.free_space_prop import angular_spectrum_prop, fresnel_prop
-from janssen.utils import (
+from janssen.types import (
     CoherentModeSet,
     OpticalWavefront,
     PolychromaticWavefront,

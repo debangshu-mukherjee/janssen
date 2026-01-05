@@ -19,7 +19,7 @@ from janssen.optics.apertures import (
     supergaussian_apodizer_elliptical,
     variable_transmission_aperture,
 )
-from janssen.utils import OpticalWavefront, make_optical_wavefront
+from janssen.types import OpticalWavefront, make_optical_wavefront
 
 
 class TestArrayedGrids(chex.TestCase):

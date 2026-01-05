@@ -37,7 +37,7 @@ from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 from janssen.optics.apertures import circular_aperture
 from janssen.optics.helper import field_intensity
 from janssen.prop import fraunhofer_prop, fraunhofer_prop_scaled, optical_zoom
-from janssen.utils import (
+from janssen.types import (
     Diffractogram,
     MicroscopeData,
     OpticalWavefront,

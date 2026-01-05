@@ -1,15 +1,15 @@
-"""Tests for coherent mode propagation in janssen.coherence.propagation."""
+"""Tests for coherent mode propagation in janssen.cohere.propagation."""
 
 import chex
 import jax.numpy as jnp
 from absl.testing import parameterized
 
-from janssen.coherence.modes import (
+from janssen.cohere.modes import (
     hermite_gaussian_modes,
     modes_from_wavefront,
     thermal_mode_weights,
 )
-from janssen.coherence.propagation import (
+from janssen.cohere.propagation import (
     apply_element_to_modes,
     intensity_from_modes,
     intensity_from_polychromatic,
@@ -17,7 +17,7 @@ from janssen.coherence.propagation import (
     propagate_coherent_modes,
     propagate_polychromatic,
 )
-from janssen.utils import make_optical_wavefront, make_polychromatic_wavefront
+from janssen.types import make_optical_wavefront, make_polychromatic_wavefront
 
 
 def _hg_modes(wavelength, dx, grid_size, beam_waist, max_order):

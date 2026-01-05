@@ -159,7 +159,7 @@ LEDs combine spatial incoherence (extended die) with temporal incoherence
 (broad spectrum):
 
 ```python
-from janssen.coherence import led_source
+from janssen.cohere import led_source
 
 mode_set, wavelengths, spectral_weights = led_source(
     center_wavelength=530e-9,     # Green LED
@@ -187,7 +187,7 @@ Synchrotron sources have anisotropic coherence (different in horizontal
 and vertical due to different source sizes):
 
 ```python
-from janssen.coherence import synchrotron_source
+from janssen.cohere import synchrotron_source
 
 mode_set = synchrotron_source(
     center_wavelength=1e-10,      # 1 Angstrom X-rays
@@ -206,7 +206,7 @@ Each coherent mode propagates independently. The total intensity is
 computed by summing mode intensities at the output:
 
 ```python
-from janssen.coherence import propagate_coherent_mode_set
+from janssen.cohere import propagate_coherent_mode_set
 from janssen.prop import angular_spectrum
 
 # Propagate partially coherent field
@@ -225,7 +225,7 @@ total_intensity = output_modes.intensity
 For temporal coherence, propagate at each wavelength and sum:
 
 ```python
-from janssen.coherence import propagate_polychromatic_wavefront
+from janssen.cohere import propagate_polychromatic_wavefront
 
 output = propagate_polychromatic_wavefront(
     polychromatic_wavefront,

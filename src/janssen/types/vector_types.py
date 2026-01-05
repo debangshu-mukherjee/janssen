@@ -41,7 +41,7 @@ from jax import lax
 from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
-from .types import ScalarNumeric
+from .common_types import ScalarNumeric
 
 
 @register_pytree_node_class

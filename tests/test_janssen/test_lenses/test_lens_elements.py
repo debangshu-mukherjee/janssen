@@ -16,7 +16,7 @@ from janssen.lenses import (
     plano_convex_lens,
     propagate_through_lens,
 )
-from janssen.utils import LensParams, make_lens_params
+from janssen.types import LensParams, make_lens_params
 
 
 class TestLensElements(chex.TestCase, parameterized.TestCase):

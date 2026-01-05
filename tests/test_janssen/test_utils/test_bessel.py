@@ -9,7 +9,7 @@ import jax.numpy as jnp
 import pytest
 from absl.testing import parameterized
 
-from janssen.optics.bessel import bessel_j0, bessel_jn, bessel_kv
+from janssen.utils import bessel_j0, bessel_jn, bessel_kv
 
 
 class TestBesselJ0(chex.TestCase):

@@ -67,7 +67,7 @@ from beartype import beartype
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Float, jaxtyped
 
-from janssen.utils import ScalarFloat, ScalarInteger
+from janssen.types import ScalarFloat, ScalarInteger
 
 C_LIGHT: float = 299792458.0
 

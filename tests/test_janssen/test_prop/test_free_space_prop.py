@@ -13,7 +13,7 @@ from janssen.prop import (
     lens_propagation,
     optical_zoom,
 )
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     make_lens_params,
     make_optical_wavefront,

@@ -1,9 +1,9 @@
-"""Tests for spatial coherence functions in janssen.coherence.spatial."""
+"""Tests for spatial coherence functions in janssen.cohere.spatial."""
 
 import chex
 import jax.numpy as jnp
 
-from janssen.coherence.spatial import (
+from janssen.cohere.spatial import (
     _complex_degree_of_coherence_impl,
     _gaussian_coherence_kernel_impl,
     _jinc_coherence_kernel_impl,

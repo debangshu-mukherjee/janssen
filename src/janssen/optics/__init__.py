@@ -25,22 +25,6 @@ Routine Listings
     Apply elliptical super-Gaussian apodization.
 :func:`variable_transmission_aperture`
     Create aperture with variable transmission.
-:func:`bessel_j0`
-    Compute J_0(x), Bessel function of the first kind, order 0.
-:func:`bessel_jn`
-    Compute J_n(x), Bessel function of the first kind, order n.
-:func:`bessel_kv`
-    Compute K_v(x), modified Bessel function of the second kind.
-:func:`bessel_iv_series`
-    Compute I_v(x) using series expansion.
-:func:`bessel_k0_series`
-    Compute K_0(x) using series expansion.
-:func:`bessel_kn_recurrence`
-    Compute K_n(x) using recurrence relation.
-:func:`bessel_kv_small_integer`
-    Compute K_v(x) for small x and integer v.
-:func:`bessel_kv_small_non_integer`
-    Compute K_v(x) for small x and non-integer v.
 :func:`apply_phase_mask`
     Apply a phase mask to a field.
 :func:`apply_phase_mask_fn`
@@ -129,16 +113,6 @@ from .apertures import (
     supergaussian_apodizer_elliptical,
     variable_transmission_aperture,
 )
-from .bessel import (
-    bessel_iv_series,
-    bessel_j0,
-    bessel_jn,
-    bessel_k0_series,
-    bessel_kn_recurrence,
-    bessel_kv,
-    bessel_kv_small_integer,
-    bessel_kv_small_non_integer,
-)
 from .elements import (
     amplitude_grating_binary,
     apply_phase_mask,
@@ -190,14 +164,6 @@ __all__: list[str] = [
     "apply_phase_mask_fn",
     "astigmatism",
     "beam_splitter",
-    "bessel_iv_series",
-    "bessel_j0",
-    "bessel_jn",
-    "bessel_k0_series",
-    "bessel_kn_recurrence",
-    "bessel_kv",
-    "bessel_kv_small_integer",
-    "bessel_kv_small_non_integer",
     "circular_aperture",
     "coma",
     "compute_phase_from_coeffs",

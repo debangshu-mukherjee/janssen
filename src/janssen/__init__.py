@@ -9,7 +9,7 @@ and JIT-compilable functions.
 
 Routine Listings
 ----------------
-:mod:`coherence`
+:mod:`cohere`
     Partial coherence support for spatial and temporal coherence effects.
 :mod:`invert`
     Inversion algorithms for phase retrieval and ptychography.
@@ -25,8 +25,10 @@ Routine Listings
     Propagation methods for optical wavefronts.
 :mod:`scopes`
     Microscope implementations and forward models.
+:mod:`types`
+    Type definitions and factory functions for PyTree dataclasses.
 :mod:`utils`
-    Common utility functions used throughout the code.
+    Utility functions for distributed computing and math operations.
 
 Examples
 --------
@@ -58,7 +60,7 @@ import jax  # noqa: E402
 jax.config.update("jax_enable_x64", True)
 
 from . import (  # noqa: E402, I001
-    coherence,
+    cohere,
     invert,
     lenses,
     models,
@@ -66,6 +68,7 @@ from . import (  # noqa: E402, I001
     plots,
     prop,
     scopes,
+    types,
     utils,
 )
 
@@ -73,7 +76,7 @@ __version__: str = version("janssen")
 
 __all__: list[str] = [
     "__version__",
-    "coherence",
+    "cohere",
     "invert",
     "lenses",
     "models",
@@ -81,5 +84,6 @@ __all__: list[str] = [
     "plots",
     "prop",
     "scopes",
+    "types",
     "utils",
 ]

@@ -1,9 +1,9 @@
-"""Tests for temporal coherence functions in janssen.coherence.temporal."""
+"""Tests for temporal coherence functions in janssen.cohere.temporal."""
 
 import chex
 import jax.numpy as jnp
 
-from janssen.coherence.temporal import (
+from janssen.cohere.temporal import (
     _blackbody_spectrum_impl,
     _gaussian_spectrum_impl,
     _lorentzian_spectrum_impl,

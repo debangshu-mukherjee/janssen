@@ -1,9 +1,9 @@
-"""Tests for coherent mode functions in janssen.coherence.modes."""
+"""Tests for coherent mode functions in janssen.cohere.modes."""
 
 import chex
 import jax.numpy as jnp
 
-from janssen.coherence.modes import (
+from janssen.cohere.modes import (
     _eigenmode_decomposition_impl,
     _gaussian_schell_model_modes_impl,
     _hermite_gaussian_modes_impl,
@@ -15,7 +15,7 @@ from janssen.coherence.modes import (
     mutual_intensity_from_modes,
     thermal_mode_weights,
 )
-from janssen.utils import make_coherent_mode_set, make_mutual_intensity
+from janssen.types import make_coherent_mode_set, make_mutual_intensity
 
 
 class TestThermalModeWeights(chex.TestCase):

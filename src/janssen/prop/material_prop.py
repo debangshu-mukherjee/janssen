@@ -29,7 +29,7 @@ from beartype import beartype
 from beartype.typing import Optional
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     ScalarFloat,
     ScalarInteger,
@@ -124,7 +124,7 @@ def multislice_propagation(
     Propagate through a uniform glass slab:
 
     >>> import jax.numpy as jnp
-    >>> from janssen.utils import make_optical_wavefront,
+    >>> from janssen.types import make_optical_wavefront,
     >>>                           make_sliced_material_function
     >>> from janssen.prop import multislice_propagation
     >>>

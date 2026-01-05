@@ -46,7 +46,7 @@ from beartype import beartype
 from beartype.typing import Optional, Tuple, Union
 from jaxtyping import Array, Bool, Float, Num, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     ScalarFloat,
     ScalarNumeric,

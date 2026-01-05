@@ -1,9 +1,9 @@
-"""Tests for source models in janssen.coherence.sources."""
+"""Tests for source models in janssen.cohere.sources."""
 
 import chex
 import jax.numpy as jnp
 
-from janssen.coherence.sources import (
+from janssen.cohere.sources import (
     _multimode_fiber_output_impl,
     _synchrotron_source_impl,
     laser_with_mode_noise,

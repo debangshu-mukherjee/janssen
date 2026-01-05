@@ -48,15 +48,15 @@ from beartype.typing import Optional, Tuple, Union
 from jaxtyping import Array, Complex, Float, Int, jaxtyped
 
 from janssen.optics import create_spatial_grid
-from janssen.optics.bessel import bessel_j0
-from janssen.utils import (
+from janssen.utils import bessel_j0
+from janssen.types import (
     OpticalWavefront,
     PropagatingWavefront,
     ScalarFloat,
     ScalarInteger,
     make_optical_wavefront,
 )
-from janssen.utils.factory import make_propagating_wavefront
+from janssen.types.factory import make_propagating_wavefront
 
 
 @jaxtyped(typechecker=beartype)

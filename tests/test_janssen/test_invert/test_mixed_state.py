@@ -4,7 +4,7 @@ import chex
 import jax
 import jax.numpy as jnp
 
-from janssen.coherence import gaussian_schell_model_modes
+from janssen.cohere import gaussian_schell_model_modes
 from janssen.invert import (
     MixedStatePtychoData,
     coherence_parameterized_loss,

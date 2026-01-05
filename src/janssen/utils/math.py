@@ -25,7 +25,7 @@ from beartype import beartype
 from beartype.typing import Any, Callable, Optional, Sequence, Tuple, Union
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from .types import ScalarFloat
+from janssen.types import ScalarFloat
 
 
 @jaxtyped(typechecker=beartype)

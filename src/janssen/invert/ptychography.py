@@ -30,19 +30,19 @@ from jax import lax
 from jaxtyping import Array, Complex, Float, Int, jaxtyped
 
 from janssen.scopes import simple_microscope
-from janssen.utils import (
+from janssen.types import (
     EpieData,
     MicroscopeData,
     OpticalWavefront,
     PtychographyParams,
     PtychographyReconstruction,
     SampleFunction,
-    fourier_shift,
     make_epie_data,
     make_optical_wavefront,
     make_ptychography_reconstruction,
     make_sample_function,
 )
+from janssen.utils import fourier_shift
 
 from .initialization import init_simple_epie
 from .loss_functions import create_loss_function

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import jax.numpy as jnp
-from janssen.utils import make_optical_wavefront
+from janssen.types import make_optical_wavefront
 from janssen.plots.wavefront import (
     plot_complex_wavefront,
     plot_amplitude,

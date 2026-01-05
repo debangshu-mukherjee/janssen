@@ -58,7 +58,7 @@ from beartype import beartype
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     CoherentModeSet,
     MutualIntensity,
     ScalarFloat,

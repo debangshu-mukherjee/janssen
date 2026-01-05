@@ -41,7 +41,7 @@ from beartype import beartype
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     LensParams,
     ScalarBool,
     ScalarFloat,

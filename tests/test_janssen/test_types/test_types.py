@@ -1,4 +1,4 @@
-"""Tests for PyTree structures in janssen.utils.types module."""
+"""Tests for PyTree structures in janssen.types.common_types module."""
 
 import chex
 import jax
@@ -7,7 +7,7 @@ import jax.tree_util as tree
 import pytest
 from jaxtyping import Array, Complex, Float
 
-from janssen.utils import (
+from janssen.types import (
     Diffractogram,
     GridParams,
     LensParams,

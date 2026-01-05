@@ -53,7 +53,7 @@ The algorithms can be composed with JIT compilation for improved
 performance.
 """
 
-from janssen.utils import MixedStatePtychoData, make_mixed_state_ptycho_data
+from janssen.types import MixedStatePtychoData, make_mixed_state_ptycho_data
 
 from .engine import (
     epie_optical,

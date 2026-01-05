@@ -35,7 +35,7 @@ from beartype import beartype
 from beartype.typing import Optional, Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     ScalarComplex,
     ScalarFloat,
     ScalarInteger,

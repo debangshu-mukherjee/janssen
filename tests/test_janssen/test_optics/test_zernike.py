@@ -19,7 +19,7 @@ from janssen.optics.zernike import (
     zernike_polynomial,
     zernike_radial,
 )
-from janssen.utils import make_optical_wavefront
+from janssen.types import make_optical_wavefront
 
 
 class TestZernike(chex.TestCase, parameterized.TestCase):

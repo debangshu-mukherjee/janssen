@@ -95,15 +95,15 @@ implementations with ``static_argnums`` for grid dimensions. These can
 be imported directly for use in pure JAX workflows where maximum
 performance is needed:
 
-- ``janssen.coherence.spatial``: ``_gaussian_coherence_kernel_impl``,
+- ``janssen.cohere.spatial``: ``_gaussian_coherence_kernel_impl``,
   ``_jinc_coherence_kernel_impl``, ``_rectangular_coherence_kernel_impl``,
   ``_complex_degree_of_coherence_impl``
-- ``janssen.coherence.temporal``: ``_gaussian_spectrum_impl``,
+- ``janssen.cohere.temporal``: ``_gaussian_spectrum_impl``,
   ``_lorentzian_spectrum_impl``, ``_rectangular_spectrum_impl``,
   ``_blackbody_spectrum_impl``
-- ``janssen.coherence.modes``: ``_hermite_gaussian_modes_impl``,
+- ``janssen.cohere.modes``: ``_hermite_gaussian_modes_impl``,
   ``_gaussian_schell_model_modes_impl``, ``_eigenmode_decomposition_impl``
-- ``janssen.coherence.sources``: ``_synchrotron_source_impl``,
+- ``janssen.cohere.sources``: ``_synchrotron_source_impl``,
   ``_multimode_fiber_output_impl``
 
 See individual module docstrings for detailed parameter documentation.

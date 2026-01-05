@@ -41,7 +41,7 @@ from beartype.typing import Optional
 from jaxtyping import Array, Bool, Complex, Float, Integer, jaxtyped
 
 from janssen.lenses import create_lens_phase
-from janssen.utils import (
+from janssen.types import (
     LensParams,
     OpticalWavefront,
     ScalarFloat,

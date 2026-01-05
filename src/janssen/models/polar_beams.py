@@ -48,7 +48,7 @@ from beartype.typing import Tuple, Union
 from jaxtyping import Array, Complex, Float, Int, jaxtyped
 
 from janssen.optics import create_spatial_grid
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     ScalarFloat,
     ScalarInteger,

@@ -30,7 +30,7 @@ from beartype import beartype
 from beartype.typing import Tuple, Union
 from jaxtyping import Array, Complex, Float, Int, Num, jaxtyped
 
-from janssen.utils import (
+from janssen.types import (
     OpticalWavefront,
     ScalarFloat,
     ScalarInteger,

@@ -45,7 +45,7 @@ from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.prop import angular_spectrum_prop
-from janssen.utils import (
+from janssen.types import (
     MicroscopeData,
     OpticalWavefront,
     SampleFunction,

@@ -41,7 +41,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.axes_divider import AxesDivider
 from numpy import ndarray as NDArray
 
-from janssen.utils import OpticalWavefront
+from janssen.types import OpticalWavefront
 
 
 def _plot_field(
