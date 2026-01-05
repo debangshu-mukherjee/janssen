@@ -19,7 +19,6 @@ plot_phase : function
 _plot_field : function, internal
     Internal function for plotting the field of an optical wavefront
 
-
 Notes
 -----
 All plotting functions use matplotlib and matplotlib-scalebar for

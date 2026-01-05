@@ -39,6 +39,8 @@ Routine Listings
     Invert coherence length to bandwidth.
 :func:`spectral_phase_from_dispersion`
     Spectral phase from material dispersion.
+:func:`thermal_mode_weights`
+    Generate thermal (exponentially decreasing) mode weights.
 :func:`hermite_gaussian_modes`
     Generate Hermite-Gaussian mode set.
 :func:`gaussian_schell_model_modes`
@@ -100,8 +102,7 @@ performance is needed:
   ``_lorentzian_spectrum_impl``, ``_rectangular_spectrum_impl``,
   ``_blackbody_spectrum_impl``
 - ``janssen.coherence.modes``: ``_hermite_gaussian_modes_impl``,
-  ``_gaussian_schell_model_modes_impl``, ``_eigenmode_decomposition_impl``,
-  ``_mutual_intensity_from_modes_impl``
+  ``_gaussian_schell_model_modes_impl``, ``_eigenmode_decomposition_impl``
 - ``janssen.coherence.sources``: ``_synchrotron_source_impl``,
   ``_multimode_fiber_output_impl``
 
@@ -115,6 +116,7 @@ from .modes import (
     hermite_gaussian_modes,
     modes_from_wavefront,
     mutual_intensity_from_modes,
+    thermal_mode_weights,
 )
 from .propagation import (
     apply_element_to_modes,
@@ -150,34 +152,35 @@ from .temporal import (
 )
 
 __all__: list[str] = [
-    "gaussian_coherence_kernel",
-    "jinc_coherence_kernel",
-    "rectangular_coherence_kernel",
-    "coherence_width_from_source",
-    "complex_degree_of_coherence",
-    "gaussian_spectrum",
-    "lorentzian_spectrum",
-    "rectangular_spectrum",
+    "apply_element_to_modes",
+    "bandwidth_from_coherence_length",
     "blackbody_spectrum",
     "coherence_length",
     "coherence_time",
-    "bandwidth_from_coherence_length",
-    "spectral_phase_from_dispersion",
-    "hermite_gaussian_modes",
-    "gaussian_schell_model_modes",
-    "eigenmode_decomposition",
+    "coherence_width_from_source",
+    "complex_degree_of_coherence",
     "effective_mode_count",
-    "modes_from_wavefront",
-    "mutual_intensity_from_modes",
-    "propagate_coherent_modes",
-    "propagate_polychromatic",
-    "apply_element_to_modes",
+    "eigenmode_decomposition",
+    "gaussian_coherence_kernel",
+    "gaussian_schell_model_modes",
+    "gaussian_spectrum",
+    "hermite_gaussian_modes",
     "intensity_from_modes",
     "intensity_from_polychromatic",
-    "propagate_and_focus_modes",
-    "led_source",
-    "thermal_source",
-    "synchrotron_source",
+    "jinc_coherence_kernel",
     "laser_with_mode_noise",
+    "led_source",
+    "lorentzian_spectrum",
+    "modes_from_wavefront",
     "multimode_fiber_output",
+    "mutual_intensity_from_modes",
+    "propagate_and_focus_modes",
+    "propagate_coherent_modes",
+    "propagate_polychromatic",
+    "rectangular_coherence_kernel",
+    "rectangular_spectrum",
+    "spectral_phase_from_dispersion",
+    "synchrotron_source",
+    "thermal_mode_weights",
+    "thermal_source",
 ]

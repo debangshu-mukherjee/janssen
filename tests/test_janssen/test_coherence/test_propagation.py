@@ -4,7 +4,11 @@ import chex
 import jax.numpy as jnp
 from absl.testing import parameterized
 
-from janssen.coherence.modes import hermite_gaussian_modes, modes_from_wavefront
+from janssen.coherence.modes import (
+    hermite_gaussian_modes,
+    modes_from_wavefront,
+    thermal_mode_weights,
+)
 from janssen.coherence.propagation import (
     apply_element_to_modes,
     intensity_from_modes,
@@ -16,6 +20,15 @@ from janssen.coherence.propagation import (
 from janssen.utils import make_optical_wavefront, make_polychromatic_wavefront
 
 
+def _hg_modes(wavelength, dx, grid_size, beam_waist, max_order):
+    """Helper to create HG modes with thermal weights."""
+    num_modes = (max_order + 1) * (max_order + 2) // 2
+    weights = thermal_mode_weights(num_modes)
+    return hermite_gaussian_modes(
+        wavelength, dx, grid_size, beam_waist, max_order, weights
+    )
+
+
 class TestPropagateCoherentModes(chex.TestCase):
     """Test propagate_coherent_modes function."""
 
@@ -25,7 +38,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         distance = 1e-3
@@ -40,7 +53,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 48)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         distance = 1e-3
@@ -54,7 +67,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         distance = 1e-3
@@ -70,14 +83,16 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         distance = 5e-3
         var_fn = self.variant(propagate_coherent_modes)
         propagated = var_fn(mode_set, distance)
         expected_z = mode_set.z_position + distance
-        chex.assert_trees_all_close(propagated.z_position, expected_z, rtol=1e-10)
+        chex.assert_trees_all_close(
+            propagated.z_position, expected_z, rtol=1e-10
+        )
 
     @chex.variants(without_jit=True)
     def test_angular_spectrum_method(self) -> None:
@@ -85,7 +100,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         distance = 1e-3
@@ -99,7 +114,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         distance = 10e-3
@@ -112,7 +127,7 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         with self.assertRaises(ValueError):
@@ -124,15 +139,19 @@ class TestPropagateCoherentModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         distance = 1e-3
         refractive_index = 1.5
         var_fn = self.variant(propagate_coherent_modes)
-        propagated = var_fn(mode_set, distance, refractive_index=refractive_index)
+        propagated = var_fn(
+            mode_set, distance, refractive_index=refractive_index
+        )
         expected_z = mode_set.z_position + distance * refractive_index
-        chex.assert_trees_all_close(propagated.z_position, expected_z, rtol=1e-10)
+        chex.assert_trees_all_close(
+            propagated.z_position, expected_z, rtol=1e-10
+        )
 
 
 class TestPropagatePolychromatic(chex.TestCase):
@@ -213,7 +232,9 @@ class TestPropagatePolychromatic(chex.TestCase):
         var_fn = self.variant(propagate_polychromatic)
         propagated = var_fn(wavefront, distance)
         expected_z = z_initial + distance
-        chex.assert_trees_all_close(propagated.z_position, expected_z, rtol=1e-10)
+        chex.assert_trees_all_close(
+            propagated.z_position, expected_z, rtol=1e-10
+        )
 
 
 class TestApplyElementToModes(chex.TestCase):
@@ -225,7 +246,7 @@ class TestApplyElementToModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
 
@@ -243,7 +264,7 @@ class TestApplyElementToModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
 
@@ -262,7 +283,7 @@ class TestApplyElementToModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         scale_factor = 0.5
@@ -279,7 +300,9 @@ class TestApplyElementToModes(chex.TestCase):
         var_fn = self.variant(apply_element_to_modes)
         transformed = var_fn(mode_set, amplitude_element)
         expected_modes = mode_set.modes * scale_factor
-        chex.assert_trees_all_close(transformed.modes, expected_modes, atol=1e-10)
+        chex.assert_trees_all_close(
+            transformed.modes, expected_modes, atol=1e-10
+        )
 
     @chex.variants(without_jit=True)
     def test_weights_preserved(self) -> None:
@@ -287,7 +310,7 @@ class TestApplyElementToModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
 
@@ -317,7 +340,7 @@ class TestIntensityFromModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 48)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         var_fn = self.variant(intensity_from_modes)
@@ -330,7 +353,7 @@ class TestIntensityFromModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=2
         )
         var_fn = self.variant(intensity_from_modes)
@@ -355,7 +378,7 @@ class TestIntensityFromModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         var_fn = self.variant(intensity_from_modes)
@@ -440,7 +463,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         focal_length = 50e-3
@@ -456,7 +479,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 48)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         focal_length = 50e-3
@@ -471,14 +494,16 @@ class TestPropagateAndFocusModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=1
         )
         focal_length = 50e-3
         propagation_distance = 50e-3
         var_fn = self.variant(propagate_and_focus_modes)
         focused = var_fn(mode_set, focal_length, propagation_distance)
-        chex.assert_trees_all_close(focused.weights, mode_set.weights, atol=1e-10)
+        chex.assert_trees_all_close(
+            focused.weights, mode_set.weights, atol=1e-10
+        )
 
     @chex.variants(without_jit=True)
     def test_finite_values(self) -> None:
@@ -486,7 +511,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         focal_length = 50e-3
@@ -501,7 +526,7 @@ class TestPropagateAndFocusModes(chex.TestCase):
         wavelength = 633e-9
         dx = 1e-6
         grid_size = (32, 32)
-        mode_set = hermite_gaussian_modes(
+        mode_set = _hg_modes(
             wavelength, dx, grid_size, beam_waist=20e-6, max_order=0
         )
         focal_length = 50e-3

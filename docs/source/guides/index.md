@@ -26,9 +26,10 @@ These guides are written for **optics researchers** who want to understand:
 
 ### Architecture
 
-| Guide | Description |
-|-------|-------------|
-| [PyTree Architecture](pytree-architecture.md) | JAX data structures for GPU acceleration |
+| Guide                                          | Description                                |
+| ---------------------------------------------- | ------------------------------------------ |
+| [PyTree Architecture](pytree-architecture.md)  | JAX data structures for GPU acceleration   |
+| [JAX Sharp Edges](sharp_edges.md)              | Common pitfalls and how to avoid them      |
 
 ## Mathematical Notation
 
@@ -50,4 +51,5 @@ ptychography
 zernike
 vector-optics
 pytree-architecture
+sharp_edges
 ```

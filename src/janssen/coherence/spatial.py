@@ -26,8 +26,6 @@ coherence_width_from_source : function
     Calculate coherence width from source size using van Cittert-Zernike.
 complex_degree_of_coherence : function
     Compute normalized coherence mu(r1, r2) from mutual intensity.
-jax_bessel_j1 : function
-    Bessel function J1(x) with polynomial approximation for JAX.
 _gaussian_coherence_kernel_impl : function, internal (pure JAX)
     JIT-compiled Gaussian kernel computation with static grid dimensions.
 _jinc_coherence_kernel_impl : function, internal (pure JAX)
@@ -64,11 +62,10 @@ from beartype import beartype
 from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
+from janssen.optics.bessel import bessel_jn
 from janssen.utils import ScalarFloat, ScalarInteger
 
 SMALL_ARG_THRESHOLD: float = 1e-10
-BESSEL_SMALL_X_THRESHOLD: float = 1.0
-BESSEL_POLY_THRESHOLD: float = 8.0
 
 
 @partial(jax.jit, static_argnums=(0, 1))
@@ -214,7 +211,7 @@ def _jinc_coherence_kernel_impl(
     j1_value: Float[Array, " hh ww"] = jnp.where(
         jinc_argument < SMALL_ARG_THRESHOLD,
         jinc_argument / 2.0,
-        jax_bessel_j1(jinc_argument),
+        bessel_jn(1, jinc_argument),
     )
     kernel_centered: Float[Array, " hh ww"] = jnp.where(
         jinc_argument < SMALL_ARG_THRESHOLD,
@@ -283,9 +280,7 @@ def jinc_coherence_kernel(
     z_arr: Float[Array, " "] = jnp.asarray(
         propagation_distance, dtype=jnp.float64
     )
-    return _jinc_coherence_kernel_impl(
-        hh, ww, dx_arr, d_arr, lam_arr, z_arr
-    )
+    return _jinc_coherence_kernel_impl(hh, ww, dx_arr, d_arr, lam_arr, z_arr)
 
 
 @partial(jax.jit, static_argnums=(0, 1))
@@ -512,61 +507,3 @@ def complex_degree_of_coherence(
     For equal intensities, V = |mu|.
     """
     return _complex_degree_of_coherence_impl(j_matrix)
-
-
-def jax_bessel_j1(x: Float[Array, "..."]) -> Float[Array, "..."]:
-    """Bessel function of the first kind, order 1.
-
-    Uses polynomial approximation for efficiency with JAX.
-
-    Parameters
-    ----------
-    x : Float[Array, "..."]
-        Input array.
-
-    Returns
-    -------
-    j1 : Float[Array, "..."]
-        J1(x) values.
-    """
-    ax = jnp.abs(x)
-
-    def small_x_approximation(x: Float[Array, "..."]) -> Float[Array, "..."]:
-        x2 = x * x
-        return x * (
-            0.5 - x2 * (0.0625 - x2 * (0.00260417 - x2 * 0.0000542535))
-        )
-
-    def poly_approx(x: Float[Array, "..."]) -> Float[Array, "..."]:
-        y = x / 3.0
-        y2 = y * y
-        p1 = 0.5 + y2 * (
-            -0.56249985
-            + y2 * (0.21093573 + y2 * (-0.03954289 + y2 * 0.00443319))
-        )
-        p2 = 1.0 + y2 * (
-            -0.00031619
-            + y2 * (-0.00024846 + y2 * (0.00017105 - y2 * 0.00004058))
-        )
-        return x * p1 / p2
-
-    def asymptotic_approx(x: Float[Array, "..."]) -> Float[Array, "..."]:
-        z = 8.0 / x
-        z2 = z * z
-        theta = x - 0.75 * jnp.pi
-        p0 = 1.0 + z2 * (-0.00145 + z2 * 0.0006)
-        q0 = 0.125 / x * (1.0 + z2 * (-0.00278 + z2 * 0.00079))
-        return jnp.sqrt(0.6366197724 / x) * (
-            p0 * jnp.cos(theta) - q0 * jnp.sin(theta)
-        )
-
-    result: Float[Array, "..."] = jnp.where(
-        ax < BESSEL_SMALL_X_THRESHOLD,
-        small_x_approximation(x),
-        jnp.where(
-            ax < BESSEL_POLY_THRESHOLD,
-            poly_approx(x),
-            asymptotic_approx(ax) * jnp.sign(x),
-        ),
-    )
-    return result

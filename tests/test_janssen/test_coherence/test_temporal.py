@@ -2,9 +2,12 @@
 
 import chex
 import jax.numpy as jnp
-from absl.testing import parameterized
 
 from janssen.coherence.temporal import (
+    _blackbody_spectrum_impl,
+    _gaussian_spectrum_impl,
+    _lorentzian_spectrum_impl,
+    _rectangular_spectrum_impl,
     bandwidth_from_coherence_length,
     blackbody_spectrum,
     coherence_length,
@@ -87,9 +90,7 @@ class TestGaussianSpectrum(chex.TestCase):
         num_wl = 31
         var_fn = self.variant(gaussian_spectrum)
         _, weights = var_fn(center_wl, bandwidth, num_wl)
-        chex.assert_trees_all_close(
-            jnp.all(weights > 0), True, atol=0
-        )
+        chex.assert_trees_all_close(jnp.all(weights > 0), True, atol=0)
 
 
 class TestLorentzianSpectrum(chex.TestCase):
@@ -138,7 +139,9 @@ class TestLorentzianSpectrum(chex.TestCase):
         var_gauss = self.variant(gaussian_spectrum)
         var_lorentz = self.variant(lorentzian_spectrum)
         _, weights_gauss = var_gauss(center_wl, bandwidth, num_wl, wl_range)
-        _, weights_lorentz = var_lorentz(center_wl, bandwidth, num_wl, wl_range)
+        _, weights_lorentz = var_lorentz(
+            center_wl, bandwidth, num_wl, wl_range
+        )
         tail_gauss = weights_gauss[0]
         tail_lorentz = weights_lorentz[0]
         assert tail_lorentz > tail_gauss
@@ -443,3 +446,74 @@ class TestSpectralPhaseFromDispersion(chex.TestCase):
         var_fn = self.variant(spectral_phase_from_dispersion)
         phase = var_fn(wavelengths, center_wl, gdd=500e-30, tod=100e-45)
         assert jnp.all(jnp.isfinite(phase))
+
+
+class TestImplFunctions(chex.TestCase):
+    """Test internal _impl functions with JIT compilation."""
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_gaussian_spectrum_impl(self) -> None:
+        """Test _gaussian_spectrum_impl under JIT."""
+        num_wavelengths = 11
+        center_wl = jnp.asarray(633e-9, dtype=jnp.float64)
+        bandwidth = jnp.asarray(10e-9, dtype=jnp.float64)
+        lam_min = jnp.asarray(600e-9, dtype=jnp.float64)
+        lam_max = jnp.asarray(666e-9, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda c, b, mi, ma: _gaussian_spectrum_impl(
+                c, b, num_wavelengths, mi, ma
+            )
+        )
+        wavelengths, weights = var_fn(center_wl, bandwidth, lam_min, lam_max)
+        chex.assert_shape(wavelengths, (num_wavelengths,))
+        chex.assert_shape(weights, (num_wavelengths,))
+        chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_lorentzian_spectrum_impl(self) -> None:
+        """Test _lorentzian_spectrum_impl under JIT."""
+        num_wavelengths = 11
+        center_wl = jnp.asarray(633e-9, dtype=jnp.float64)
+        bandwidth = jnp.asarray(10e-9, dtype=jnp.float64)
+        lam_min = jnp.asarray(600e-9, dtype=jnp.float64)
+        lam_max = jnp.asarray(666e-9, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda c, b, mi, ma: _lorentzian_spectrum_impl(
+                c, b, num_wavelengths, mi, ma
+            )
+        )
+        wavelengths, weights = var_fn(center_wl, bandwidth, lam_min, lam_max)
+        chex.assert_shape(wavelengths, (num_wavelengths,))
+        chex.assert_shape(weights, (num_wavelengths,))
+        chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_rectangular_spectrum_impl(self) -> None:
+        """Test _rectangular_spectrum_impl under JIT."""
+        num_wavelengths = 11
+        center_wl = jnp.asarray(633e-9, dtype=jnp.float64)
+        bandwidth = jnp.asarray(10e-9, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda c, b: _rectangular_spectrum_impl(c, b, num_wavelengths)
+        )
+        wavelengths, weights = var_fn(center_wl, bandwidth)
+        chex.assert_shape(wavelengths, (num_wavelengths,))
+        chex.assert_shape(weights, (num_wavelengths,))
+        chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_blackbody_spectrum_impl(self) -> None:
+        """Test _blackbody_spectrum_impl under JIT."""
+        num_wavelengths = 11
+        temperature = jnp.asarray(5800.0, dtype=jnp.float64)
+        lam_min = jnp.asarray(400e-9, dtype=jnp.float64)
+        lam_max = jnp.asarray(700e-9, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda t, mi, ma: _blackbody_spectrum_impl(
+                t, mi, num_wavelengths, ma
+            )
+        )
+        wavelengths, weights = var_fn(temperature, lam_min, lam_max)
+        chex.assert_shape(wavelengths, (num_wavelengths,))
+        chex.assert_shape(weights, (num_wavelengths,))
+        chex.assert_trees_all_close(jnp.sum(weights), 1.0, atol=1e-10)

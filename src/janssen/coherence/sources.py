@@ -55,7 +55,11 @@ from janssen.utils import (
     make_coherent_mode_set,
 )
 
-from .modes import gaussian_schell_model_modes, hermite_gaussian_modes
+from .modes import (
+    gaussian_schell_model_modes,
+    hermite_gaussian_modes,
+    thermal_mode_weights,
+)
 from .temporal import blackbody_spectrum, gaussian_spectrum
 
 
@@ -236,31 +240,82 @@ def thermal_source(
     return mode_set, wavelengths, spectral_weights
 
 
-def _hermite_polynomial_static(
-    order: int, x: Float[Array, "..."]
-) -> Float[Array, "..."]:
-    """Compute physicist's Hermite polynomial with static order."""
-    if order == 0:
-        return jnp.ones_like(x)
-    if order == 1:
-        return 2.0 * x
-    h_prev2 = jnp.ones_like(x)
-    h_prev1 = 2.0 * x
-    for k in range(2, order + 1):
-        h_curr = 2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
-        h_prev2 = h_prev1
-        h_prev1 = h_curr
-    return h_prev1
+def _hermite_polynomial(
+    order: Float[Array, " "], x: Float[Array, " hh ww"]
+) -> Float[Array, " hh ww"]:
+    """Compute physicist's Hermite polynomial using fori_loop.
+
+    Parameters
+    ----------
+    order : Float[Array, " "]
+        Polynomial order (will be converted to int for loop bound).
+    x : Float[Array, " hh ww"]
+        Input array.
+
+    Returns
+    -------
+    Float[Array, " hh ww"]
+        Hermite polynomial H_n(x).
+    """
+
+    def _body_fn_int(
+        k: int,
+        carry: Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]],
+    ) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
+        h_prev2, h_prev1 = carry
+        h_curr: Float[Array, " hh ww"] = (
+            2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
+        )
+        return h_prev1, h_curr
+
+    h0: Float[Array, " hh ww"] = jnp.ones_like(x)
+    h1: Float[Array, " hh ww"] = 2.0 * x
+
+    _, h_n = jax.lax.fori_loop(
+        2, order.astype(jnp.int32) + 1, _body_fn_int, (h0, h1)
+    )
+
+    result: Float[Array, " hh ww"] = jnp.where(
+        order == 0, h0, jnp.where(order == 1, h1, h_n)
+    )
+    return result
 
 
-@partial(jax.jit, static_argnums=(3, 4, 5))
+def _generate_synchrotron_mode_indices(
+    n_h: int, n_v: int
+) -> Float[Array, " num_modes 2"]:
+    """Generate (ih, iv) mode indices for synchrotron source.
+
+    Parameters
+    ----------
+    n_h : int
+        Number of horizontal modes.
+    n_v : int
+        Number of vertical modes.
+
+    Returns
+    -------
+    Float[Array, " num_modes 2"]
+        Array of (ih, iv) mode index pairs.
+    """
+    mode_indices_list = []
+    for ih in range(n_h):
+        for iv in range(n_v):
+            mode_indices_list.append((ih, iv))
+    mode_indices: Float[Array, " num_modes 2"] = jnp.array(
+        mode_indices_list, dtype=jnp.float64
+    )
+    return mode_indices
+
+
+@partial(jax.jit, static_argnums=(3, 4))
 def _synchrotron_source_impl(
     dx: Float[Array, " "],
     horizontal_coherence: Float[Array, " "],
     vertical_coherence: Float[Array, " "],
     hh: int,
     ww: int,
-    mode_indices: Tuple[Tuple[int, int], ...],
+    mode_indices: Float[Array, " num_modes 2"],
 ) -> Tuple[Complex[Array, " num_modes hh ww"], Float[Array, " num_modes"]]:
     """JIT-compiled synchrotron source mode generation.
 
@@ -279,8 +334,8 @@ def _synchrotron_source_impl(
         Grid height in pixels (static).
     ww : int
         Grid width in pixels (static).
-    mode_indices : Tuple[Tuple[int, int], ...]
-        Tuple of (n_h, n_v) mode index pairs (static).
+    mode_indices : Float[Array, " num_modes 2"]
+        Array of (n_h, n_v) mode index pairs.
 
     Returns
     -------
@@ -305,27 +360,30 @@ def _synchrotron_source_impl(
         -(xx**2) / sigma_h**2 - (yy**2) / sigma_v**2
     )
 
-    modes_list = []
-    weights_list = []
+    def _compute_single_mode_int(
+        indices: Float[Array, " 2"],
+    ) -> Tuple[Complex[Array, " hh ww"], Float[Array, " "]]:
+        ih: Float[Array, " "] = indices[0]
+        iv: Float[Array, " "] = indices[1]
 
-    for ih, iv in mode_indices:
-        h_h = _hermite_polynomial_static(ih, x_norm)
-        h_v = _hermite_polynomial_static(iv, y_norm)
-        thermal_weight_h = jnp.exp(-ih / 2.0)
-        thermal_weight_v = jnp.exp(-iv / 2.0)
+        h_h: Float[Array, " hh ww"] = _hermite_polynomial(ih, x_norm)
+        h_v: Float[Array, " hh ww"] = _hermite_polynomial(iv, y_norm)
+        thermal_weight_h: Float[Array, " "] = jnp.exp(-ih / 2.0)
+        thermal_weight_v: Float[Array, " "] = jnp.exp(-iv / 2.0)
 
-        mode = h_h * h_v * gaussian
+        mode: Float[Array, " hh ww"] = h_h * h_v * gaussian
+        mode_energy: Float[Array, " "] = jnp.sum(jnp.abs(mode) ** 2)
+        mode_normalized: Complex[Array, " hh ww"] = (
+            mode / jnp.sqrt(mode_energy + 1e-20)
+        ).astype(jnp.complex128)
 
-        mode_energy = jnp.sum(jnp.abs(mode) ** 2)
-        mode = mode / jnp.sqrt(mode_energy + 1e-20)
+        weight: Float[Array, " "] = thermal_weight_h * thermal_weight_v
+        return mode_normalized, weight
 
-        modes_list.append(mode)
-        weights_list.append(thermal_weight_h * thermal_weight_v)
+    modes: Complex[Array, " num_modes hh ww"]
+    weights: Float[Array, " num_modes"]
+    modes, weights = jax.vmap(_compute_single_mode_int)(mode_indices)
 
-    modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
-        modes_list, axis=0
-    ).astype(jnp.complex128)
-    weights: Float[Array, " num_modes"] = jnp.array(weights_list)
     weights = weights / jnp.sum(weights)
 
     return modes, weights
@@ -395,7 +453,9 @@ def synchrotron_source(
         vertical_coherence, dtype=jnp.float64
     )
 
-    mode_indices = tuple((ih, iv) for ih in range(n_h) for iv in range(n_v))
+    mode_indices: Float[Array, " num_modes 2"] = (
+        _generate_synchrotron_mode_indices(n_h, n_v)
+    )
 
     modes, weights = _synchrotron_source_impl(
         dx_arr, h_coh_arr, v_coh_arr, hh, ww, mode_indices
@@ -465,12 +525,19 @@ def laser_with_mode_noise(
     purity: Float[Array, " "] = jnp.asarray(mode_purity, dtype=jnp.float64)
     purity = jnp.clip(purity, 0.0, 1.0)
 
+    max_order: int = int(jnp.sqrt(n_modes)) + 1
+    hg_num_modes: int = (max_order + 1) * (max_order + 2) // 2
+    hg_weights: Float[Array, " hg_num_modes"] = thermal_mode_weights(
+        hg_num_modes
+    )
+
     hg_modes: CoherentModeSet = hermite_gaussian_modes(
         wavelength=wavelength,
         dx=dx,
         grid_size=grid_size,
         beam_waist=beam_waist,
-        max_order=int(jnp.sqrt(n_modes)) + 1,
+        max_order=max_order,
+        mode_weights=hg_weights,
     )
 
     modes: Complex[Array, " num_modes hh ww"] = hg_modes.modes[:n_modes]
@@ -507,28 +574,41 @@ def laser_with_mode_noise(
     )
 
 
-def _generate_fiber_mode_indices(n_modes: int) -> Tuple[Tuple[int, int], ...]:
-    """Generate (azimuthal_idx, radial_idx) indices for fiber modes."""
-    mode_indices = []
+def _generate_fiber_mode_indices(n_modes: int) -> Float[Array, " num_modes 2"]:
+    """Generate (azimuthal_idx, radial_idx) indices for fiber modes.
+
+    Parameters
+    ----------
+    n_modes : int
+        Number of modes to generate.
+
+    Returns
+    -------
+    Float[Array, " num_modes 2"]
+        Array of (azimuthal_idx, radial_idx) index pairs.
+    """
+    mode_indices_list = []
     max_order = int(n_modes**0.5) + 2
     for azimuthal_idx in range(max_order):
         for radial_idx in range(1, max_order):
-            if len(mode_indices) >= n_modes:
+            if len(mode_indices_list) >= n_modes:
                 break
-            mode_indices.append((azimuthal_idx, radial_idx))
-        if len(mode_indices) >= n_modes:
+            mode_indices_list.append((azimuthal_idx, radial_idx))
+        if len(mode_indices_list) >= n_modes:
             break
-    return tuple(mode_indices[:n_modes])
+    mode_indices: Float[Array, " num_modes 2"] = jnp.array(
+        mode_indices_list[:n_modes], dtype=jnp.float64
+    )
+    return mode_indices
 
 
-@partial(jax.jit, static_argnums=(2, 3, 4, 5))
+@partial(jax.jit, static_argnums=(2, 3))
 def _multimode_fiber_output_impl(
     dx: Float[Array, " "],
     fiber_core_radius: Float[Array, " "],
     hh: int,
     ww: int,
-    n_modes: int,
-    mode_indices: Tuple[Tuple[int, int], ...],
+    mode_indices: Float[Array, " num_modes 2"],
 ) -> Complex[Array, " num_modes hh ww"]:
     """JIT-compiled multimode fiber mode generation.
 
@@ -545,10 +625,8 @@ def _multimode_fiber_output_impl(
         Grid height in pixels (static).
     ww : int
         Grid width in pixels (static).
-    n_modes : int
-        Number of modes (static).
-    mode_indices : Tuple[Tuple[int, int], ...]
-        Tuple of (azimuthal_idx, radial_idx) index pairs (static).
+    mode_indices : Float[Array, " num_modes 2"]
+        Array of (azimuthal_idx, radial_idx) index pairs.
 
     Returns
     -------
@@ -568,27 +646,32 @@ def _multimode_fiber_output_impl(
     core_mask: Float[Array, " hh ww"] = jnp.where(r <= a, 1.0, 0.0)
     rho: Float[Array, " hh ww"] = r / a
 
-    modes_list = []
-    for azimuthal_idx, _radial_idx in mode_indices:
-        radial_profile = jnp.exp(-(rho**2) / 2.0) * (rho ** abs(azimuthal_idx))
-        azimuthal_profile = jnp.where(
+    def _compute_single_mode_int(
+        indices: Float[Array, " 2"],
+    ) -> Complex[Array, " hh ww"]:
+        azimuthal_idx: Float[Array, " "] = indices[0]
+
+        radial_profile: Float[Array, " hh ww"] = jnp.exp(-(rho**2) / 2.0) * (
+            rho ** jnp.abs(azimuthal_idx)
+        )
+        azimuthal_profile: Float[Array, " hh ww"] = jnp.where(
             azimuthal_idx == 0,
             jnp.ones_like(phi),
             jnp.cos(azimuthal_idx * phi),
         )
 
-        mode = radial_profile * azimuthal_profile * core_mask
+        mode: Float[Array, " hh ww"] = (
+            radial_profile * azimuthal_profile * core_mask
+        )
+        mode_energy: Float[Array, " "] = jnp.sum(jnp.abs(mode) ** 2)
+        mode_normalized: Complex[Array, " hh ww"] = (
+            mode / jnp.sqrt(mode_energy + 1e-20)
+        ).astype(jnp.complex128)
+        return mode_normalized
 
-        mode_energy = jnp.sum(jnp.abs(mode) ** 2)
-        mode = mode / jnp.sqrt(mode_energy + 1e-20)
-        modes_list.append(mode)
-
-    while len(modes_list) < n_modes:
-        modes_list.append(jnp.zeros((hh, ww)))
-
-    modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
-        modes_list[:n_modes], axis=0
-    ).astype(jnp.complex128)
+    modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
+        _compute_single_mode_int
+    )(mode_indices)
     return modes
 
 
@@ -649,11 +732,11 @@ def multimode_fiber_output(
         fiber_core_radius, dtype=jnp.float64
     )
 
-    mode_indices = _generate_fiber_mode_indices(n_modes)
-
-    modes = _multimode_fiber_output_impl(
-        dx_arr, a_arr, hh, ww, n_modes, mode_indices
+    mode_indices: Float[Array, " num_modes 2"] = _generate_fiber_mode_indices(
+        n_modes
     )
+
+    modes = _multimode_fiber_output_impl(dx_arr, a_arr, hh, ww, mode_indices)
 
     if mode_distribution == "uniform":
         weights: Float[Array, " num_modes"] = jnp.ones(n_modes) / n_modes

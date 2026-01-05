@@ -2,9 +2,10 @@
 
 import chex
 import jax.numpy as jnp
-from absl.testing import parameterized
 
 from janssen.coherence.sources import (
+    _multimode_fiber_output_impl,
+    _synchrotron_source_impl,
     laser_with_mode_noise,
     led_source,
     multimode_fiber_output,
@@ -384,12 +385,8 @@ class TestLaserWithModeNoise(chex.TestCase):
         mode_set_low = var_fn(
             wavelength, dx, grid_size, beam_waist, mode_purity=-0.5
         )
-        chex.assert_trees_all_close(
-            mode_set_high.weights[0], 1.0, atol=1e-10
-        )
-        chex.assert_trees_all_close(
-            mode_set_low.weights[0], 0.0, atol=1e-10
-        )
+        chex.assert_trees_all_close(mode_set_high.weights[0], 1.0, atol=1e-10)
+        chex.assert_trees_all_close(mode_set_low.weights[0], 0.0, atol=1e-10)
 
 
 class TestMultimodeFiberOutput(chex.TestCase):
@@ -489,3 +486,43 @@ class TestMultimodeFiberOutput(chex.TestCase):
                 fiber_core_radius,
                 mode_distribution="invalid",
             )
+
+
+class TestImplFunctions(chex.TestCase):
+    """Test internal _impl functions with JIT compilation."""
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_synchrotron_source_impl(self) -> None:
+        """Test _synchrotron_source_impl under JIT."""
+        hh, ww = 32, 32
+        mode_indices = jnp.array(
+            [[0, 0], [1, 0], [0, 1], [1, 1]], dtype=jnp.float64
+        )
+        num_modes = mode_indices.shape[0]
+        dx = jnp.asarray(1e-6, dtype=jnp.float64)
+        horizontal_coh = jnp.asarray(10e-6, dtype=jnp.float64)
+        vertical_coh = jnp.asarray(50e-6, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda dx, h, v, idx: _synchrotron_source_impl(
+                dx, h, v, hh, ww, idx
+            )
+        )
+        modes, weights = var_fn(dx, horizontal_coh, vertical_coh, mode_indices)
+        chex.assert_shape(modes, (num_modes, hh, ww))
+        chex.assert_shape(weights, (num_modes,))
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_multimode_fiber_output_impl(self) -> None:
+        """Test _multimode_fiber_output_impl under JIT."""
+        hh, ww = 32, 32
+        mode_indices = jnp.array(
+            [[0, 1], [1, 1], [0, 2], [1, 2], [2, 1]], dtype=jnp.float64
+        )
+        num_modes = mode_indices.shape[0]
+        dx = jnp.asarray(1e-6, dtype=jnp.float64)
+        fiber_core_radius = jnp.asarray(25e-6, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda dx, r, idx: _multimode_fiber_output_impl(dx, r, hh, ww, idx)
+        )
+        modes = var_fn(dx, fiber_core_radius, mode_indices)
+        chex.assert_shape(modes, (num_modes, hh, ww))

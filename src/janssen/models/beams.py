@@ -598,8 +598,8 @@ def gaussian_beam(
 
     total_phase: Float[Array, " ny nx"] = curvature_phase + gouy_phase_adjusted
 
-    field: Complex[Array, " ny nx"] = amplitude_with_energy_conservation * jnp.exp(
-        1j * total_phase
+    field: Complex[Array, " ny nx"] = (
+        amplitude_with_energy_conservation * jnp.exp(1j * total_phase)
     )
 
     wavefront: OpticalWavefront = make_optical_wavefront(

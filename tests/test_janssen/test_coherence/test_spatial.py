@@ -2,9 +2,12 @@
 
 import chex
 import jax.numpy as jnp
-from absl.testing import parameterized
 
 from janssen.coherence.spatial import (
+    _complex_degree_of_coherence_impl,
+    _gaussian_coherence_kernel_impl,
+    _jinc_coherence_kernel_impl,
+    _rectangular_coherence_kernel_impl,
     coherence_width_from_source,
     complex_degree_of_coherence,
     gaussian_coherence_kernel,
@@ -375,3 +378,69 @@ class TestComplexDegreeOfCoherence(chex.TestCase):
         var_fn = self.variant(complex_degree_of_coherence)
         mu = var_fn(j_matrix)
         assert jnp.all(jnp.isfinite(mu))
+
+
+class TestImplFunctions(chex.TestCase):
+    """Test internal _impl functions with JIT compilation."""
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_gaussian_coherence_kernel_impl(self) -> None:
+        """Test _gaussian_coherence_kernel_impl under JIT."""
+        hh, ww = 32, 32
+        dx = jnp.asarray(1e-6, dtype=jnp.float64)
+        coherence_width = jnp.asarray(10e-6, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda dx, cw: _gaussian_coherence_kernel_impl(hh, ww, dx, cw)
+        )
+        kernel = var_fn(dx, coherence_width)
+        chex.assert_shape(kernel, (hh, ww))
+        chex.assert_trees_all_close(kernel[0, 0], 1.0, atol=1e-10)
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_jinc_coherence_kernel_impl(self) -> None:
+        """Test _jinc_coherence_kernel_impl under JIT."""
+        hh, ww = 32, 32
+        dx = jnp.asarray(1e-6, dtype=jnp.float64)
+        source_diameter = jnp.asarray(1e-3, dtype=jnp.float64)
+        wavelength = jnp.asarray(633e-9, dtype=jnp.float64)
+        propagation_distance = jnp.asarray(0.1, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda dx, d, wl, z: _jinc_coherence_kernel_impl(
+                hh, ww, dx, d, wl, z
+            )
+        )
+        kernel = var_fn(dx, source_diameter, wavelength, propagation_distance)
+        chex.assert_shape(kernel, (hh, ww))
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_rectangular_coherence_kernel_impl(self) -> None:
+        """Test _rectangular_coherence_kernel_impl under JIT."""
+        hh, ww = 32, 32
+        dx = jnp.asarray(1e-6, dtype=jnp.float64)
+        source_width_x = jnp.asarray(1e-3, dtype=jnp.float64)
+        source_width_y = jnp.asarray(1e-3, dtype=jnp.float64)
+        wavelength = jnp.asarray(633e-9, dtype=jnp.float64)
+        propagation_distance = jnp.asarray(0.1, dtype=jnp.float64)
+        var_fn = self.variant(
+            lambda dx, wx, wy, wl, z: _rectangular_coherence_kernel_impl(
+                hh, ww, dx, wx, wy, wl, z
+            )
+        )
+        kernel = var_fn(
+            dx,
+            source_width_x,
+            source_width_y,
+            wavelength,
+            propagation_distance,
+        )
+        chex.assert_shape(kernel, (hh, ww))
+
+    @chex.variants(with_jit=True, without_jit=True)
+    def test_complex_degree_of_coherence_impl(self) -> None:
+        """Test _complex_degree_of_coherence_impl under JIT."""
+        hh, ww = 4, 4
+        field = jnp.ones((hh, ww), dtype=jnp.complex128)
+        j_matrix = jnp.einsum("ij,kl->ijkl", jnp.conj(field), field)
+        var_fn = self.variant(_complex_degree_of_coherence_impl)
+        mu = var_fn(j_matrix)
+        chex.assert_shape(mu, (hh, ww, hh, ww))

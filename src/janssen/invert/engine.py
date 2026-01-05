@@ -13,7 +13,6 @@ Applies position shift using phase multiplication.
 Computes sensor plane intensity with pixel response.
 Creates frequency grids for Fourier transforms.
 
-
 Routine Listings
 ----------------
 epie_optical : function

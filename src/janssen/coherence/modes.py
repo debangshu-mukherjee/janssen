@@ -36,8 +36,6 @@ _gaussian_schell_model_modes_impl : function, internal (pure JAX)
     JIT-compiled Gaussian Schell-model mode generation.
 _eigenmode_decomposition_impl : function, internal (pure JAX)
     JIT-compiled eigenmode decomposition computation.
-_mutual_intensity_from_modes_impl : function, internal (pure JAX)
-    JIT-compiled mutual intensity reconstruction.
 
 Notes
 -----
@@ -57,7 +55,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from beartype.typing import Optional, Tuple
+from beartype.typing import Tuple
 from jaxtyping import Array, Complex, Float, jaxtyped
 
 from janssen.utils import (
@@ -70,45 +68,83 @@ from janssen.utils import (
 )
 
 
-def _hermite_polynomial_static(
-    order: int, x: Float[Array, "..."]
-) -> Float[Array, "..."]:
-    """Compute physicist's Hermite polynomial H_n(x) with static order."""
-    if order == 0:
-        return jnp.ones_like(x)
-    if order == 1:
-        return 2.0 * x
-    h_prev2 = jnp.ones_like(x)
-    h_prev1 = 2.0 * x
-    for k in range(2, order + 1):
-        h_curr = 2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
-        h_prev2 = h_prev1
-        h_prev1 = h_curr
-    return h_prev1
+def _hermite_polynomial(
+    order: Float[Array, " "], x: Float[Array, " hh ww"]
+) -> Float[Array, " hh ww"]:
+    """Compute physicist's Hermite polynomial H_n(x) using recurrence.
+
+    Uses jax.lax.fori_loop for JIT-compatible iteration over orders.
+
+    Parameters
+    ----------
+    order : Float[Array, " "]
+        Polynomial order (will be cast to int internally).
+    x : Float[Array, " hh ww"]
+        Input coordinates.
+
+    Returns
+    -------
+    h_n : Float[Array, " hh ww"]
+        Hermite polynomial H_order(x).
+    """
+
+    def _body_fn_int(
+        k: int,
+        carry: Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]],
+    ) -> Tuple[Float[Array, " hh ww"], Float[Array, " hh ww"]]:
+        h_prev2, h_prev1 = carry
+        h_curr: Float[Array, " hh ww"] = (
+            2.0 * x * h_prev1 - 2.0 * (k - 1) * h_prev2
+        )
+        return h_prev1, h_curr
+
+    h0: Float[Array, " hh ww"] = jnp.ones_like(x)
+    h1: Float[Array, " hh ww"] = 2.0 * x
+    _, h_n = jax.lax.fori_loop(
+        2, order.astype(jnp.int32) + 1, _body_fn_int, (h0, h1)
+    )
+    result: Float[Array, " hh ww"] = jnp.where(
+        order == 0, h0, jnp.where(order == 1, h1, h_n)
+    )
+    return result
 
 
-def _generate_mode_indices(max_order: int) -> list:
-    """Generate mode indices (n, m) for HG modes up to max_order."""
-    mode_indices = []
+def _generate_mode_indices(max_order: int) -> Float[Array, " num_modes 2"]:
+    """Generate mode indices (n, m) for HG modes up to max_order.
+
+    Parameters
+    ----------
+    max_order : int
+        Maximum mode order. Generates modes with n + m <= max_order.
+
+    Returns
+    -------
+    mode_indices : Float[Array, " num_modes 2"]
+        Array of (n, m) index pairs, ordered by total order then n.
+    """
+    mode_indices_list = []
     for total in range(max_order + 1):
         for n in range(total + 1):
             m = total - n
-            mode_indices.append((n, m))
+            mode_indices_list.append((n, m))
+    mode_indices: Float[Array, " num_modes 2"] = jnp.array(
+        mode_indices_list, dtype=jnp.float64
+    )
     return mode_indices
 
 
-@partial(jax.jit, static_argnums=(2, 3, 4))
+@partial(jax.jit, static_argnums=(2, 3))
 def _hermite_gaussian_modes_impl(
     dx: Float[Array, " "],
     beam_waist: Float[Array, " "],
     hh: int,
     ww: int,
-    mode_indices_tuple: Tuple[Tuple[int, int], ...],
+    mode_indices: Float[Array, " num_modes 2"],
 ) -> Complex[Array, " num_modes hh ww"]:
     """JIT-compiled Hermite-Gaussian mode generation.
 
     Pure JAX implementation with static grid dimensions for efficient
-    JIT compilation. Use this directly in pure JAX workflows.
+    JIT compilation. Uses vmap for vectorized mode generation.
 
     Parameters
     ----------
@@ -120,8 +156,8 @@ def _hermite_gaussian_modes_impl(
         Grid height in pixels (static).
     ww : int
         Grid width in pixels (static).
-    mode_indices_tuple : Tuple[Tuple[int, int], ...]
-        Tuple of (n, m) index pairs for modes to generate (static).
+    mode_indices : Float[Array, " num_modes 2"]
+        Array of (n, m) index pairs for modes to generate.
 
     Returns
     -------
@@ -134,26 +170,50 @@ def _hermite_gaussian_modes_impl(
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
-
     x_norm: Float[Array, " hh ww"] = xx * jnp.sqrt(2.0) / w
     y_norm: Float[Array, " hh ww"] = yy * jnp.sqrt(2.0) / w
-
     gaussian: Float[Array, " hh ww"] = jnp.exp(-(xx**2 + yy**2) / w**2)
 
-    modes_list = []
-    for n, m in mode_indices_tuple:
-        h_n = _hermite_polynomial_static(n, x_norm)
-        h_m = _hermite_polynomial_static(m, y_norm)
-        mode = h_n * h_m * gaussian
+    def _compute_single_mode_int(
+        indices: Float[Array, " 2"],
+    ) -> Complex[Array, " hh ww"]:
+        n: Float[Array, " "] = indices[0]
+        m: Float[Array, " "] = indices[1]
+        h_n: Float[Array, " hh ww"] = _hermite_polynomial(n, x_norm)
+        h_m: Float[Array, " hh ww"] = _hermite_polynomial(m, y_norm)
+        mode: Float[Array, " hh ww"] = h_n * h_m * gaussian
+        mode_energy: Float[Array, " "] = jnp.sum(jnp.abs(mode) ** 2)
+        normalized: Complex[Array, " hh ww"] = (
+            mode / jnp.sqrt(mode_energy + 1e-20)
+        ).astype(jnp.complex128)
+        return normalized
 
-        mode_energy = jnp.sum(jnp.abs(mode) ** 2)
-        mode = mode / jnp.sqrt(mode_energy + 1e-20)
-        modes_list.append(mode)
-
-    modes: Complex[Array, " num_modes hh ww"] = jnp.stack(
-        modes_list, axis=0
-    ).astype(jnp.complex128)
+    modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
+        _compute_single_mode_int
+    )(mode_indices)
     return modes
+
+
+@partial(jax.jit, static_argnums=(0,))
+def thermal_mode_weights(num_modes: int) -> Float[Array, " num_modes"]:
+    """Generate thermal (exponentially decreasing) mode weights.
+
+    Parameters
+    ----------
+    num_modes : int
+        Number of modes (static).
+
+    Returns
+    -------
+    weights : Float[Array, " num_modes"]
+        Normalized thermal distribution weights.
+    """
+    mode_numbers: Float[Array, " num_modes"] = jnp.arange(
+        num_modes, dtype=jnp.float64
+    )
+    unnormalized: Float[Array, " num_modes"] = jnp.exp(-mode_numbers / 2.0)
+    weights: Float[Array, " num_modes"] = unnormalized / jnp.sum(unnormalized)
+    return weights
 
 
 @jaxtyped(typechecker=beartype)
@@ -163,7 +223,7 @@ def hermite_gaussian_modes(
     grid_size: Tuple[ScalarInteger, ScalarInteger],
     beam_waist: ScalarFloat,
     max_order: ScalarInteger,
-    mode_weights: Optional[Float[Array, " n"]] = None,
+    mode_weights: Float[Array, " n"],
 ) -> CoherentModeSet:
     """Generate Hermite-Gaussian coherent mode set.
 
@@ -183,9 +243,9 @@ def hermite_gaussian_modes(
         1/e^2 intensity radius (waist) in meters.
     max_order : ScalarInteger
         Maximum mode order. Generates modes with n + m <= max_order.
-    mode_weights : Optional[Float[Array, " n"]]
-        Weights for each mode. If None, uses thermal distribution
-        (exponentially decreasing with mode number).
+    mode_weights : Float[Array, " n"]
+        Weights for each mode. Use thermal_mode_weights(num_modes) for
+        default thermal distribution (exponentially decreasing).
 
     Returns
     -------
@@ -201,6 +261,10 @@ def hermite_gaussian_modes(
     where H_n is the physicist's Hermite polynomial.
 
     Modes are indexed in order: (0,0), (1,0), (0,1), (2,0), (1,1), (0,2), ...
+
+    For thermal distribution weights, use:
+        num_modes = (max_order + 1) * (max_order + 2) // 2
+        weights = thermal_mode_weights(num_modes)
     """
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
@@ -208,21 +272,15 @@ def hermite_gaussian_modes(
     dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     w_arr: Float[Array, " "] = jnp.asarray(beam_waist, dtype=jnp.float64)
 
-    num_modes: int = (max_ord + 1) * (max_ord + 2) // 2
-    mode_indices = _generate_mode_indices(max_ord)
-    mode_indices_tuple = tuple(mode_indices)
-
-    modes = _hermite_gaussian_modes_impl(
-        dx_arr, w_arr, hh, ww, mode_indices_tuple
+    mode_indices: Float[Array, " num_modes 2"] = _generate_mode_indices(
+        max_ord
     )
+    modes = _hermite_gaussian_modes_impl(dx_arr, w_arr, hh, ww, mode_indices)
 
-    if mode_weights is None:
-        mode_numbers = jnp.arange(num_modes)
-        weights: Float[Array, " num_modes"] = jnp.exp(-mode_numbers / 2.0)
-        weights = weights / jnp.sum(weights)
-    else:
-        weights = jnp.asarray(mode_weights, dtype=jnp.float64)
-        weights = weights / jnp.sum(weights)
+    weights: Float[Array, " num_modes"] = jnp.asarray(
+        mode_weights, dtype=jnp.float64
+    )
+    weights = weights / jnp.sum(weights)
 
     return make_coherent_mode_set(
         modes=modes,
@@ -290,24 +348,25 @@ def _gaussian_schell_model_modes_impl(
     xx: Float[Array, " hh ww"]
     yy: Float[Array, " hh ww"]
     xx, yy = jnp.meshgrid(x, y)
-
     x_norm: Float[Array, " hh ww"] = xx * jnp.sqrt(2.0) / mode_width
-
     gaussian: Float[Array, " hh ww"] = jnp.exp(
         -(xx**2 + yy**2) / mode_width**2
     )
 
-    modes_list = []
-    for n in range(n_modes):
-        h_n = _hermite_polynomial_static(n, x_norm)
-        mode = h_n * gaussian
+    def _compute_single_mode_int(
+        n: Float[Array, " "],
+    ) -> Complex[Array, " hh ww"]:
+        h_n: Float[Array, " hh ww"] = _hermite_polynomial(n, x_norm)
+        mode: Float[Array, " hh ww"] = h_n * gaussian
+        mode_energy: Float[Array, " "] = jnp.sum(jnp.abs(mode) ** 2)
+        normalized: Complex[Array, " hh ww"] = (
+            mode / jnp.sqrt(mode_energy + 1e-20)
+        ).astype(jnp.complex128)
+        return normalized
 
-        mode_energy = jnp.sum(jnp.abs(mode) ** 2)
-        modes_list.append(
-            (mode / jnp.sqrt(mode_energy + 1e-20)).astype(jnp.complex128)
-        )
-
-    modes: Complex[Array, " num_modes hh ww"] = jnp.stack(modes_list, axis=0)
+    modes: Complex[Array, " num_modes hh ww"] = jax.vmap(
+        _compute_single_mode_int
+    )(n_arr)
     return modes, eigenvalues
 
 
@@ -369,16 +428,13 @@ def gaussian_schell_model_modes(
     hh: int = int(grid_size[0])
     ww: int = int(grid_size[1])
     n_modes: int = int(num_modes)
-
     dx_arr: Float[Array, " "] = jnp.asarray(dx, dtype=jnp.float64)
     bw_arr: Float[Array, " "] = jnp.asarray(beam_width, dtype=jnp.float64)
     cw_arr: Float[Array, " "] = jnp.asarray(coherence_width, dtype=jnp.float64)
-
     modes, eigenvalues = _gaussian_schell_model_modes_impl(
         dx_arr, bw_arr, cw_arr, hh, ww, n_modes
     )
-
-    return make_coherent_mode_set(
+    mode_set: CoherentModeSet = make_coherent_mode_set(
         modes=modes,
         weights=eigenvalues,
         wavelength=wavelength,
@@ -387,6 +443,7 @@ def gaussian_schell_model_modes(
         polarization=False,
         normalize_weights=True,
     )
+    return mode_set
 
 
 @partial(jax.jit, static_argnums=(1, 2, 3))
@@ -421,27 +478,21 @@ def _eigenmode_decomposition_impl(
     """
     n_pixels: int = hh * ww
     j_2d: Complex[Array, " n n"] = j_matrix.reshape(n_pixels, n_pixels)
-
     eigenvalues: Float[Array, " n"]
     eigenvectors: Complex[Array, " n n"]
     eigenvalues, eigenvectors = jax.scipy.linalg.eigh(j_2d)
-
     eigenvalues_descending = eigenvalues[::-1]
     eigenvectors_descending = eigenvectors[:, ::-1]
-
     top_eigenvalues: Float[Array, " num_modes"] = eigenvalues_descending[
         :n_modes
     ]
     top_eigenvectors: Complex[Array, " n num_modes"] = eigenvectors_descending[
         :, :n_modes
     ]
-
     clipped_eigenvalues = jnp.maximum(top_eigenvalues, 0.0)
-
     modes: Complex[Array, " num_modes hh ww"] = top_eigenvectors.T.reshape(
         n_modes, hh, ww
     )
-
     return modes, clipped_eigenvalues
 
 
@@ -484,12 +535,12 @@ def eigenmode_decomposition(
     hh: int = int(j_matrix.shape[0])
     ww: int = int(j_matrix.shape[1])
     n_modes: int = int(num_modes)
-
+    modes: Complex[Array, " num_modes hh ww"]
+    clipped_eigenvalues: Float[Array, " num_modes"]
     modes, clipped_eigenvalues = _eigenmode_decomposition_impl(
         j_matrix, hh, ww, n_modes
     )
-
-    return make_coherent_mode_set(
+    mode_set: CoherentModeSet = make_coherent_mode_set(
         modes=modes,
         weights=clipped_eigenvalues,
         wavelength=mutual_intensity.wavelength,
@@ -498,7 +549,7 @@ def eigenmode_decomposition(
         polarization=False,
         normalize_weights=True,
     )
-
+    return mode_set
 
 @jaxtyped(typechecker=beartype)
 def effective_mode_count(
@@ -533,10 +584,10 @@ def effective_mode_count(
     """
     weights_sum: Float[Array, " "] = jnp.sum(weights)
     weights_sq_sum: Float[Array, " "] = jnp.sum(weights**2)
-
-    m_eff: Float[Array, " "] = weights_sum**2 / (weights_sq_sum + 1e-20)
-
-    return m_eff
+    effective_mode_count: Float[Array, " "] = weights_sum**2 / (
+        weights_sq_sum + 1e-20
+    )
+    return effective_mode_count
 
 
 @jaxtyped(typechecker=beartype)
@@ -569,8 +620,7 @@ def modes_from_wavefront(
     """
     modes: Complex[Array, " 1 hh ww"] = field[jnp.newaxis, ...]
     weights: Float[Array, " 1"] = jnp.array([1.0])
-
-    return make_coherent_mode_set(
+    mode_set: CoherentModeSet = make_coherent_mode_set(
         modes=modes,
         weights=weights,
         wavelength=wavelength,
@@ -578,47 +628,7 @@ def modes_from_wavefront(
         z_position=z_position,
         polarization=False,
     )
-
-
-@partial(jax.jit, static_argnums=(2,))
-def _mutual_intensity_from_modes_impl(
-    modes: Complex[Array, " num_modes hh ww"],
-    weights: Float[Array, " num_modes"],
-    n_modes: int,
-) -> Complex[Array, " hh ww hh ww"]:
-    """JIT-compiled mutual intensity reconstruction.
-
-    Pure JAX implementation with static num_modes for efficient
-    JIT compilation. Use this directly in pure JAX workflows.
-
-    Parameters
-    ----------
-    modes : Complex[Array, " num_modes hh ww"]
-        Coherent mode fields.
-    weights : Float[Array, " num_modes"]
-        Mode weights (eigenvalues).
-    n_modes : int
-        Number of modes (static).
-
-    Returns
-    -------
-    j_matrix : Complex[Array, " hh ww hh ww"]
-        Reconstructed mutual intensity matrix.
-    """
-
-    def compute_j_term(n: int) -> Complex[Array, " hh ww hh ww"]:
-        mode_n = modes[n]
-        weight_n = weights[n]
-        j_n: Complex[Array, " hh ww hh ww"] = weight_n * jnp.einsum(
-            "ij,kl->ijkl", jnp.conj(mode_n), mode_n
-        )
-        return j_n
-
-    j_matrix: Complex[Array, " hh ww hh ww"] = jnp.sum(
-        jnp.stack([compute_j_term(n) for n in range(n_modes)], axis=0),
-        axis=0,
-    )
-    return j_matrix
+    return mode_set
 
 
 @jaxtyped(typechecker=beartype)
@@ -647,13 +657,24 @@ def mutual_intensity_from_modes(
     """
     modes: Complex[Array, " num_modes hh ww"] = mode_set.modes
     weights: Float[Array, " num_modes"] = mode_set.weights
-    n_modes: int = int(modes.shape[0])
 
-    j_matrix = _mutual_intensity_from_modes_impl(modes, weights, n_modes)
+    def compute_j_term(
+        mode: Complex[Array, " hh ww"], weight: Float[Array, " "]
+    ) -> Complex[Array, " hh ww hh ww"]:
+        j_n: Complex[Array, " hh ww hh ww"] = weight * jnp.einsum(
+            "ij,kl->ijkl", jnp.conj(mode), mode
+        )
+        return j_n
 
-    return make_mutual_intensity(
+    all_j_terms: Complex[Array, " num_modes hh ww hh ww"] = jax.vmap(
+        compute_j_term
+    )(modes, weights)
+    j_matrix: Complex[Array, " hh ww hh ww"] = jnp.sum(all_j_terms, axis=0)
+
+    mutual_intensity: MutualIntensity = make_mutual_intensity(
         j_matrix=j_matrix,
         wavelength=mode_set.wavelength,
         dx=mode_set.dx,
         z_position=mode_set.z_position,
     )
+    return mutual_intensity
