@@ -7,6 +7,7 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
    :maxdepth: 1
    :caption: Tutorial Notebooks
 
+   Coherence
    DifferentBeams
    Diffractogram
    PolarBeams
