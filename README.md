@@ -12,3 +12,18 @@
 # Janssen: Optical Microscopy with JAX
 
 Janssen is a JAX-based library for optical microscopy simulations and ptychographic reconstructions. It provides differentiable implementations of optical propagation, lens simulations, and phase retrieval algorithms, all optimized for GPU acceleration through JAX.
+
+## Architecture
+
+<p align="center">
+  <img src="tutorials/Figures/architecture_figure.png" alt="Janssen Architecture" width="100%">
+</p>
+
+Janssen follows a layered architecture built on JAX's functional paradigm:
+
+- **Foundation Layer**: Core data structures (`types`) as JAX PyTrees for automatic differentiation, plus math utilities (`utils`) including Bessel functions and Wirtinger gradients
+- **Physics Core**: Optical propagation (`prop`), lens models (`lenses`), beam profiles (`models`), and wavefront manipulation (`optics`)
+- **Coherence Layer**: Partial coherence simulation (`cohere`) with spatial/temporal modes and source models
+- **Application Layer**: Forward microscope models (`scopes`), phase retrieval algorithms (`invert`), and visualization (`plots`)
+
+Every optical element is a pure function `Wavefront → Wavefront`, enabling JAX to trace computation graphs and compute gradients automatically for inverse problems like ptychography.

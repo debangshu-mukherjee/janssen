@@ -34,7 +34,7 @@ jobs:
 
         echo ""
         echo "Updating tutorials index..."
-        python docs/update_tutorials_index.py
+        python docs/scripts/update_tutorials_index.py
 
         echo ""
         echo "Updated index contents:"
