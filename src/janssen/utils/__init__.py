@@ -2,8 +2,9 @@
 
 Extended Summary
 ----------------
-Utilities for distributed JAX computing across multiple devices and
-mathematical helper functions for complex-valued operations.
+Utilities for distributed JAX computing across multiple devices,
+mathematical helper functions for complex-valued operations, and
+general-purpose optimization algorithms.
 
 Routine Listings
 ----------------
@@ -13,6 +14,10 @@ Routine Listings
     Gets the number of available JAX devices.
 :func:`shard_batch`
     Shards array data across the batch dimension for parallel processing.
+:func:`flatten_params`
+    Flatten complex arrays to real parameter vector for optimization.
+:func:`unflatten_params`
+    Unflatten real parameter vector back to complex arrays.
 :func:`fourier_shift`
     FFT-based sub-pixel shifting of 2D fields.
 :func:`wirtinger_grad`
@@ -23,6 +28,18 @@ Routine Listings
     Compute J_n(x), regular Bessel function of the first kind, order n.
 :func:`bessel_kv`
     Compute K_v(x), modified Bessel function of the second kind.
+:func:`make_jtj_matvec`
+    Create Jacobian-free (J^T J + λI) operator for Gauss-Newton.
+:func:`compute_jt_residual`
+    Compute residuals and J^T @ r simultaneously.
+:func:`make_hessian_matvec`
+    Create exact Hessian-vector product operator.
+:func:`gauss_newton_step`
+    Generic Gauss-Newton step with trust-region damping.
+:func:`estimate_condition_number`
+    Estimate largest eigenvalue of J^T J via power iteration.
+:func:`estimate_jtj_diagonal`
+    Estimate diagonal of J^T J for preconditioning.
 
 Notes
 -----
@@ -35,15 +52,36 @@ from .distributed import (
     get_device_count,
     shard_batch,
 )
-from .math import fourier_shift, wirtinger_grad
+from .gauss_newton import (
+    compute_jt_residual,
+    estimate_condition_number,
+    estimate_jtj_diagonal,
+    gauss_newton_step,
+    make_hessian_matvec,
+    make_jtj_matvec,
+)
+from .math import (
+    flatten_params,
+    fourier_shift,
+    unflatten_params,
+    wirtinger_grad,
+)
 
 __all__: list[str] = [
     "bessel_j0",
     "bessel_jn",
     "bessel_kv",
+    "compute_jt_residual",
     "create_mesh",
+    "estimate_condition_number",
+    "estimate_jtj_diagonal",
+    "flatten_params",
     "fourier_shift",
+    "gauss_newton_step",
     "get_device_count",
+    "make_hessian_matvec",
+    "make_jtj_matvec",
     "shard_batch",
+    "unflatten_params",
     "wirtinger_grad",
 ]

@@ -9,6 +9,10 @@ optical simulations.
 
 Routine Listings
 ----------------
+flatten_params : function
+    Flatten complex arrays to real parameter vector for optimization
+unflatten_params : function
+    Unflatten real parameter vector back to complex arrays
 fourier_shift : function
     Shift a 2D field using FFT-based sub-pixel shifting
 wirtinger_grad : function
@@ -25,8 +29,105 @@ from beartype import beartype
 from beartype.typing import Any, Callable, Optional, Sequence, Tuple, Union
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from janssen.types import ScalarFloat
+from janssen.types import ScalarFloat, ScalarInteger
 
+
+@jax.jit
+@jaxtyped(typechecker=beartype)
+def flatten_params(
+    sample: Complex[Array, " H W"],
+    probe: Complex[Array, " H W"],
+) -> Float[Array, " n"]:
+    """Flatten complex arrays to real parameter vector for optimization.
+
+    Converts two complex 2D arrays into a single real-valued vector by
+    separating real and imaginary components. This is necessary for
+    optimization algorithms that operate on real vector spaces.
+
+    Parameters
+    ----------
+    sample : Complex[Array, " H W"]
+        First complex array (e.g., object transmission function).
+    probe : Complex[Array, " H W"]
+        Second complex array (e.g., probe wavefront).
+
+    Returns
+    -------
+    params : Float[Array, " n"]
+        Flattened real parameter vector with n = 4 * H * W.
+        Layout: [sample_real, sample_imag, probe_real, probe_imag]
+
+    Examples
+    --------
+    >>> sample = jnp.ones((32, 32), dtype=jnp.complex128)
+    >>> probe = jnp.ones((32, 32), dtype=jnp.complex128) * (1+1j)
+    >>> params = flatten_params(sample, probe)
+    >>> params.shape
+    (4096,)
+
+    See Also
+    --------
+    unflatten_params : Inverse operation to reconstruct complex arrays
+    """
+    result: Float[Array, " n"] = jnp.concatenate(
+        [
+            sample.real.ravel(),
+            sample.imag.ravel(),
+            probe.real.ravel(),
+            probe.imag.ravel(),
+        ]
+    )
+    return result
+
+def unflatten_params(
+    params: Float[Array, " n"],
+    shape: Tuple[int, int],
+) -> Tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
+    """Unflatten real parameter vector back to complex arrays.
+
+    Reconstructs two complex 2D arrays from a flattened real parameter
+    vector. This is the inverse operation of flatten_params.
+
+    Parameters
+    ----------
+    params : Float[Array, " n"]
+        Flattened real parameter vector with n = 4 * H * W.
+    shape : Tuple[int, int]
+        Shape (H, W) of each output array.
+
+    Returns
+    -------
+    sample : Complex[Array, " H W"]
+        First complex array reconstructed from params[:2*H*W].
+    probe : Complex[Array, " H W"]
+        Second complex array reconstructed from params[2*H*W:].
+
+    Notes
+    -----
+    This function cannot be JIT-compiled directly because it uses
+    dynamic indexing based on the shape parameter. When used within
+    a JIT-compiled function, ensure the shape is static via
+    static_argnums.
+
+    Examples
+    --------
+    >>> params = jnp.arange(4096, dtype=jnp.float64)
+    >>> sample, probe = unflatten_params(params, (32, 32))
+    >>> sample.shape, probe.shape
+    ((32, 32), (32, 32))
+
+    See Also
+    --------
+    flatten_params : Forward operation to create flattened vector
+    """
+    size: ScalarInteger = shape[0] * shape[1]
+    sample: Complex[Array, " H W"] = params[:size].reshape(
+        shape
+    ) + 1j * params[size : 2 * size].reshape(shape)
+    probe: Complex[Array, " H W"] = params[
+        2 * size : 3 * size
+    ].reshape(shape) + 1j * params[3 * size :].reshape(shape)
+    return sample, probe
 
 @jaxtyped(typechecker=beartype)
 def fourier_shift(
@@ -34,7 +135,7 @@ def fourier_shift(
     shift_x: ScalarFloat,
     shift_y: ScalarFloat,
 ) -> Complex[Array, " H W"]:
-    """Shift a 2D field using FFT-based sub-pixel shifting.
+    r"""Shift a 2D field using FFT-based sub-pixel shifting.
 
     Applies a phase ramp in Fourier space to shift the field by
     (shift_x, shift_y) pixels relative to the center of the image.
@@ -90,7 +191,6 @@ def fourier_shift(
     shifted_ft: Complex[Array, " H W"] = field_ft * phase_ramp
     shifted: Complex[Array, " H W"] = jnp.fft.ifft2(shifted_ft)
     return shifted
-
 
 @jaxtyped(typechecker=beartype)
 def wirtinger_grad(
@@ -160,8 +260,8 @@ def wirtinger_grad(
                 for rr, ii, arg in zip(r, i, args, strict=False)
             )
 
-        split_args = split_complex(args)
-        n = len(args)
+        split_args: Tuple[Any, ...] = split_complex(args)
+        n: ScalarInteger = len(args)
 
         def f_real(*split_args: Any) -> Float[Array, " ..."]:
             return jnp.real(
@@ -173,6 +273,8 @@ def wirtinger_grad(
                 func2diff(*combine_complex(split_args[:n], split_args[n:]))
             )
 
+        gr: Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]
+        gi: Union[Complex[Array, " ..."], Tuple[Complex[Array, " ..."], ...]]
         gr = jax.grad(f_real, argnums=argnums)(*split_args)
         gi = jax.grad(f_imag, argnums=argnums)(*split_args)
 

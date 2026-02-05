@@ -60,8 +60,8 @@ def bessel_j0(x: Float[Array, " ..."]) -> Float[Array, " ..."]:
     >>> x = jnp.linspace(0, 10, 100)
     >>> j0_vals = bessel_j0(x)
     """
-    result = jax.scipy.special.bessel_jn(x, v=0)[0]
-    j0_at_zero = 1.0
+    result: Float[Array, " ..."] = jax.scipy.special.bessel_jn(x, v=0)[0]
+    j0_at_zero: ScalarFloat = 1.0
     return jnp.where(x == 0.0, j0_at_zero, result)
 
 
@@ -99,10 +99,10 @@ def bessel_jn(
     >>> j1_vals = bessel_jn(1, x)
     >>> j2_vals = bessel_jn(2, x)
     """
-    result = jax.scipy.special.bessel_jn(x, v=n)[n]
-    jn_at_zero_for_n0 = 1.0
-    jn_at_zero_for_higher_orders = 0.0
-    value_at_zero = jnp.where(
+    result: Float[Array, " ..."] = jax.scipy.special.bessel_jn(x, v=n)[n]
+    jn_at_zero_for_n0: ScalarFloat = 1.0
+    jn_at_zero_for_higher_orders: ScalarFloat = 0.0
+    value_at_zero: Float[Array, " ..."] = jnp.where(
         n == 0, jn_at_zero_for_n0, jn_at_zero_for_higher_orders
     )
     return jnp.where(x == 0.0, value_at_zero, result)
@@ -207,10 +207,12 @@ def bessel_kn_recurrence(
         k_curr: Float[Array, " ..."] = two_i_over_x * k_prev1 + k_prev2
         return (k_prev1, k_curr), k_curr
 
-    indices = jnp.arange(1, max_order + 1, dtype=jnp.int32)
+    indices: Int[Array, " 20"] = jnp.arange(1, max_order + 1, dtype=jnp.int32)
+    _: Tuple[Float[Array, " ..."], Float[Array, " ..."]]
+    all_kn_from_2: Float[Array, " 20 ..."]
     _, all_kn_from_2 = jax.lax.scan(scan_body, (k0, k1), indices)
 
-    all_kn = jnp.concatenate(
+    all_kn: Float[Array, " 22 ..."] = jnp.concatenate(
         [k0[jnp.newaxis, ...], k1[jnp.newaxis, ...], all_kn_from_2], axis=0
     )
 

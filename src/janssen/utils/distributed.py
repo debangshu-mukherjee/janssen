@@ -36,6 +36,7 @@ Examples
 """
 
 import jax
+import jax.numpy as jnp
 from beartype import beartype
 from beartype.typing import Optional
 from jax.experimental import mesh_utils
@@ -106,9 +107,9 @@ def create_mesh(n_devices: Optional[int] = None) -> Mesh:
     """
     if n_devices is None:
         n_devices = jax.device_count()
-    all_devices = jax.devices()
-    selected_devices = all_devices[:n_devices]
-    devices = mesh_utils.create_device_mesh(
+    all_devices: list = jax.devices()
+    selected_devices: list = all_devices[:n_devices]
+    devices: jnp.ndarray = mesh_utils.create_device_mesh(
         (n_devices,), devices=selected_devices
     )
     return Mesh(devices, axis_names=("batch",))
@@ -165,5 +166,5 @@ def shard_batch(
     - Subsequent operations on the sharded array will automatically
       maintain the sharding pattern where possible.
     """
-    sharding = NamedSharding(mesh, P("batch"))
+    sharding: NamedSharding = NamedSharding(mesh, P("batch"))
     return jax.device_put(data, sharding)
