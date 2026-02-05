@@ -1,7 +1,8 @@
 Tutorials
 =========
 
-This section contains interactive Jupyter notebooks demonstrating how to use Janssen for various applications.
+This section contains interactive Jupyter notebooks demonstrating
+how to use Janssen for various applications.
 
 .. toctree::
    :maxdepth: 1
@@ -22,8 +23,8 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
 
 .. note::
 
-   These notebooks are rendered automatically from the ``tutorials/`` directory.
-   To run them interactively:
+   These notebooks are rendered automatically from the
+   ``tutorials/`` directory. To run them interactively:
 
    1. Clone the repository
    2. Navigate to the ``tutorials/`` directory

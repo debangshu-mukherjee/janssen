@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""
-Automatically update the tutorials index.rst file to include all Jupyter notebooks.
-Run this script whenever new notebooks are added to the tutorials directory.
+"""Automatically update tutorials index.rst with all notebooks.
+
+Run this script whenever new notebooks are added to the tutorials
+directory.
 """
 
 from pathlib import Path
 
 
-def update_tutorials_index():
+def update_tutorials_index() -> None:
     """Update the tutorials/index.rst file with all notebooks found."""
-
     # Get paths
-    docs_dir = Path(__file__).parent
-    tutorials_dir = docs_dir.parent / "tutorials"
+    script_dir = Path(__file__).parent
+    repo_root = script_dir.parent.parent
+    tutorials_dir = repo_root / "tutorials"
     index_file = tutorials_dir / "index.rst"
 
     # Find all notebook files in root tutorials directory
@@ -34,7 +35,8 @@ def update_tutorials_index():
     content = """Tutorials
 =========
 
-This section contains interactive Jupyter notebooks demonstrating how to use Janssen for various applications.
+This section contains interactive Jupyter notebooks demonstrating
+how to use Janssen for various applications.
 
 .. toctree::
    :maxdepth: 1
@@ -59,8 +61,8 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
     content += """
 .. note::
 
-   These notebooks are rendered automatically from the ``tutorials/`` directory.
-   To run them interactively:
+   These notebooks are rendered automatically from the
+   ``tutorials/`` directory. To run them interactively:
 
    1. Clone the repository
    2. Navigate to the ``tutorials/`` directory
@@ -82,7 +84,7 @@ This section contains interactive Jupyter notebooks demonstrating how to use Jan
         update_subdir_index(tutorials_dir / subdir)
 
 
-def update_subdir_index(subdir_path: Path):
+def update_subdir_index(subdir_path: Path) -> None:
     """Update the index.rst file for a subdirectory."""
     index_file = subdir_path / "index.rst"
     subdir_name = subdir_path.name
@@ -96,7 +98,8 @@ def update_subdir_index(subdir_path: Path):
     content = f"""{subdir_name}
 {'=' * len(subdir_name)}
 
-This section contains notebooks demonstrating microscope simulations using different sample types.
+This section contains notebooks demonstrating microscope
+simulations using different sample types.
 
 .. toctree::
    :maxdepth: 1

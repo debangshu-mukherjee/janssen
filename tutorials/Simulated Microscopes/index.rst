@@ -1,7 +1,8 @@
 Simulated Microscopes
 =====================
 
-This section contains notebooks demonstrating microscope simulations using different sample types.
+This section contains notebooks demonstrating microscope
+simulations using different sample types.
 
 .. toctree::
    :maxdepth: 1
