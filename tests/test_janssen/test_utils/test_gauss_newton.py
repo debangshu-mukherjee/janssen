@@ -67,6 +67,22 @@ class TestGaussNewtonStep(chex.TestCase):
         chex.assert_trees_all_equal(new_state.converged, jnp.array(False))
         chex.assert_trees_all_close(new_state.damping, state.damping * 10.0)
 
+    def test_non_positive_predicted_reduction_increases_damping(self) -> None:
+        """Non-positive predicted reduction should increase damping."""
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return jnp.array([1.0, -2.0])
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        new_state = gauss_newton_step(state, residual_fn)
+
+        chex.assert_trees_all_close(new_state.sample, sample)
+        chex.assert_trees_all_close(new_state.probe, probe)
+        chex.assert_trees_all_close(new_state.damping, state.damping * 10.0)
+
     def test_converges_when_improvement_is_tiny(self) -> None:
         """Small relative improvement should mark convergence."""
 
@@ -165,6 +181,27 @@ class TestComputeJtResidual(chex.TestCase):
         loss_fn = lambda x: 0.5 * jnp.sum(residual_fn(x) ** 2)
         expected = jax.grad(loss_fn)(params)
         chex.assert_trees_all_close(jt_r, expected, rtol=1e-6)
+        chex.assert_trees_all_close(residuals, residual_fn(params), rtol=1e-6)
+
+    @chex.variants(without_jit=True)
+    def test_weighted_gradient_matches_autodiff(self) -> None:
+        """J^T W r should match grad of 0.5 * r^T W r."""
+
+        def residual_fn(x: jnp.ndarray) -> jnp.ndarray:
+            return jnp.array(
+                [x[0] ** 2 + 2.0 * x[1], jnp.sin(x[0]) - x[1] ** 2]
+            )
+
+        params = jnp.array([0.4, -0.1])
+        weights = jnp.array([2.0, 0.5])
+        var_compute = self.variant(compute_jt_residual)
+        residuals, jt_wr = var_compute(residual_fn, params, weights)
+
+        weighted_loss_fn = lambda x: 0.5 * jnp.sum(
+            weights * residual_fn(x) ** 2
+        )
+        expected = jax.grad(weighted_loss_fn)(params)
+        chex.assert_trees_all_close(jt_wr, expected, rtol=1e-6)
         chex.assert_trees_all_close(residuals, residual_fn(params), rtol=1e-6)
 
 

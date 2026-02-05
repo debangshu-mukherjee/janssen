@@ -132,11 +132,14 @@ def make_jtj_matvec(
 def compute_jt_residual(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
+    weights: Optional[Float[Array, " m"]] = None,
 ) -> Tuple[Float[Array, " m"], Float[Array, " n"]]:
-    """Compute residuals and J^T @ r simultaneously.
+    """Compute residuals and J^T @ W @ r simultaneously.
 
     Uses reverse-mode autodiff to compute the gradient of the loss
-    L = 0.5 * ||r||^2, which equals J^T @ r.
+    L = 0.5 * r^T W r, which equals J^T @ W @ r.
+
+    For unweighted least squares (W = I), this reduces to J^T @ r.
 
     Parameters
     ----------
@@ -144,13 +147,21 @@ def compute_jt_residual(
         Function mapping parameters to residuals.
     params : Float[Array, " n"]
         Current parameters.
+    weights : Float[Array, " m"], optional
+        Diagonal weight matrix entries for weighted least squares.
+        If None (default), assumes unweighted (W = I).
 
     Returns
     -------
     residuals : Float[Array, " m"]
         Current residual vector r(θ).
-    jt_r : Float[Array, " n"]
-        Gradient J^T @ r = ∇(0.5 * ||r||^2).
+    jt_wr : Float[Array, " n"]
+        Weighted gradient J^T @ W @ r = ∇(0.5 * r^T W r).
+
+    Notes
+    -----
+    For diagonal weighting W = diag(w), the weighted gradient is
+    J^T @ W @ r where each residual r_i is weighted by w_i.
 
     Examples
     --------
@@ -158,13 +169,18 @@ def compute_jt_residual(
     ...     return x**2 - jnp.array([1.0, 4.0])
     >>> params = jnp.array([1.5, 2.5])
     >>> r, jt_r = compute_jt_residual(residual_fn, params)
+    >>> # Weighted version:
+    >>> weights = jnp.array([2.0, 0.5])
+    >>> r, jt_wr = compute_jt_residual(residual_fn, params, weights)
     """
     residuals: Float[Array, " m"]
     vjp_fn: Callable[[Float[Array, " m"]], Tuple[Float[Array, " n"]]]
     residuals, vjp_fn = jax.vjp(residual_fn, params)
-    jt_r: Float[Array, " n"]
-    (jt_r,) = vjp_fn(residuals)
-    return residuals, jt_r
+    weighted_residuals: Float[Array, " m"]
+    weighted_residuals = residuals if weights is None else weights * residuals
+    jt_wr: Float[Array, " n"]
+    (jt_wr,) = vjp_fn(weighted_residuals)
+    return residuals, jt_wr
 
 
 def make_hessian_matvec(
@@ -206,9 +222,12 @@ def make_hessian_matvec(
     >>> hvp = make_hessian_matvec(loss_fn, params)
     >>> result = hvp(jnp.array([1.0, 0.0]))
     """
+    grad_fn: Callable[[Float[Array, " n"]], Float[Array, " n"]]
+    grad_fn = jax.grad(loss_fn)
 
     def hvp(v: Float[Array, " n"]) -> Float[Array, " n"]:
-        grad_fn = jax.grad(loss_fn)
+        _: Float[Array, " n"]
+        hv: Float[Array, " n"]
         _, hv = jax.jvp(grad_fn, (params,), (v,))
         return hv
 
@@ -230,7 +249,7 @@ def gauss_newton_step(
 
         (J^T J + λI) δ = -J^T r
 
-    then updates parameters: θ_{k+1} = θ_k - δ
+    then updates parameters: θ_{k+1} = θ_k + δ
 
     The damping λ adapts based on actual vs predicted reduction.
 
@@ -290,26 +309,32 @@ def gauss_newton_step(
     matvec: Callable[[Float[Array, " n"]], Float[Array, " n"]] = (
         make_jtj_matvec(residual_fn, params, state.damping)
     )
-    preconditioner: Optional[
+    _preconditioner: Optional[
         Callable[[Float[Array, " n"]], Float[Array, " n"]]
     ] = None
+    
     if use_preconditioner:
         diag_jtj: Float[Array, " n"] = estimate_jtj_diagonal(
             residual_fn, params, num_samples=10
         )
-        diag_with_damping: Float[Array, " n"] = diag_jtj + state.damping
-        preconditioner = lambda v: v / diag_with_damping
+        diag_with_damping: Float[Array, " n"] = (
+            jnp.maximum(diag_jtj, 0.0) + state.damping
+        )
+
+        def _preconditioner(v: Float[Array, " n"]) -> Float[Array, " n"]:
+            return v / diag_with_damping
+
     delta: Float[Array, " n"]
     cg_info: None
     delta, cg_info = sparse_linalg.cg(
         matvec,
-        jt_r,
+        -jt_r,
         x0=jnp.zeros_like(params),
         maxiter=cg_maxiter,
         tol=cg_tol,
-        M=preconditioner,
+        M=_preconditioner,
     )
-    params_new: Float[Array, " n"] = params - delta
+    params_new: Float[Array, " n"] = params + delta
     sample_new: Complex[Array, " Hs Ws"]
     probe_new: Complex[Array, " Hp Wp"]
     sample_new, probe_new = unflatten_params(
@@ -317,12 +342,15 @@ def gauss_newton_step(
     )
     residuals_new: Float[Array, " m"] = residual_fn(params_new)
     new_loss: Float[Array, " "] = 0.5 * jnp.sum(residuals_new**2)
-    predicted_reduction: Float[Array, " "] = jnp.dot(
-        delta, matvec(delta)
-    ) - 0.5 * jnp.dot(delta, matvec(delta) - state.damping * delta)
+    h_delta: Float[Array, " n"] = matvec(delta)
+    predicted_reduction: Float[Array, " "] = 0.5 * jnp.dot(delta, h_delta)
     actual_reduction: Float[Array, " "] = current_loss - new_loss
     pred_positive: Bool[Array, " "] = predicted_reduction > 0.0
-    rho: Float[Array, " "] = actual_reduction / (predicted_reduction + 1e-12)
+    rho: Float[Array, " "] = jnp.where(
+        pred_positive,
+        actual_reduction / (predicted_reduction + 1e-12),
+        0.0,
+    )
     accept: Bool[Array, " "] = (
         (actual_reduction > 0.0) & pred_positive & (rho > 0.0)
     )
