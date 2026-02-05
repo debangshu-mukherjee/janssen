@@ -522,7 +522,8 @@ def make_coherent_mode_set(
                 jnp.sum(abs_squared, axis=-1) if is_polarized else abs_squared
             )
             total: Float[Array, " hh ww"] = jnp.sum(
-                validated_weights[:, jnp.newaxis, jnp.newaxis] * mode_intensities,
+                validated_weights[:, jnp.newaxis, jnp.newaxis]
+                * mode_intensities,
                 axis=0,
             )
             return total
@@ -531,11 +532,15 @@ def make_coherent_mode_set(
             """Compute effective number of modes (participation ratio)."""
             weights_sum: Float[Array, " "] = jnp.sum(validated_weights)
             weights_sq_sum: Float[Array, " "] = jnp.sum(validated_weights**2)
-            n_eff: Float[Array, " "] = weights_sum**2 / (weights_sq_sum + 1e-12)
+            n_eff: Float[Array, " "] = weights_sum**2 / (
+                weights_sq_sum + 1e-12
+            )
             return n_eff
 
         intensity: Float[Array, " hh ww"] = _compute_intensity_int()
-        effective_mode_count: Float[Array, " "] = _compute_effective_mode_count_int()
+        effective_mode_count: Float[Array, " "] = (
+            _compute_effective_mode_count_int()
+        )
 
         return CoherentModeSet(
             modes=validated_modes,

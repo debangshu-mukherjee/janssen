@@ -141,6 +141,10 @@ from .factory import (
     make_sliced_material_function,
     optical2propagating,
 )
+from .invert_types import (
+    GaussNewtonState,
+    make_gauss_newton_state,
+)
 from .vector_types import (
     VectorWavefront3D,
     jones_to_vector3d,
@@ -153,6 +157,7 @@ __all__: list[str] = [
     "Diffractogram",
     "EpieData",
     "EpieParams",
+    "GaussNewtonState",
     "GridParams",
     "jones_to_vector3d",
     "LensParams",
@@ -160,6 +165,7 @@ __all__: list[str] = [
     "make_diffractogram",
     "make_epie_data",
     "make_epie_params",
+    "make_gauss_newton_state",
     "make_grid_params",
     "make_lens_params",
     "make_microscope_data",

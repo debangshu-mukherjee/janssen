@@ -9,6 +9,7 @@ from jaxtyping import Array, Complex, Float
 
 from janssen.types import (
     Diffractogram,
+    GaussNewtonState,
     GridParams,
     LensParams,
     MicroscopeData,
@@ -17,6 +18,7 @@ from janssen.types import (
     PtychographyParams,
     SampleFunction,
     make_diffractogram,
+    make_gauss_newton_state,
     make_grid_params,
     make_lens_params,
     make_microscope_data,
@@ -759,6 +761,141 @@ class TestPtychographyParamsPyTree(chex.TestCase):
 
         chex.assert_shape(batch.learning_rate, (3,))
         chex.assert_shape(batch.zoom_factor_bounds, (3, 2))
+
+
+class TestGaussNewtonStatePyTree(chex.TestCase):
+    """Test that GaussNewtonState behaves correctly as a PyTree."""
+
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        super().setUp()
+        self.sample = jnp.ones((64, 64), dtype=complex) * (1 + 0.5j)
+        self.probe = jnp.ones((64, 64), dtype=complex) * (0.8 + 0.2j)
+
+        self.state = make_gauss_newton_state(
+            sample=self.sample,
+            probe=self.probe,
+            iteration=0,
+            loss=jnp.inf,
+            damping=1e-3,
+            converged=False,
+        )
+
+    def test_is_pytree(self) -> None:
+        """Test that GaussNewtonState is recognized as a PyTree."""
+        leaves, treedef = tree.tree_flatten(self.state)
+        reconstructed = tree.tree_unflatten(treedef, leaves)
+
+        chex.assert_trees_all_close(reconstructed.sample, self.state.sample)
+        chex.assert_trees_all_close(reconstructed.probe, self.state.probe)
+        chex.assert_trees_all_close(
+            reconstructed.iteration, self.state.iteration
+        )
+        chex.assert_trees_all_close(reconstructed.loss, self.state.loss)
+        chex.assert_trees_all_close(reconstructed.damping, self.state.damping)
+        chex.assert_trees_all_close(
+            reconstructed.converged, self.state.converged
+        )
+
+    def test_tree_map(self) -> None:
+        """Test that tree_map works correctly on GaussNewtonState."""
+
+        def scale_numeric(x: Array) -> Array:
+            """Scale numeric values, skip booleans and integers."""
+            if isinstance(x, jax.Array | jnp.ndarray):
+                if x.dtype in [jnp.bool_, bool]:
+                    return x
+                if x.dtype in [jnp.int32, jnp.int64]:
+                    return x + 1
+                return x * 2
+            return x
+
+        scaled = tree.tree_map(scale_numeric, self.state)
+
+        chex.assert_trees_all_close(scaled.sample, self.state.sample * 2)
+        chex.assert_trees_all_close(scaled.probe, self.state.probe * 2)
+        chex.assert_trees_all_close(scaled.iteration, self.state.iteration + 1)
+        chex.assert_trees_all_close(scaled.loss, self.state.loss * 2)
+        chex.assert_trees_all_close(scaled.damping, self.state.damping * 2)
+        chex.assert_trees_all_close(scaled.converged, self.state.converged)
+
+    def test_jit_compatibility(self) -> None:
+        """Test that GaussNewtonState works with JIT compilation."""
+
+        @jax.jit
+        def compute_residual(state: GaussNewtonState) -> Float[Array, " "]:
+            """Compute simple residual from state."""
+            exit_wave = state.sample * state.probe
+            return jnp.sum(jnp.abs(exit_wave) ** 2)
+
+        result = compute_residual(self.state)
+        chex.assert_shape(result, ())
+        chex.assert_tree_all_finite(result)
+
+    def test_grad_compatibility(self) -> None:
+        """Test that GaussNewtonState works with gradient computation."""
+
+        def loss_function(state: GaussNewtonState) -> Float[Array, " "]:
+            """Simple loss function for testing gradients."""
+            exit_wave = state.sample * state.probe
+            return jnp.sum(jnp.abs(exit_wave) ** 2) + state.damping
+
+        grad_fn = jax.grad(loss_function, allow_int=True)
+        grad = grad_fn(self.state)
+
+        chex.assert_equal(type(grad).__name__, "GaussNewtonState")
+        chex.assert_shape(grad.sample, self.state.sample.shape)
+        chex.assert_shape(grad.probe, self.state.probe.shape)
+
+    def test_factory_with_defaults(self) -> None:
+        """Test that factory function works with default parameters."""
+        state = make_gauss_newton_state(
+            sample=self.sample,
+            probe=self.probe,
+        )
+
+        chex.assert_trees_all_close(state.sample, self.sample)
+        chex.assert_trees_all_close(state.probe, self.probe)
+        chex.assert_equal(state.iteration, 0)
+        chex.assert_equal(state.loss, jnp.inf)
+        chex.assert_trees_all_close(state.damping, jnp.array(1e-3))
+        chex.assert_equal(state.converged, False)
+
+    def test_factory_with_custom_values(self) -> None:
+        """Test factory function with custom parameter values."""
+        state = make_gauss_newton_state(
+            sample=self.sample,
+            probe=self.probe,
+            iteration=10,
+            loss=0.5,
+            damping=0.01,
+            converged=True,
+        )
+
+        chex.assert_equal(state.iteration, 10)
+        chex.assert_trees_all_close(state.loss, jnp.array(0.5))
+        chex.assert_trees_all_close(state.damping, jnp.array(0.01))
+        chex.assert_equal(state.converged, True)
+
+    def test_custom_tree_methods(self) -> None:
+        """Test the custom tree_flatten and tree_unflatten methods."""
+        children, aux_data = self.state.tree_flatten()
+
+        chex.assert_equal(aux_data, None)
+        chex.assert_equal(len(children), 6)
+
+        reconstructed = GaussNewtonState.tree_unflatten(aux_data, children)
+
+        chex.assert_trees_all_close(reconstructed.sample, self.state.sample)
+        chex.assert_trees_all_close(reconstructed.probe, self.state.probe)
+        chex.assert_trees_all_close(
+            reconstructed.iteration, self.state.iteration
+        )
+        chex.assert_trees_all_close(reconstructed.loss, self.state.loss)
+        chex.assert_trees_all_close(reconstructed.damping, self.state.damping)
+        chex.assert_trees_all_close(
+            reconstructed.converged, self.state.converged
+        )
 
 
 if __name__ == "__main__":
