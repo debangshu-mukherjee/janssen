@@ -875,10 +875,13 @@ def simple_microscope_gn(  # noqa: PLR0915
         residuals : Float[Array, " m"]
             Flattened amplitude residuals.
         """
-        shape: Tuple[int, int] = guess_sample.sample.shape
-        sample_field: Complex[Array, " H W"]
-        probe_field: Complex[Array, " H W"]
-        sample_field, probe_field = unflatten_params(params, shape)
+        sample_shape: Tuple[int, int] = guess_sample.sample.shape
+        probe_shape: Tuple[int, int] = guess_lightwave.field.shape
+        sample_field: Complex[Array, " Hs Ws"]
+        probe_field: Complex[Array, " Hp Wp"]
+        sample_field, probe_field = unflatten_params(
+            params, sample_shape, probe_shape
+        )
         sample: SampleFunction = make_sample_function(
             sample=sample_field, dx=sample_dx
         )

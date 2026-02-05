@@ -30,7 +30,7 @@ make_hessian_matvec : function
     Create exact Hessian-vector product operator.
 gauss_newton_step : function
     Generic Gauss-Newton step with trust-region damping.
-estimate_condition_number : function
+estimate_max_eigenvalue : function
     Estimate largest eigenvalue of J^T J via power iteration.
 estimate_jtj_diagonal : function
     Estimate diagonal of J^T J for preconditioning.
@@ -57,7 +57,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy.sparse.linalg as sparse_linalg
 from beartype import beartype
-from beartype.typing import Callable, Tuple
+from beartype.typing import Callable, Optional, Tuple
 from jaxtyping import Array, Bool, Complex, Float, jaxtyped
 
 from janssen.types import GaussNewtonState, ScalarInteger
@@ -113,13 +113,14 @@ def make_jtj_matvec(
     >>> matvec = make_jtj_matvec(residual_fn, params, jnp.array(1e-3))
     >>> result = matvec(jnp.array([1.0, 0.0]))
     """
+    _: Float[Array, " m"]
+    vjp_fn: Callable[[Float[Array, " m"]], Tuple[Float[Array, " n"]]]
+    _, vjp_fn = jax.vjp(residual_fn, params)
 
     def matvec(v: Float[Array, " n"]) -> Float[Array, " n"]:
         _: Float[Array, " m"]
         jv: Float[Array, " m"]
         _, jv = jax.jvp(residual_fn, (params,), (v,))
-        vjp_fn: Callable[[Float[Array, " m"]], Tuple[Float[Array, " n"]]]
-        _, vjp_fn = jax.vjp(residual_fn, params)
         jtjv: Float[Array, " n"]
         (jtjv,) = vjp_fn(jv)
         return jtjv + damping * v
@@ -127,6 +128,7 @@ def make_jtj_matvec(
     return matvec
 
 
+@partial(jax.jit, static_argnums=(0,))
 def compute_jt_residual(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
@@ -213,13 +215,14 @@ def make_hessian_matvec(
     return hvp
 
 
-@partial(jax.jit, static_argnums=(1, 2, 3))
+@partial(jax.jit, static_argnums=(1, 2, 3, 4))
 @jaxtyped(typechecker=beartype)
 def gauss_newton_step(
     state: GaussNewtonState,
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     cg_maxiter: int = 50,
     cg_tol: float = 1e-5,
+    use_preconditioner: bool = False,
 ) -> GaussNewtonState:
     """Perform Gauss-Newton step with Levenberg-Marquardt damping.
 
@@ -242,6 +245,10 @@ def gauss_newton_step(
         Maximum conjugate gradient iterations. Default is 50.
     cg_tol : float, optional
         CG convergence tolerance. Default is 1e-5.
+    use_preconditioner : bool, optional
+        Whether to use diagonal preconditioning for CG. Preconditioning
+        can significantly improve convergence rate for ill-conditioned
+        problems. Default is False.
 
     Returns
     -------
@@ -261,12 +268,20 @@ def gauss_newton_step(
 
     where ρ = actual_reduction / predicted_reduction.
 
+    When use_preconditioner=True, a diagonal preconditioner is computed
+    using Hutchinson's estimator: M = diag(diag(J^T J) + λ)^{-1}.
+    This improves CG convergence for ill-conditioned problems.
+
     Examples
     --------
     >>> state = make_gauss_newton_state(sample, probe)
     >>> new_state = gauss_newton_step(state, my_residual_fn)
+    >>> # With preconditioning for better convergence:
+    >>> new_state = gauss_newton_step(state, my_residual_fn,
+    ...                               use_preconditioner=True)
     """
-    shape: Tuple[int, int] = state.sample.shape
+    sample_shape: Tuple[int, int] = state.sample.shape
+    probe_shape: Tuple[int, int] = state.probe.shape
     params: Float[Array, " n"] = flatten_params(state.sample, state.probe)
     residuals: Float[Array, " m"]
     jt_r: Float[Array, " n"]
@@ -275,35 +290,54 @@ def gauss_newton_step(
     matvec: Callable[[Float[Array, " n"]], Float[Array, " n"]] = (
         make_jtj_matvec(residual_fn, params, state.damping)
     )
+    preconditioner: Optional[
+        Callable[[Float[Array, " n"]], Float[Array, " n"]]
+    ] = None
+    if use_preconditioner:
+        diag_jtj: Float[Array, " n"] = estimate_jtj_diagonal(
+            residual_fn, params, num_samples=10
+        )
+        diag_with_damping: Float[Array, " n"] = diag_jtj + state.damping
+        preconditioner = lambda v: v / diag_with_damping
     delta: Float[Array, " n"]
-    _: dict
-    delta, _ = sparse_linalg.cg(
+    cg_info: None
+    delta, cg_info = sparse_linalg.cg(
         matvec,
         jt_r,
         x0=jnp.zeros_like(params),
         maxiter=cg_maxiter,
         tol=cg_tol,
+        M=preconditioner,
     )
     params_new: Float[Array, " n"] = params - delta
-    sample_new: Complex[Array, " hh ww"]
-    probe_new: Complex[Array, " hh ww"]
-    sample_new, probe_new = unflatten_params(params_new, shape)
+    sample_new: Complex[Array, " Hs Ws"]
+    probe_new: Complex[Array, " Hp Wp"]
+    sample_new, probe_new = unflatten_params(
+        params_new, sample_shape, probe_shape
+    )
     residuals_new: Float[Array, " m"] = residual_fn(params_new)
     new_loss: Float[Array, " "] = 0.5 * jnp.sum(residuals_new**2)
     predicted_reduction: Float[Array, " "] = jnp.dot(
-        jt_r, delta
+        delta, matvec(delta)
     ) - 0.5 * jnp.dot(delta, matvec(delta) - state.damping * delta)
     actual_reduction: Float[Array, " "] = current_loss - new_loss
+    pred_positive: Bool[Array, " "] = predicted_reduction > 0.0
     rho: Float[Array, " "] = actual_reduction / (predicted_reduction + 1e-12)
-    accept: Bool[Array, " "] = rho > 0.0
+    accept: Bool[Array, " "] = (
+        (actual_reduction > 0.0) & pred_positive & (rho > 0.0)
+    )
     new_damping: Float[Array, " "] = jax.lax.cond(
-        rho > TRUST_REGION_EXCELLENT,
-        lambda: state.damping * 0.33,
+        pred_positive,
         lambda: jax.lax.cond(
-            rho > TRUST_REGION_ACCEPTABLE,
-            lambda: state.damping,
-            lambda: state.damping * 3.0,
+            rho > TRUST_REGION_EXCELLENT,
+            lambda: state.damping * 0.33,
+            lambda: jax.lax.cond(
+                rho > TRUST_REGION_ACCEPTABLE,
+                lambda: state.damping,
+                lambda: state.damping * 3.0,
+            ),
         ),
+        lambda: state.damping * 10.0,
     )
     new_damping = jnp.clip(new_damping, 1e-12, 1e8)
     final_sample: Complex[Array, " hh ww"] = jax.lax.cond(
@@ -318,7 +352,7 @@ def gauss_newton_step(
     rel_improvement: Float[Array, " "] = jnp.abs(current_loss - final_loss) / (
         current_loss + 1e-12
     )
-    converged: Bool[Array, " "] = rel_improvement < CONVERGENCE_TOL
+    converged: Bool[Array, " "] = accept & (rel_improvement < CONVERGENCE_TOL)
 
     return GaussNewtonState(
         sample=final_sample,
@@ -330,9 +364,9 @@ def gauss_newton_step(
     )
 
 
-@partial(jax.jit, static_argnums=(1, 2))
+@partial(jax.jit, static_argnums=(0, 2))
 @jaxtyped(typechecker=beartype)
-def estimate_condition_number(
+def estimate_max_eigenvalue(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
     num_iterations: int = 20,
@@ -364,8 +398,8 @@ def estimate_condition_number(
 
     Examples
     --------
-    >>> lambda_max = estimate_condition_number(residual_fn, params)
-    >>> print(f"Condition indicator: {lambda_max:.2e}")
+    >>> lambda_max = estimate_max_eigenvalue(residual_fn, params)
+    >>> print(f"Maximum eigenvalue: {lambda_max:.2e}")
     """
     matvec: Callable[[Float[Array, " n"]], Float[Array, " n"]] = (
         make_jtj_matvec(residual_fn, params, jnp.array(0.0))
@@ -389,7 +423,7 @@ def estimate_condition_number(
     return result
 
 
-@partial(jax.jit, static_argnums=(1, 2))
+@partial(jax.jit, static_argnums=(0, 2))
 @jaxtyped(typechecker=beartype)
 def estimate_jtj_diagonal(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
@@ -435,7 +469,7 @@ def estimate_jtj_diagonal(
 
     def estimate_one(key: Array) -> Float[Array, " n"]:
         z: Float[Array, " n"] = jax.random.rademacher(
-            key, (n,), dtype=jnp.float32
+            key, (n,), dtype=params.dtype
         )
         az: Float[Array, " n"] = matvec(z)
         result: Float[Array, " n"] = z * az

@@ -35,35 +35,35 @@ from janssen.types import ScalarFloat, ScalarInteger
 @jax.jit
 @jaxtyped(typechecker=beartype)
 def flatten_params(
-    sample: Complex[Array, " H W"],
-    probe: Complex[Array, " H W"],
+    sample: Complex[Array, " Hs Ws"],
+    probe: Complex[Array, " Hp Wp"],
 ) -> Float[Array, " n"]:
     """Flatten complex arrays to real parameter vector for optimization.
 
     Converts two complex 2D arrays into a single real-valued vector by
-    separating real and imaginary components. This is necessary for
-    optimization algorithms that operate on real vector spaces.
+    separating real and imaginary components. Handles arrays with
+    different shapes (e.g., sample=512×512 FOV, probe=64×64 spot).
 
     Parameters
     ----------
-    sample : Complex[Array, " H W"]
+    sample : Complex[Array, " Hs Ws"]
         First complex array (e.g., object transmission function).
-    probe : Complex[Array, " H W"]
+    probe : Complex[Array, " Hp Wp"]
         Second complex array (e.g., probe wavefront).
 
     Returns
     -------
     params : Float[Array, " n"]
-        Flattened real parameter vector with n = 4 * H * W.
+        Flattened real parameter vector with n = 2*(Hs*Ws + Hp*Wp).
         Layout: [sample_real, sample_imag, probe_real, probe_imag]
 
     Examples
     --------
-    >>> sample = jnp.ones((32, 32), dtype=jnp.complex128)
-    >>> probe = jnp.ones((32, 32), dtype=jnp.complex128) * (1+1j)
+    >>> sample = jnp.ones((512, 512), dtype=jnp.complex128)
+    >>> probe = jnp.ones((64, 64), dtype=jnp.complex128) * (1+1j)
     >>> params = flatten_params(sample, probe)
     >>> params.shape
-    (4096,)
+    (532480,)  # 2*(512*512 + 64*64)
 
     See Also
     --------
@@ -82,52 +82,61 @@ def flatten_params(
 
 def unflatten_params(
     params: Float[Array, " n"],
-    shape: Tuple[int, int],
-) -> Tuple[Complex[Array, " H W"], Complex[Array, " H W"]]:
+    sample_shape: Tuple[int, int],
+    probe_shape: Tuple[int, int],
+) -> Tuple[Complex[Array, " Hs Ws"], Complex[Array, " Hp Wp"]]:
     """Unflatten real parameter vector back to complex arrays.
 
     Reconstructs two complex 2D arrays from a flattened real parameter
-    vector. This is the inverse operation of flatten_params.
+    vector. Handles arrays with different shapes (e.g., sample=512×512
+    FOV, probe=64×64 spot).
 
     Parameters
     ----------
     params : Float[Array, " n"]
-        Flattened real parameter vector with n = 4 * H * W.
-    shape : Tuple[int, int]
-        Shape (H, W) of each output array.
+        Flattened real parameter vector with n = 2*(Hs*Ws + Hp*Wp).
+    sample_shape : Tuple[int, int]
+        Shape (Hs, Ws) of the sample array.
+    probe_shape : Tuple[int, int]
+        Shape (Hp, Wp) of the probe array.
 
     Returns
     -------
-    sample : Complex[Array, " H W"]
-        First complex array reconstructed from params[:2*H*W].
-    probe : Complex[Array, " H W"]
-        Second complex array reconstructed from params[2*H*W:].
+    sample : Complex[Array, " Hs Ws"]
+        First complex array reconstructed from first 2*Hs*Ws elements.
+    probe : Complex[Array, " Hp Wp"]
+        Second complex array reconstructed from remaining elements.
 
     Notes
     -----
     This function cannot be JIT-compiled directly because it uses
-    dynamic indexing based on the shape parameter. When used within
-    a JIT-compiled function, ensure the shape is static via
+    dynamic indexing based on the shape parameters. When used within
+    a JIT-compiled function, ensure shapes are static via
     static_argnums.
 
     Examples
     --------
-    >>> params = jnp.arange(4096, dtype=jnp.float64)
-    >>> sample, probe = unflatten_params(params, (32, 32))
+    >>> params = jnp.arange(532480, dtype=jnp.float64)
+    >>> sample, probe = unflatten_params(params, (512, 512), (64, 64))
     >>> sample.shape, probe.shape
-    ((32, 32), (32, 32))
+    ((512, 512), (64, 64))
 
     See Also
     --------
     flatten_params : Forward operation to create flattened vector
     """
-    size: ScalarInteger = shape[0] * shape[1]
-    sample: Complex[Array, " H W"] = params[:size].reshape(
-        shape
-    ) + 1j * params[size : 2 * size].reshape(shape)
-    probe: Complex[Array, " H W"] = params[2 * size : 3 * size].reshape(
-        shape
-    ) + 1j * params[3 * size :].reshape(shape)
+    sample_size: ScalarInteger = sample_shape[0] * sample_shape[1]
+    probe_size: ScalarInteger = probe_shape[0] * probe_shape[1]
+    sample: Complex[Array, " Hs Ws"] = (
+        params[:sample_size].reshape(sample_shape)
+        + 1j * params[sample_size : 2 * sample_size].reshape(sample_shape)
+    )
+    probe: Complex[Array, " Hp Wp"] = (
+        params[2 * sample_size : 2 * sample_size + probe_size].reshape(
+            probe_shape
+        )
+        + 1j * params[2 * sample_size + probe_size :].reshape(probe_shape)
+    )
     return sample, probe
 
 

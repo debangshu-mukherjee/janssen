@@ -16,7 +16,7 @@ Routine Listings
 ----------------
 GaussNewtonState : NamedTuple
     Immutable state for Gauss-Newton optimization with Levenberg-Marquardt
-    damping
+    damping.
 make_gauss_newton_state : function
     Factory function to create validated GaussNewtonState instances
 
@@ -46,10 +46,10 @@ class GaussNewtonState(NamedTuple):
 
     Attributes
     ----------
-    sample : Complex[Array, " H W"]
-        Current object transmission estimate.
-    probe : Complex[Array, " H W"]
-        Current probe wavefront estimate.
+    sample : Complex[Array, " Hs Ws"]
+        Current object transmission estimate (full FOV).
+    probe : Complex[Array, " Hp Wp"]
+        Current probe wavefront estimate (illumination spot).
     iteration : int
         Current iteration number.
     loss : Float[Array, " "]
@@ -60,8 +60,8 @@ class GaussNewtonState(NamedTuple):
         Whether optimization has converged.
     """
 
-    sample: Complex[Array, " H W"]
-    probe: Complex[Array, " H W"]
+    sample: Complex[Array, " Hs Ws"]
+    probe: Complex[Array, " Hp Wp"]
     iteration: ScalarInteger
     loss: Float[Array, " "]
     damping: Float[Array, " "]
@@ -71,8 +71,8 @@ class GaussNewtonState(NamedTuple):
         self,
     ) -> Tuple[
         Tuple[
-            Complex[Array, " H W"],
-            Complex[Array, " H W"],
+            Complex[Array, " Hs Ws"],
+            Complex[Array, " Hp Wp"],
             ScalarInteger,
             Float[Array, " "],
             Float[Array, " "],
@@ -98,8 +98,8 @@ class GaussNewtonState(NamedTuple):
         cls,
         _aux_data: None,
         children: Tuple[
-            Complex[Array, " H W"],
-            Complex[Array, " H W"],
+            Complex[Array, " Hs Ws"],
+            Complex[Array, " Hp Wp"],
             ScalarInteger,
             Float[Array, " "],
             Float[Array, " "],
@@ -112,8 +112,8 @@ class GaussNewtonState(NamedTuple):
 
 @jaxtyped(typechecker=beartype)
 def make_gauss_newton_state(
-    sample: Complex[Array, " H W"],
-    probe: Complex[Array, " H W"],
+    sample: Complex[Array, " Hs Ws"],
+    probe: Complex[Array, " Hp Wp"],
     iteration: ScalarInteger = 0,
     loss: ScalarFloat = jnp.inf,
     damping: ScalarFloat = 1e-3,
