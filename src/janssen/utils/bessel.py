@@ -313,7 +313,7 @@ def _bessel_kv_large(
 
 @jaxtyped(typechecker=beartype)
 def bessel_k_half(x: Float[Array, " ..."]) -> Float[Array, " ..."]:
-    """Special case K_{1/2}(x) = sqrt(π/(2x)) * exp(-x)."""
+    """Compute special case K_{1/2}(x) = sqrt(π/(2x)) * exp(-x)."""
     sqrt_pi_over_2x: Float[Array, " ..."] = jnp.sqrt(jnp.pi / (2.0 * x))
     exp_neg_x: Float[Array, " ..."] = jnp.exp(-x)
     k_half_result: Float[Array, " ..."] = sqrt_pi_over_2x * exp_neg_x

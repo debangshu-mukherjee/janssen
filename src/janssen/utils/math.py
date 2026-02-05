@@ -79,6 +79,7 @@ def flatten_params(
     )
     return result
 
+
 def unflatten_params(
     params: Float[Array, " n"],
     shape: Tuple[int, int],
@@ -124,10 +125,11 @@ def unflatten_params(
     sample: Complex[Array, " H W"] = params[:size].reshape(
         shape
     ) + 1j * params[size : 2 * size].reshape(shape)
-    probe: Complex[Array, " H W"] = params[
-        2 * size : 3 * size
-    ].reshape(shape) + 1j * params[3 * size :].reshape(shape)
+    probe: Complex[Array, " H W"] = params[2 * size : 3 * size].reshape(
+        shape
+    ) + 1j * params[3 * size :].reshape(shape)
     return sample, probe
+
 
 @jaxtyped(typechecker=beartype)
 def fourier_shift(
@@ -191,6 +193,7 @@ def fourier_shift(
     shifted_ft: Complex[Array, " H W"] = field_ft * phase_ramp
     shifted: Complex[Array, " H W"] = jnp.fft.ifft2(shifted_ft)
     return shifted
+
 
 @jaxtyped(typechecker=beartype)
 def wirtinger_grad(

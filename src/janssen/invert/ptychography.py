@@ -9,10 +9,12 @@ measurements.
 
 Routine Listings
 ----------------
-simple_microscope_ptychography : function
+simple_microscope_optim : function
     Performs ptychography reconstruction using gradient-based optimization
 simple_microscope_epie : function
     Performs ptychography reconstruction using extended PIE algorithm
+simple_microscope_gn : function
+    Performs ptychography reconstruction using Gauss-Newton optimization
 
 Notes
 -----
@@ -32,17 +34,23 @@ from jaxtyping import Array, Complex, Float, Int, jaxtyped
 from janssen.scopes import simple_microscope
 from janssen.types import (
     EpieData,
+    GaussNewtonState,
     MicroscopeData,
     OpticalWavefront,
     PtychographyParams,
     PtychographyReconstruction,
     SampleFunction,
     make_epie_data,
+    make_gauss_newton_state,
     make_optical_wavefront,
     make_ptychography_reconstruction,
     make_sample_function,
 )
-from janssen.utils import fourier_shift
+from janssen.utils import (
+    fourier_shift,
+    gauss_newton_step,
+    unflatten_params,
+)
 
 from .initialization import init_simple_epie
 from .loss_functions import create_loss_function
@@ -63,7 +71,7 @@ LOSS_TYPES: Tuple[str, str, str] = ("mse", "mae", "poisson")
 
 
 @jaxtyped(typechecker=beartype)
-def simple_microscope_ptychography(  # noqa: PLR0915
+def simple_microscope_optim(  # noqa: PLR0915
     experimental_data: MicroscopeData,
     reconstruction: PtychographyReconstruction,
     params: PtychographyParams,
@@ -762,6 +770,266 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
         sample=final_sample,
         lightwave=final_lightwave,
         translated_positions=positions_meters,
+        zoom_factor=zoom_factor,
+        aperture_diameter=aperture_diameter,
+        aperture_center=aperture_center,
+        travel_distance=travel_distance,
+        intermediate_samples=intermediate_samples,
+        intermediate_lightwaves=intermediate_lightwaves,
+        intermediate_zoom_factors=intermediate_zoom_factors,
+        intermediate_aperture_diameters=intermediate_aperture_diameters,
+        intermediate_aperture_centers=intermediate_aperture_centers,
+        intermediate_travel_distances=intermediate_travel_distances,
+        losses=losses,
+    )
+    return result
+
+
+@jaxtyped(typechecker=beartype)
+def simple_microscope_gn(  # noqa: PLR0915
+    experimental_data: MicroscopeData,
+    reconstruction: PtychographyReconstruction,
+    num_iterations: int = 10,
+    initial_damping: float = 1e-3,
+    cg_maxiter: int = 50,
+    cg_tol: float = 1e-5,
+) -> PtychographyReconstruction:
+    """Perform ptychographic reconstruction using Gauss-Newton optimization.
+
+    Uses second-order Gauss-Newton optimization with Levenberg-Marquardt
+    damping for ptychography reconstruction. Solves the nonlinear
+    least-squares problem using JAX's autodiff for Jacobian-free
+    optimization via conjugate gradient.
+
+    Parameters
+    ----------
+    experimental_data : MicroscopeData
+        Experimental diffraction patterns and scan positions.
+    reconstruction : PtychographyReconstruction
+        Initial reconstruction state from init_simple_microscope.
+    num_iterations : int, optional
+        Number of Gauss-Newton iterations. Default is 10.
+    initial_damping : float, optional
+        Initial Levenberg-Marquardt damping parameter. Default is 1e-3.
+    cg_maxiter : int, optional
+        Maximum conjugate gradient iterations per GN step. Default is 50.
+    cg_tol : float, optional
+        CG convergence tolerance. Default is 1e-5.
+
+    Returns
+    -------
+    reconstruction : PtychographyReconstruction
+        Updated reconstruction with optimized sample and lightwave.
+
+    Notes
+    -----
+    This uses the general-purpose Gauss-Newton optimization from
+    janssen.utils.gauss_newton, which performs Jacobian-free optimization
+    by composing jvp and vjp for efficient matrix-vector products.
+
+    The damping parameter λ adapts automatically based on the trust-region
+    criterion, making the method robust to poor initial conditions.
+
+    See Also
+    --------
+    simple_microscope_optim : First-order gradient-based optimization
+    simple_microscope_epie : Extended PIE algorithm
+
+    Examples
+    --------
+    >>> data = MicroscopeData(...)
+    >>> init_recon = init_simple_microscope(data, ...)
+    >>> final_recon = simple_microscope_gn(data, init_recon, num_iterations=20)
+    """
+    guess_sample: SampleFunction = reconstruction.sample
+    guess_lightwave: OpticalWavefront = reconstruction.lightwave
+    translated_positions: Float[Array, " N 2"] = (
+        reconstruction.translated_positions
+    )
+    zoom_factor: Float[Array, " "] = reconstruction.zoom_factor
+    aperture_diameter: Float[Array, " "] = reconstruction.aperture_diameter
+    travel_distance: Float[Array, " "] = reconstruction.travel_distance
+    aperture_center: Float[Array, " 2"] = (
+        jnp.zeros(2)
+        if reconstruction.aperture_center is None
+        else reconstruction.aperture_center
+    )
+    sample_dx: Float[Array, " "] = guess_sample.dx
+    camera_pixel_size: Float[Array, " "] = experimental_data.dx
+
+    def amplitude_residuals(
+        params: Float[Array, " n"],
+    ) -> Float[Array, " m"]:
+        """Compute amplitude residuals for ptychography.
+
+        Residuals: r = sqrt(I_measured) - sqrt(I_predicted)
+
+        Parameters
+        ----------
+        params : Float[Array, " n"]
+            Flattened real parameter vector [sample_real, sample_imag,
+            probe_real, probe_imag].
+
+        Returns
+        -------
+        residuals : Float[Array, " m"]
+            Flattened amplitude residuals.
+        """
+        shape: Tuple[int, int] = guess_sample.sample.shape
+        sample_field: Complex[Array, " H W"]
+        probe_field: Complex[Array, " H W"]
+        sample_field, probe_field = unflatten_params(params, shape)
+        sample: SampleFunction = make_sample_function(
+            sample=sample_field, dx=sample_dx
+        )
+        lightwave: OpticalWavefront = make_optical_wavefront(
+            field=probe_field,
+            wavelength=guess_lightwave.wavelength,
+            dx=guess_lightwave.dx,
+            z_position=guess_lightwave.z_position,
+        )
+        simulated_data: MicroscopeData = simple_microscope(
+            sample=sample,
+            positions=translated_positions,
+            lightwave=lightwave,
+            zoom_factor=zoom_factor,
+            aperture_diameter=aperture_diameter,
+            travel_distance=travel_distance,
+            camera_pixel_size=camera_pixel_size,
+            aperture_center=aperture_center,
+        )
+        measured: Float[Array, " N H W"] = experimental_data.image_data
+        predicted: Float[Array, " N H W"] = simulated_data.image_data
+        amp_measured: Float[Array, " N H W"] = jnp.sqrt(
+            jnp.maximum(measured, 1e-12)
+        )
+        amp_predicted: Float[Array, " N H W"] = jnp.sqrt(
+            jnp.maximum(predicted, 1e-12)
+        )
+        residuals: Float[Array, " m"] = (amp_measured - amp_predicted).ravel()
+        return residuals
+
+    state: GaussNewtonState = make_gauss_newton_state(
+        sample=guess_sample.sample,
+        probe=guess_lightwave.field,
+        iteration=0,
+        loss=jnp.inf,
+        damping=initial_damping,
+        converged=False,
+    )
+
+    def body_fn(
+        _iteration: int, current_state: GaussNewtonState
+    ) -> GaussNewtonState:
+        """Single GN iteration."""
+        new_state: GaussNewtonState = gauss_newton_step(
+            current_state,
+            amplitude_residuals,
+            cg_maxiter=cg_maxiter,
+            cg_tol=cg_tol,
+        )
+        return new_state
+
+    def cond_fn(iteration: int, current_state: GaussNewtonState) -> bool:
+        """Continue if not converged and iterations remain."""
+        return jnp.logical_and(
+            iteration < num_iterations,
+            jnp.logical_not(current_state.converged),
+        )
+
+    final_state: GaussNewtonState = jax.lax.while_loop(
+        lambda carry: cond_fn(carry[0], carry[1]),
+        lambda carry: (carry[0] + 1, body_fn(carry[0], carry[1])),
+        (0, state),
+    )[1]
+
+    final_sample: SampleFunction = make_sample_function(
+        sample=final_state.sample, dx=sample_dx
+    )
+    final_lightwave: OpticalWavefront = make_optical_wavefront(
+        field=final_state.probe,
+        wavelength=guess_lightwave.wavelength,
+        dx=guess_lightwave.dx,
+        z_position=guess_lightwave.z_position,
+    )
+    intermediate_samples: Complex[Array, " H W 1"] = jnp.expand_dims(
+        final_state.sample, axis=-1
+    )
+    intermediate_lightwaves: Complex[Array, " H W 1"] = jnp.expand_dims(
+        final_state.probe, axis=-1
+    )
+    intermediate_zoom_factors: Float[Array, " 1"] = jnp.array(
+        [zoom_factor], dtype=jnp.float64
+    )
+    intermediate_aperture_diameters: Float[Array, " 1"] = jnp.array(
+        [aperture_diameter], dtype=jnp.float64
+    )
+    intermediate_aperture_centers: Float[Array, " 2 1"] = jnp.expand_dims(
+        aperture_center, axis=-1
+    )
+    intermediate_travel_distances: Float[Array, " 1"] = jnp.array(
+        [travel_distance], dtype=jnp.float64
+    )
+    losses: Float[Array, " 1 2"] = jnp.array(
+        [[final_state.iteration, final_state.loss]], dtype=jnp.float64
+    )
+    prev_intermediate_samples: Complex[Array, " H W S"] = (
+        reconstruction.intermediate_samples
+    )
+    prev_intermediate_lightwaves: Complex[Array, " H W S"] = (
+        reconstruction.intermediate_lightwaves
+    )
+    prev_intermediate_zoom_factors: Float[Array, " S"] = (
+        reconstruction.intermediate_zoom_factors
+    )
+    prev_intermediate_aperture_diameters: Float[Array, " S"] = (
+        reconstruction.intermediate_aperture_diameters
+    )
+    prev_intermediate_aperture_centers: Float[Array, " 2 S"] = (
+        reconstruction.intermediate_aperture_centers
+    )
+    prev_intermediate_travel_distances: Float[Array, " S"] = (
+        reconstruction.intermediate_travel_distances
+    )
+    prev_losses: Float[Array, " N 2"] = reconstruction.losses
+    if prev_losses.shape[0] > 0:
+        intermediate_samples = jnp.concatenate(
+            [prev_intermediate_samples, intermediate_samples], axis=-1
+        )
+        intermediate_lightwaves = jnp.concatenate(
+            [prev_intermediate_lightwaves, intermediate_lightwaves], axis=-1
+        )
+        intermediate_zoom_factors = jnp.concatenate(
+            [prev_intermediate_zoom_factors, intermediate_zoom_factors],
+            axis=-1,
+        )
+        intermediate_aperture_diameters = jnp.concatenate(
+            [
+                prev_intermediate_aperture_diameters,
+                intermediate_aperture_diameters,
+            ],
+            axis=-1,
+        )
+        intermediate_aperture_centers = jnp.concatenate(
+            [
+                prev_intermediate_aperture_centers,
+                intermediate_aperture_centers,
+            ],
+            axis=-1,
+        )
+        intermediate_travel_distances = jnp.concatenate(
+            [
+                prev_intermediate_travel_distances,
+                intermediate_travel_distances,
+            ],
+            axis=-1,
+        )
+        losses = jnp.concatenate([prev_losses, losses], axis=0)
+
+    result: PtychographyReconstruction = make_ptychography_reconstruction(
+        sample=final_sample,
+        lightwave=final_lightwave,
+        translated_positions=translated_positions,
         zoom_factor=zoom_factor,
         aperture_diameter=aperture_diameter,
         aperture_center=aperture_center,

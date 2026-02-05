@@ -126,6 +126,7 @@ def make_jtj_matvec(
 
     return matvec
 
+
 def compute_jt_residual(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
@@ -162,6 +163,7 @@ def compute_jt_residual(
     jt_r: Float[Array, " n"]
     (jt_r,) = vjp_fn(residuals)
     return residuals, jt_r
+
 
 def make_hessian_matvec(
     loss_fn: Callable[[Float[Array, " n"]], Float[Array, " "]],
@@ -209,6 +211,7 @@ def make_hessian_matvec(
         return hv
 
     return hvp
+
 
 @partial(jax.jit, static_argnums=(1, 2, 3))
 @jaxtyped(typechecker=beartype)
@@ -326,6 +329,7 @@ def gauss_newton_step(
         converged=converged,
     )
 
+
 @partial(jax.jit, static_argnums=(1, 2))
 @jaxtyped(typechecker=beartype)
 def estimate_condition_number(
@@ -383,6 +387,7 @@ def estimate_condition_number(
     av: Float[Array, " n"] = matvec(v_final)
     result: Float[Array, " "] = jnp.dot(v_final, av)
     return result
+
 
 @partial(jax.jit, static_argnums=(1, 2))
 @jaxtyped(typechecker=beartype)

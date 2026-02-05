@@ -19,7 +19,7 @@ Routine Listings
     Vectorized PIE implementation using vmap.
 :func:`simple_microscope_epie`
     Ptychography reconstruction using extended PIE algorithm.
-:func:`simple_microscope_ptychography`
+:func:`simple_microscope_optim`
     Resumable ptychography reconstruction using gradient-based optimization.
 :func:`create_loss_function`
     Factory function for creating various loss functions.
@@ -77,7 +77,8 @@ from .mixed_state import (
 )
 from .ptychography import (
     simple_microscope_epie,
-    simple_microscope_ptychography,
+    simple_microscope_gn,
+    simple_microscope_optim,
 )
 
 __all__: list[str] = [
@@ -95,7 +96,8 @@ __all__: list[str] = [
     "mixed_state_loss",
     "mixed_state_reconstruct",
     "simple_microscope_epie",
-    "simple_microscope_ptychography",
+    "simple_microscope_gn",
+    "simple_microscope_optim",
     "single_pie_iteration",
     "single_pie_sequential",
     "single_pie_vmap",
