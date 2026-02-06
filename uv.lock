@@ -926,7 +926,7 @@ wheels = [
 
 [[package]]
 name = "janssen"
-version = "2025.10.7"
+version = "2025.10.31"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
