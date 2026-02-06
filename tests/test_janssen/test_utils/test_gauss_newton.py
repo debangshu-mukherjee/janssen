@@ -9,6 +9,7 @@ from janssen.utils import (
     compute_jt_residual,
     estimate_jtj_diagonal,
     estimate_max_eigenvalue,
+    gauss_newton_solve,
     gauss_newton_step,
     make_hessian_matvec,
     make_jtj_matvec,
@@ -138,6 +139,39 @@ class TestGaussNewtonStep(chex.TestCase):
             new_state_no_precond.loss, new_state_with_precond.loss, rtol=1e-4
         )
 
+    def test_non_finite_residuals_mark_converged(self) -> None:
+        """Non-finite residuals should set converged so the solver can stop."""
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return jnp.array([jnp.nan, jnp.nan])
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        new_state = gauss_newton_step(state, residual_fn, cg_maxiter=20)
+
+        chex.assert_trees_all_equal(new_state.converged, jnp.array(True))
+        chex.assert_trees_all_equal(new_state.iteration, jnp.array(1))
+
+    def test_near_zero_loss_marks_converged(self) -> None:
+        """Loss below LOSS_ZERO_TOL should mark converged without requiring a step."""
+
+        target = jnp.array([1e-10, -1e-10, 1e-10, -1e-10])
+        params = target.copy()
+
+        def residual_fn(params_in: jnp.ndarray) -> jnp.ndarray:
+            return params_in - target
+
+        sample, probe = unflatten_params(params, (1, 1), (1, 1))
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        new_state = gauss_newton_step(state, residual_fn, cg_maxiter=20)
+
+        chex.assert_trees_all_equal(new_state.converged, jnp.array(True))
+        chex.assert_trees_all_equal(new_state.iteration, jnp.array(1))
+        assert float(new_state.loss) < 1e-14
+
 
 class TestMakeJtjMatvec(chex.TestCase):
     """Tests for make_jtj_matvec."""
@@ -263,3 +297,142 @@ class TestEstimateJtjDiagonal(chex.TestCase):
         chex.assert_trees_all_close(
             diag, jnp.array([1.0, 4.0, 9.0, 16.0]), rtol=0.1
         )
+
+
+class TestGaussNewtonSolve(chex.TestCase):
+    """Tests for gauss_newton_solve."""
+
+    def test_converges_to_solution(self) -> None:
+        """Solver should converge to optimal solution within max iterations."""
+
+        target = jnp.array([1.0, -2.0, 0.5, 1.5])
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - target
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        final_state = gauss_newton_solve(
+            state, residual_fn, max_iterations=50, cg_maxiter=20
+        )
+
+        chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
+        assert final_state.loss < 1e-10
+        assert final_state.iteration > 0
+
+    def test_respects_max_iterations(self) -> None:
+        """Solver should stop at max_iterations even if not converged."""
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return jnp.array([params[0] ** 2 + 1.0, params[1] ** 2 + 2.0])
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        max_iter = 5
+        final_state = gauss_newton_solve(
+            state, residual_fn, max_iterations=max_iter
+        )
+
+        assert final_state.iteration <= max_iter + 1
+
+    def test_early_stop_on_near_zero_loss(self) -> None:
+        """Solver should stop early when loss is near zero."""
+
+        target = jnp.array([1e-15, -1e-15, 1e-15, -1e-15])
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - target
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        final_state = gauss_newton_solve(
+            state, residual_fn, max_iterations=50, cg_maxiter=20
+        )
+
+        chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
+        assert final_state.iteration <= 2
+
+    def test_handles_nan_residuals(self) -> None:
+        """Solver should mark converged when residuals become NaN."""
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return jnp.array([jnp.nan, jnp.nan])
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        final_state = gauss_newton_solve(state, residual_fn, max_iterations=10)
+
+        chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
+        assert final_state.iteration <= 2
+
+    def test_with_preconditioning(self) -> None:
+        """Solver should work with preconditioning enabled."""
+
+        target = jnp.array([1.0, -2.0, 0.5, 1.5])
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - target
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        final_state = gauss_newton_solve(
+            state,
+            residual_fn,
+            max_iterations=50,
+            cg_maxiter=20,
+            use_preconditioner=True,
+        )
+
+        chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
+        assert final_state.loss < 1e-10
+
+    def test_jit_compatible(self) -> None:
+        """Solver should be JIT-compilable."""
+
+        target = jnp.array([1.0, -2.0, 0.5, 1.5])
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - target
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        jitted_solve = jax.jit(
+            gauss_newton_solve,
+            static_argnums=(1, 2, 3, 4, 5),
+        )
+
+        final_state = jitted_solve(state, residual_fn, 50, 20, 1e-5, False)
+
+        chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
+        assert final_state.loss < 1e-10
+
+    def test_stops_on_convergence(self) -> None:
+        """Solver should stop iterating once converged flag is True."""
+
+        target = jnp.array([0.1, -0.1, 0.05, 0.05])
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - target
+
+        sample = jnp.zeros((1, 1), dtype=jnp.complex128)
+        probe = jnp.zeros((1, 1), dtype=jnp.complex128)
+        state = make_gauss_newton_state(sample, probe, damping=1e-3)
+
+        final_state = gauss_newton_solve(
+            state, residual_fn, max_iterations=100, cg_maxiter=50
+        )
+
+        chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
+        assert final_state.iteration < 100

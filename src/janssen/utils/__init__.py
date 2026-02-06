@@ -36,6 +36,8 @@ Routine Listings
     Create exact Hessian-vector product operator.
 :func:`gauss_newton_step`
     Generic Gauss-Newton step with trust-region damping.
+:func:`gauss_newton_solve`
+    High-level solver that runs Gauss-Newton until convergence.
 :func:`estimate_max_eigenvalue`
     Estimate largest eigenvalue of J^T J via power iteration.
 :func:`estimate_jtj_diagonal`
@@ -56,6 +58,7 @@ from .gauss_newton import (
     compute_jt_residual,
     estimate_jtj_diagonal,
     estimate_max_eigenvalue,
+    gauss_newton_solve,
     gauss_newton_step,
     make_hessian_matvec,
     make_jtj_matvec,
@@ -77,6 +80,7 @@ __all__: list[str] = [
     "estimate_max_eigenvalue",
     "flatten_params",
     "fourier_shift",
+    "gauss_newton_solve",
     "gauss_newton_step",
     "get_device_count",
     "make_hessian_matvec",
