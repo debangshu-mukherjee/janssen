@@ -8,84 +8,88 @@ Provides the foundation for type-safe JAX programming with PyTrees.
 
 Routine Listings
 ----------------
-:func:`make_optical_wavefront`
-    Factory function for OpticalWavefront creation.
-:func:`make_propagating_wavefront`
-    Factory function for PropagatingWavefront creation.
-:func:`optical2propagating`
-    Creates a PropagatingWavefront from a tuple of OpticalWavefronts.
-:func:`make_coherent_mode_set`
-    Factory function for CoherentModeSet creation.
-:func:`make_polychromatic_wavefront`
-    Factory function for PolychromaticWavefront creation.
-:func:`make_mutual_intensity`
-    Factory function for MutualIntensity creation.
-:func:`make_mixed_state_ptycho_data`
-    Factory function for MixedStatePtychoData creation.
-:func:`make_diffractogram`
-    Factory function for Diffractogram creation.
-:func:`make_grid_params`
-    Factory function for GridParams creation.
-:func:`make_lens_params`
-    Factory function for LensParams creation.
-:func:`make_microscope_data`
-    Factory function for MicroscopeData creation.
-:func:`make_sample_function`
-    Factory function for SampleFunction creation.
-:func:`make_sliced_material_function`
-    Factory function for SlicedMaterialFunction creation.
-:func:`make_optimizer_state`
-    Factory function for OptimizerState creation.
-:func:`make_ptychography_params`
-    Factory function for PtychographyParams creation.
-:func:`make_ptychography_reconstruction`
-    Factory function for PtychographyReconstruction creation.
-:func:`make_epie_data`
-    Factory function for EpieData creation.
-:func:`make_epie_params`
-    Factory function for EpieParams creation.
-:func:`make_vector_wavefront_3d`
-    Factory function for VectorWavefront3D creation.
-:func:`jones_to_vector3d`
-    Convert Jones field to 3-component vector field.
-:func:`vector3d_to_jones`
-    Extract transverse components as Jones field.
-:class:`OpticalWavefront`
-    PyTree for optical wavefront representation.
-:class:`PropagatingWavefront`
-    PyTree for propagating optical wavefront representation.
 :class:`CoherentModeSet`
     PyTree for coherent mode decomposition of partially coherent fields.
-:class:`PolychromaticWavefront`
-    PyTree for polychromatic/broadband field representation.
-:class:`MutualIntensity`
-    PyTree for full mutual intensity J(r1, r2) representation.
-:class:`MixedStatePtychoData`
-    PyTree for mixed-state ptychography reconstruction state.
 :class:`Diffractogram`
     PyTree for storing diffraction patterns.
+:class:`EpieData`
+    PyTree for ePIE algorithm data.
+:class:`EpieParams`
+    PyTree for ePIE algorithm parameters.
+:class:`GaussNewtonState`
+    PyTree for Gauss-Newton optimization state.
 :class:`GridParams`
     PyTree for computational grid parameters.
 :class:`LensParams`
     PyTree for lens optical parameters.
 :class:`MicroscopeData`
     PyTree for microscopy data.
-:class:`SampleFunction`
-    PyTree for sample representation.
-:class:`SlicedMaterialFunction`
-    PyTree for 3D sliced material with complex refractive index.
+:class:`MixedStatePtychoData`
+    PyTree for mixed-state ptychography reconstruction state.
+:class:`MutualIntensity`
+    PyTree for full mutual intensity J(r1, r2) representation.
+:class:`OpticalWavefront`
+    PyTree for optical wavefront representation.
 :class:`OptimizerState`
     PyTree for optimizer state tracking.
+:class:`PolychromaticWavefront`
+    PyTree for polychromatic/broadband field representation.
+:class:`PropagatingWavefront`
+    PyTree for propagating optical wavefront representation.
 :class:`PtychographyParams`
     PyTree for ptychography reconstruction parameters.
 :class:`PtychographyReconstruction`
     PyTree for ptychography reconstruction results.
-:class:`EpieData`
-    PyTree for ePIE algorithm data.
-:class:`EpieParams`
-    PyTree for ePIE algorithm parameters.
+:class:`SampleFunction`
+    PyTree for sample representation.
+:class:`SlicedMaterialFunction`
+    PyTree for 3D sliced material with complex refractive index.
 :class:`VectorWavefront3D`
     PyTree for full 3-component vector electric field.
+:func:`jones_to_vector3d`
+    Convert Jones field to 3-component vector field.
+:func:`make_coherent_mode_set`
+    Factory function for CoherentModeSet creation.
+:func:`make_diffractogram`
+    Factory function for Diffractogram creation.
+:func:`make_epie_data`
+    Factory function for EpieData creation.
+:func:`make_epie_params`
+    Factory function for EpieParams creation.
+:func:`make_gauss_newton_state`
+    Factory function for GaussNewtonState creation.
+:func:`make_grid_params`
+    Factory function for GridParams creation.
+:func:`make_lens_params`
+    Factory function for LensParams creation.
+:func:`make_microscope_data`
+    Factory function for MicroscopeData creation.
+:func:`make_mixed_state_ptycho_data`
+    Factory function for MixedStatePtychoData creation.
+:func:`make_mutual_intensity`
+    Factory function for MutualIntensity creation.
+:func:`make_optical_wavefront`
+    Factory function for OpticalWavefront creation.
+:func:`make_optimizer_state`
+    Factory function for OptimizerState creation.
+:func:`make_polychromatic_wavefront`
+    Factory function for PolychromaticWavefront creation.
+:func:`make_propagating_wavefront`
+    Factory function for PropagatingWavefront creation.
+:func:`make_ptychography_params`
+    Factory function for PtychographyParams creation.
+:func:`make_ptychography_reconstruction`
+    Factory function for PtychographyReconstruction creation.
+:func:`make_sample_function`
+    Factory function for SampleFunction creation.
+:func:`make_sliced_material_function`
+    Factory function for SlicedMaterialFunction creation.
+:func:`make_vector_wavefront_3d`
+    Factory function for VectorWavefront3D creation.
+:func:`optical2propagating`
+    Creates a PropagatingWavefront from a tuple of OpticalWavefronts.
+:func:`vector3d_to_jones`
+    Extract transverse components as Jones field.
 
 Notes
 -----

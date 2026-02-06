@@ -10,22 +10,22 @@ Routine Listings
 ----------------
 :func:`create_lens_phase`
     Create phase profile for a lens based on its parameters.
+:func:`double_concave_lens`
+    Create parameters for a double concave lens.
+:func:`double_convex_lens`
+    Create parameters for a double convex lens.
 :func:`lens_focal_length`
     Calculate focal length from lens parameters.
 :func:`lens_thickness_profile`
     Calculate thickness profile of a lens.
-:func:`propagate_through_lens`
-    Propagate optical wavefront through a lens.
-:func:`plano_convex_lens`
-    Create parameters for a plano-convex lens.
-:func:`plano_concave_lens`
-    Create parameters for a plano-concave lens.
-:func:`double_convex_lens`
-    Create parameters for a double convex lens.
-:func:`double_concave_lens`
-    Create parameters for a double concave lens.
 :func:`meniscus_lens`
     Create parameters for a meniscus lens.
+:func:`plano_concave_lens`
+    Create parameters for a plano-concave lens.
+:func:`plano_convex_lens`
+    Create parameters for a plano-convex lens.
+:func:`propagate_through_lens`
+    Propagate optical wavefront through a lens.
 
 Notes
 -----

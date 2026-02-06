@@ -7,14 +7,14 @@ patterns, light-sample interactions, and multi-position imaging.
 
 Routine Listings
 ----------------
-:func:`simple_microscope`
-    Calculates 3D diffractograms at all pixel positions in parallel.
-:func:`simple_diffractogram`
-    Calculates the diffractogram using a simple model.
 :func:`diffractogram_noscale`
     Calculates the diffractogram without scaling camera pixel size.
 :func:`linear_interaction`
     Propagates optical wavefront through sample using linear interaction.
+:func:`simple_diffractogram`
+    Calculates the diffractogram using a simple model.
+:func:`simple_microscope`
+    Calculates 3D diffractograms at all pixel positions in parallel.
 
 Notes
 -----

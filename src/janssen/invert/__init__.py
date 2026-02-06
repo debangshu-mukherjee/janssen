@@ -9,42 +9,44 @@ complex-valued fields.
 
 Routine Listings
 ----------------
-:func:`epie_optical`
-    Extended PIE algorithm for optical ptychography.
-:func:`single_pie_iteration`
-    Single iteration of PIE algorithm.
-:func:`single_pie_sequential`
-    Sequential PIE implementation for multiple positions.
-:func:`single_pie_vmap`
-    Vectorized PIE implementation using vmap.
-:func:`simple_microscope_epie`
-    Ptychography reconstruction using extended PIE algorithm.
-:func:`simple_microscope_optim`
-    Resumable ptychography reconstruction using gradient-based optimization.
-:func:`create_loss_function`
-    Factory function for creating various loss functions.
-:func:`compute_fov_and_positions`
-    Compute FOV size and normalized positions from experimental data.
-:func:`init_simple_microscope`
-    Initialize reconstruction by inverting simple microscope forward model.
-:func:`init_simple_epie`
-    Initialize ePIE reconstruction.
 :class:`MixedStatePtychoData`
     PyTree for mixed-state ptychography reconstruction state.
+:func:`coherence_parameterized_loss`
+    Loss function with coherence width as optimizable parameter.
+:func:`compute_fov_and_positions`
+    Compute FOV size and normalized positions from experimental data.
+:func:`create_loss_function`
+    Factory function for creating various loss functions.
+:func:`epie_optical`
+    Extended PIE algorithm for optical ptychography.
+:func:`init_simple_epie`
+    Initialize ePIE reconstruction.
+:func:`init_simple_microscope`
+    Initialize reconstruction by inverting simple microscope forward model.
 :func:`make_mixed_state_ptycho_data`
     Factory function for MixedStatePtychoData creation.
 :func:`mixed_state_forward`
     Compute predicted diffraction patterns for all positions.
 :func:`mixed_state_forward_single_position`
     Forward model for one scan position with mixed-state illumination.
-:func:`mixed_state_loss`
-    Compute reconstruction loss for mixed-state ptychography.
-:func:`coherence_parameterized_loss`
-    Loss function with coherence width as optimizable parameter.
 :func:`mixed_state_gradient_step`
     Single gradient descent step for mixed-state reconstruction.
+:func:`mixed_state_loss`
+    Compute reconstruction loss for mixed-state ptychography.
 :func:`mixed_state_reconstruct`
     Run mixed-state ptychography reconstruction.
+:func:`simple_microscope_epie`
+    Ptychography reconstruction using extended PIE algorithm.
+:func:`simple_microscope_gn`
+    Ptychography reconstruction using Gauss-Newton optimization.
+:func:`simple_microscope_optim`
+    Resumable ptychography reconstruction using gradient-based optimization.
+:func:`single_pie_iteration`
+    Single iteration of PIE algorithm.
+:func:`single_pie_sequential`
+    Sequential PIE implementation for multiple positions.
+:func:`single_pie_vmap`
+    Vectorized PIE implementation using vmap.
 
 Notes
 -----
