@@ -825,7 +825,7 @@ def simple_microscope_gn(
     Notes
     -----
     This uses the general-purpose Gauss-Newton optimization from
-    janssen.utils.gauss_newton, which performs Jacobian-free optimization
+    janssen.utils, which performs Jacobian-free optimization
     by composing jvp and vjp for efficient matrix-vector products.
 
     The damping parameter λ adapts automatically based on the trust-region
