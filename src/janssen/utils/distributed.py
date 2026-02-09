@@ -9,6 +9,8 @@ in optical simulations.
 
 Routine Listings
 ----------------
+get_gpu_memory_gb : function
+    Detects GPU memory in GB using nvidia-smi or returns default.
 create_mesh : function
     Creates a device mesh for data parallelism across available devices.
 get_device_count : function
@@ -43,6 +45,85 @@ from jax.experimental import mesh_utils
 from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, Shaped, jaxtyped
+
+
+def get_gpu_memory_gb() -> float:
+    """Detect GPU memory in GB using nvidia-smi.
+
+    Attempts to detect the total memory of the first GPU using nvidia-smi.
+    Falls back to 16.0 GB (a conservative default for V100/A100 GPUs) if
+    detection fails.
+
+    Returns
+    -------
+    memory_gb : float
+        Total GPU memory in GB. Returns 16.0 if detection fails or if
+        nvidia-smi is not available.
+
+    Notes
+    -----
+    **Detection Method**:
+
+    Uses nvidia-smi command-line tool to query GPU memory:
+    - Queries the first GPU's total memory
+    - Converts from MB to GB
+    - Returns immediately on first successful query
+
+    **Fallback Behavior**:
+
+    Returns 16.0 GB if:
+    - nvidia-smi is not installed or not in PATH
+    - nvidia-smi query fails
+    - Output parsing fails
+    - Timeout occurs (5 second limit)
+    - Non-NVIDIA GPUs are used (AMD, Intel, TPU)
+
+    The 16.0 GB default is chosen as a conservative value that works for:
+    - NVIDIA V100 (16 GB variant)
+    - NVIDIA Tesla T4 (16 GB)
+    - NVIDIA RTX 6000 (24 GB, safe to use 16)
+    - NVIDIA A100 (40 GB variant, safe to use 16)
+
+    **Platform Limitations**:
+
+    - Only works for NVIDIA GPUs with nvidia-smi installed
+    - Does not detect AMD GPU memory (ROCm)
+    - Does not detect Intel GPU memory
+    - Does not detect Google TPU memory
+    - For multi-GPU systems, returns memory of first GPU only
+
+    Examples
+    --------
+    >>> from janssen.utils.distributed import get_gpu_memory_gb
+    >>> memory = get_gpu_memory_gb()
+    >>> print(f"Detected {memory:.1f} GB GPU memory")
+    Detected 16.0 GB GPU memory
+
+    See Also
+    --------
+    get_device_count : Get number of available devices
+    """
+    try:
+        import subprocess
+
+        result: subprocess.CompletedProcess = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.total",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout:
+            memory_mb: float = float(result.stdout.strip().split("\n")[0])
+            memory_gb: float = memory_mb / 1024.0
+            return memory_gb
+    except Exception:
+        pass
+    return 16.0
 
 
 @jaxtyped(typechecker=beartype)
