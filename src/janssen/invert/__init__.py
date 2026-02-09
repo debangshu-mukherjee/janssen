@@ -35,6 +35,8 @@ Routine Listings
     Compute reconstruction loss for mixed-state ptychography.
 :func:`mixed_state_reconstruct`
     Run mixed-state ptychography reconstruction.
+:func:`profile_gn_memory`
+    Profile memory usage during Gauss-Newton optimization.
 :func:`simple_microscope_epie`
     Ptychography reconstruction using extended PIE algorithm.
 :func:`simple_microscope_gn`
@@ -78,6 +80,7 @@ from .mixed_state import (
     mixed_state_reconstruct,
 )
 from .ptychography import (
+    profile_gn_memory,
     simple_microscope_epie,
     simple_microscope_gn,
     simple_microscope_optim,
@@ -97,6 +100,7 @@ __all__: list[str] = [
     "mixed_state_gradient_step",
     "mixed_state_loss",
     "mixed_state_reconstruct",
+    "profile_gn_memory",
     "simple_microscope_epie",
     "simple_microscope_gn",
     "simple_microscope_optim",
