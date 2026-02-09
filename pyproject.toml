@@ -42,6 +42,7 @@ dependencies = [
     "ipykernel>=6.29.5",
     "black[jupyter]>=25.1.0",
     "beartype>=0.21.0",
+    "psutil>=5.9.0",
 ]
 
 [tool.setuptools]

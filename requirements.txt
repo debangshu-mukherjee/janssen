@@ -419,7 +419,9 @@ prompt-toolkit==3.0.52
     #   ipython
     #   jupyter-console
 psutil==7.0.0
-    # via ipykernel
+    # via
+    #   janssen (pyproject.toml)
+    #   ipykernel
 ptyprocess==0.7.0
     # via
     #   pexpect

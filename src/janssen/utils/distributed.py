@@ -9,8 +9,8 @@ in optical simulations.
 
 Routine Listings
 ----------------
-get_gpu_memory_gb : function
-    Detects GPU memory in GB using nvidia-smi or returns default.
+get_device_memory_gb : function
+    Detects device memory in GB (nvidia-smi for GPUs, system RAM for CPUs).
 create_mesh : function
     Creates a device mesh for data parallelism across available devices.
 get_device_count : function
@@ -40,90 +40,128 @@ Examples
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from beartype.typing import Optional
+from beartype.typing import Optional, Tuple
 from jax.experimental import mesh_utils
 from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, Shaped, jaxtyped
 
 
-def get_gpu_memory_gb() -> float:
-    """Detect GPU memory in GB using nvidia-smi.
+def get_device_memory_gb() -> Tuple[int, float]:
+    """Detect device count and memory per device.
 
-    Attempts to detect the total memory of the first GPU using nvidia-smi.
-    Falls back to 16.0 GB (a conservative default for V100/A100 GPUs) if
-    detection fails.
+    Attempts to detect the number of JAX devices and total memory per
+    device using platform-specific methods:
+    - NVIDIA GPUs: nvidia-smi
+    - CPUs: system RAM via psutil or /proc/meminfo
+    - Other platforms: conservative fallback
 
     Returns
     -------
-    memory_gb : float
-        Total GPU memory in GB. Returns 16.0 if detection fails or if
-        nvidia-smi is not available.
+    num_devices : int
+        Number of JAX devices detected via jax.device_count()
+    memory_per_device_gb : float
+        Memory per device in GB. For CPUs, returns total system RAM.
+        Falls back to 16.0 GB for GPUs or 8.0 GB for unknown platforms.
 
     Notes
     -----
-    **Detection Method**:
+    **Detection Methods by Platform**:
 
-    Uses nvidia-smi command-line tool to query GPU memory:
-    - Queries the first GPU's total memory
+    **NVIDIA GPUs**:
+    - Uses nvidia-smi to query first GPU's total memory
     - Converts from MB to GB
-    - Returns immediately on first successful query
+    - Multi-GPU systems: assumes all GPUs have same memory
 
-    **Fallback Behavior**:
+    **CPUs**:
+    - First tries psutil.virtual_memory() for cross-platform detection
+    - Falls back to /proc/meminfo on Linux if psutil unavailable
+    - Returns total system RAM (all devices share this pool)
 
-    Returns 16.0 GB if:
-    - nvidia-smi is not installed or not in PATH
-    - nvidia-smi query fails
-    - Output parsing fails
-    - Timeout occurs (5 second limit)
-    - Non-NVIDIA GPUs are used (AMD, Intel, TPU)
+    **TPUs/Other Accelerators**:
+    - No direct memory detection available
+    - Falls back to conservative defaults
 
-    The 16.0 GB default is chosen as a conservative value that works for:
+    **Fallback Values**:
+
+    GPU fallback (16.0 GB) works for:
     - NVIDIA V100 (16 GB variant)
     - NVIDIA Tesla T4 (16 GB)
     - NVIDIA RTX 6000 (24 GB, safe to use 16)
     - NVIDIA A100 (40 GB variant, safe to use 16)
 
+    CPU fallback (8.0 GB):
+    - Conservative for modern systems (most have 16+ GB)
+    - Prevents OOM on low-memory machines
+
     **Platform Limitations**:
 
-    - Only works for NVIDIA GPUs with nvidia-smi installed
-    - Does not detect AMD GPU memory (ROCm)
-    - Does not detect Intel GPU memory
-    - Does not detect Google TPU memory
-    - For multi-GPU systems, returns memory of first GPU only
+    - NVIDIA GPU: Only detects first GPU memory
+    - AMD GPU (ROCm): No detection, uses fallback
+    - Intel GPU: No detection, uses fallback
+    - Google TPU: No detection, uses fallback
+    - CPU: Detects total system RAM (shared across all cores)
 
     Examples
     --------
-    >>> from janssen.utils.distributed import get_gpu_memory_gb
-    >>> memory = get_gpu_memory_gb()
-    >>> print(f"Detected {memory:.1f} GB GPU memory")
-    Detected 16.0 GB GPU memory
+    >>> from janssen.utils.distributed import get_device_memory_gb
+    >>> num_devices, memory = get_device_memory_gb()
+    >>> print(f"Detected {num_devices} devices with {memory:.1f} GB each")
+    Detected 8 devices with 16.0 GB each
 
     See Also
     --------
     get_device_count : Get number of available devices
     """
-    try:
-        import subprocess
+    import jax
 
-        result: subprocess.CompletedProcess = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=memory.total",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        if result.returncode == 0 and result.stdout:
-            memory_mb: float = float(result.stdout.strip().split("\n")[0])
-            memory_gb: float = memory_mb / 1024.0
-            return memory_gb
-    except Exception:
-        pass
-    return 16.0
+    num_devices: int = jax.device_count()
+    platform: str = jax.devices()[0].platform
+
+    if platform == "gpu":
+        try:
+            import subprocess
+
+            result: subprocess.CompletedProcess = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout:
+                memory_mb: float = float(result.stdout.strip().split("\n")[0])
+                memory_gb: float = memory_mb / 1024.0
+                return (num_devices, memory_gb)
+        except Exception:
+            pass
+        return (num_devices, 16.0)
+
+    elif platform == "cpu":
+        try:
+            import psutil
+
+            total_ram_bytes: int = psutil.virtual_memory().total
+            total_ram_gb: float = total_ram_bytes / 1e9
+            return (num_devices, total_ram_gb)
+        except ImportError:
+            try:
+                with open("/proc/meminfo", "r") as f:
+                    for line in f:
+                        if line.startswith("MemTotal:"):
+                            mem_kb: int = int(line.split()[1])
+                            mem_gb: float = mem_kb / 1e6
+                            return (num_devices, mem_gb)
+            except Exception:
+                pass
+        return (num_devices, 8.0)
+
+    else:
+        return (num_devices, 8.0)
 
 
 @jaxtyped(typechecker=beartype)

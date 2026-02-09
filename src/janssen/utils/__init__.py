@@ -32,8 +32,8 @@ Routine Listings
     Generic Gauss-Newton step with trust-region damping.
 :func:`get_device_count`
     Gets the number of available JAX devices.
-:func:`get_gpu_memory_gb`
-    Detects GPU memory in GB using nvidia-smi or returns default.
+:func:`get_device_memory_gb`
+    Detects device count and memory per device (GB) for GPUs/CPUs.
 :func:`make_hessian_matvec`
     Create exact Hessian-vector product operator.
 :func:`make_jtj_matvec`
@@ -54,7 +54,7 @@ from .bessel import bessel_j0, bessel_jn, bessel_kv
 from .distributed import (
     create_mesh,
     get_device_count,
-    get_gpu_memory_gb,
+    get_device_memory_gb,
     shard_batch,
 )
 from .gauss_newton import (
@@ -86,7 +86,7 @@ __all__: list[str] = [
     "gauss_newton_solve",
     "gauss_newton_step",
     "get_device_count",
-    "get_gpu_memory_gb",
+    "get_device_memory_gb",
     "make_hessian_matvec",
     "make_jtj_matvec",
     "shard_batch",

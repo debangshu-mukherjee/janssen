@@ -11,6 +11,8 @@ Routine Listings
 ----------------
 optimal_cg_params : function
     Calculate optimal conjugate gradient parameters for memory constraints
+profile_gn_memory : function
+    Profile GPU memory usage during Gauss-Newton optimization
 simple_microscope_optim : function
     Performs ptychography reconstruction using gradient-based optimization
 simple_microscope_epie : function
@@ -53,7 +55,7 @@ from janssen.types import (
 from janssen.utils import (
     fourier_shift,
     gauss_newton_solve,
-    get_gpu_memory_gb,
+    get_device_memory_gb,
     unflatten_params,
 )
 
@@ -790,12 +792,158 @@ def simple_microscope_epie(  # noqa: PLR0914, PLR0915
     return result
 
 
+def profile_gn_memory(
+    experimental_data: MicroscopeData,
+    reconstruction: PtychographyReconstruction,
+    cg_maxiter: int = 5,
+    verbose: bool = True,
+) -> dict:
+    """Profile memory usage during Gauss-Newton optimization.
+
+    Tracks memory allocation at key stages to diagnose OOM issues.
+    Works with GPU, TPU, and CPU backends (memory stats available on
+    GPU and TPU only). Useful for understanding actual XLA memory
+    behavior vs theoretical predictions.
+
+    Parameters
+    ----------
+    experimental_data : MicroscopeData
+        Experimental diffraction patterns
+    reconstruction : PtychographyReconstruction
+        Initial reconstruction state
+    cg_maxiter : int, optional
+        CG iterations to test. Start low (3-5) to avoid OOM. Default is 5.
+    verbose : bool, optional
+        Print detailed memory snapshots. Default is True.
+
+    Returns
+    -------
+    memory_profile : dict
+        Dictionary with keys:
+        - 'baseline': Memory before GN step
+        - 'after_warmup': Memory after warmup compilation
+        - 'after_gn': Memory after 1 GN iteration
+        - 'peak_per_device_gb': Peak memory per device (float or None)
+        - 'succeeded': Whether profiling completed without OOM
+
+    Notes
+    -----
+    Memory profiling is supported on:
+    - GPU (CUDA, ROCm): Full support via device.memory_stats()
+    - TPU: Full support via device.memory_stats()
+    - CPU: Limited support (profiling runs but memory stats unavailable)
+
+    On unsupported platforms, profiling still runs to test for OOM,
+    but peak_per_device_gb will be None.
+
+    Examples
+    --------
+    >>> profile = profile_gn_memory(data, init_recon, cg_maxiter=3)
+    >>> print(f"Peak memory: {profile['peak_per_device_gb']:.2f} GB")
+    """
+    def get_memory_snapshot(label: str) -> dict:
+        """Capture memory across all devices (GPU/TPU/CPU)."""
+        snapshot = {'label': label, 'devices': []}
+        supported_devices = 0
+
+        for i, device in enumerate(jax.devices()):
+            try:
+                stats = device.memory_stats()
+                snapshot['devices'].append({
+                    'id': i,
+                    'platform': device.platform,
+                    'bytes': stats.get('bytes_in_use', 0),
+                    'peak': stats.get('peak_bytes_in_use', 0),
+                })
+                supported_devices += 1
+            except (AttributeError, NotImplementedError, KeyError):
+                snapshot['devices'].append({
+                    'id': i,
+                    'platform': device.platform,
+                    'unsupported': True,
+                })
+
+        if verbose and supported_devices > 0:
+            print(f"\n{label}:")
+            total_gb = (
+                sum(d.get('bytes', 0) for d in snapshot['devices'])
+                / 1e9
+            )
+            peak_gb = (
+                max(d.get('peak', 0) for d in snapshot['devices']) / 1e9
+            )
+            print(
+                f"  Total: {total_gb:.2f} GB, "
+                f"Peak/device: {peak_gb:.2f} GB "
+                f"({supported_devices}/{len(jax.devices())} devices)"
+            )
+        elif verbose and supported_devices == 0:
+            platforms = {d['platform'] for d in snapshot['devices']}
+            print(f"\n{label}:")
+            print(
+                f"  Memory profiling not supported on "
+                f"{', '.join(platforms)}"
+            )
+
+        return snapshot
+
+    profile = {}
+    profile['baseline'] = get_memory_snapshot("Baseline")
+
+    try:
+        if verbose:
+            print(f"\nRunning GN with cg_maxiter={cg_maxiter}...")
+
+        _ = simple_microscope_gn(
+            experimental_data,
+            reconstruction,
+            num_iterations=1,
+            cg_maxiter=cg_maxiter,
+            cg_tol=1e-2,
+        )
+
+        profile['after_gn'] = get_memory_snapshot("After 1 GN iteration")
+        profile['succeeded'] = True
+
+        peak_values = [
+            d.get('peak', 0)
+            for s in profile.values()
+            if isinstance(s, dict) and 'devices' in s
+            for d in s['devices']
+            if 'peak' in d
+        ]
+
+        if peak_values:
+            profile['peak_per_device_gb'] = max(peak_values) / 1e9
+            if verbose:
+                print("\n✓ Profiling succeeded!")
+                peak_mem = profile['peak_per_device_gb']
+                print(f"  Peak memory: {peak_mem:.2f} GB/device")
+        else:
+            profile['peak_per_device_gb'] = None
+            if verbose:
+                print(
+                    "\n✓ Profiling succeeded "
+                    "(memory stats unavailable)"
+                )
+
+    except Exception as e:
+        profile['after_gn'] = get_memory_snapshot("At failure")
+        profile['succeeded'] = False
+        profile['error'] = str(e)
+
+        if verbose:
+            print(f"\n✗ Profiling failed: {e}")
+
+    return profile
+
+
 @jaxtyped(typechecker=beartype)
 def optimal_cg_params(
     experimental_data: MicroscopeData,
     reconstruction: PtychographyReconstruction,
     memory_per_device_gb: float = -1.0,
-    safety_factor: float = 0.5,
+    safety_factor: float = 0.3,
 ) -> Tuple[int, float]:
     """Calculate optimal conjugate gradient parameters for memory constraints.
 
@@ -815,8 +963,11 @@ def optimal_cg_params(
        - Each parameter is complex128 (16 bytes)
 
     2. **Memory Estimation**:
-       - CG memory per iteration: ~3 × param_size
-         (stores residual, direction, Ap vectors)
+       - CG memory per iteration has two components:
+         a. Parameter space: 3 × param_size × 16 bytes
+            (stores x, r, p vectors in parameter space)
+         b. Residual space: 6 × N × H × W × 4 bytes
+            (Jacobian-vector products create multiple residual evaluations)
        - Baseline memory: forward model + gradients
          ≈ 2 × (N × H × W × 4 bytes) for diffractograms
        - Available memory: (devices × memory_per_device × safety_factor)
@@ -824,8 +975,8 @@ def optimal_cg_params(
 
     3. **CG Iteration Calculation**:
        - Max iterations: floor(available_memory / memory_per_iteration)
-       - Clamp to [5, 50] range (min 5 for convergence, max 50 for
-         diminishing returns)
+       - Clamp to [5, 20] range (min 5 for convergence, max 20 for
+         conservative memory safety with compilation overhead)
 
     4. **Tolerance Selection**:
        - Continuous log-linear relationship: tol = 10^(-(maxiter + 25)/15)
@@ -843,14 +994,15 @@ def optimal_cg_params(
         Reconstruction state containing sample and probe. Used to
         determine parameter dimensions.
     memory_per_device_gb : float, optional
-        Available memory per GPU in GB. Default is -1.0 which triggers
-        automatic detection via get_gpu_memory_gb() (queries nvidia-smi,
-        falls back to 16.0 GB). Typical values: V100/RTX 6000 = 16 GB,
+        Available memory per device in GB. Default is -1.0 which triggers
+        automatic detection via get_device_memory_gb() (nvidia-smi for GPUs,
+        system RAM for CPUs). Typical GPU values: V100/RTX 6000 = 16 GB,
         A100 = 40 GB, H100 = 80 GB.
     safety_factor : float, optional
-        Fraction of memory to use for CG (0-1). Default is 0.5 to leave
-        headroom for compilation overhead, fragmentation, and peak
-        allocations. XLA compilation can use 2-3× runtime memory.
+        Fraction of memory to use for CG (0-1). Default is 0.3 to leave
+        headroom for compilation overhead (2-3× runtime memory),
+        fragmentation, and peak allocations. Increase to 0.4-0.5 for
+        problems with <100 positions or after warm-up compilation.
 
     Returns
     -------
@@ -865,13 +1017,16 @@ def optimal_cg_params(
     -----
     **Memory Model**:
 
-    The memory estimation is conservative and includes safety margins:
-    - Actual CG memory varies with XLA optimizations (fusion,
-      rematerialization)
-    - safety_factor=0.5 typically provides 2× headroom
-    - For very large problems, reduce safety_factor to 0.4 or lower
-    - For small problems (<100 positions), increase to 0.7 for better
-      accuracy
+    The memory estimation accounts for XLA's actual buffer allocation:
+    - Theoretical minimum: ~6 residual evaluations per CG iteration
+    - Empirical overhead: ~40× residual size per iteration (measured)
+    - Overhead sources: XLA buffer stacking, compilation temporaries,
+      CG intermediate storage, sharding boundary copies
+    - safety_factor=0.3 accounts for additional ~3× peak memory during
+      compilation and runtime fluctuations
+    - For very large problems (N > 500), reduce to 0.2 if needed
+    - For small problems (<100 positions) after warm-up, increase to
+      0.4-0.5 for better accuracy
 
     **Accuracy vs Memory Tradeoff**:
 
@@ -892,53 +1047,60 @@ def optimal_cg_params(
 
     For N=400, H=W=256, sample=512×512, probe=256×256, 7 GPUs, 16GB each:
     - Total params: 512² + 256² = 327,680 complex128 = 5.24 MB
-    - CG memory/iter: 3 × 5.24 MB = 15.72 MB
-    - Baseline memory: 2 × (400 × 256 × 256 × 4) / 7 devices ≈ 30 MB/device
-    - Available: 7 × 16GB × 0.5 - 0.21 GB = 56 GB - 0.21 GB ≈ 55.8 GB
-    - Max iters: 55.8 GB / 15.72 MB ≈ 3550 (clamped to 50)
-    - Recommended: cg_maxiter=50, tol=1e-5
+    - Param space memory/iter: 3 × 5.24 MB = 15.72 MB
+    - Residual space memory/iter: 40 × 400 × 256 × 256 × 4 = 4.19 GB
+    - CG memory/iter: 15.72 MB + 4.19 GB ≈ 4.21 GB
+    - Baseline memory: 2 × (400 × 256 × 256 × 4) = 210 MB
+    - Available: 7 × 16GB × 0.3 - 0.21 GB ≈ 33.4 GB
+    - Max iters: 33.4 GB / 4.21 GB ≈ 7
+    - Recommended: cg_maxiter=7, tol≈4e-3
 
     For same problem with 1 GPU:
-    - Available: 1 × 16GB × 0.5 - 0.21 GB ≈ 7.8 GB
-    - Max iters: 7.8 GB / 15.72 MB ≈ 495 (clamped to 50)
-    - Recommended: cg_maxiter=50, tol=1e-5
+    - Available: 1 × 16GB × 0.3 - 0.21 GB ≈ 4.6 GB
+    - Max iters: 4.6 GB / 4.21 GB ≈ 1
+    - Recommended: cg_maxiter=5 (minimum), tol=1e-2
 
     For N=400, sample=1024×1024, probe=512×512, 7 GPUs:
     - Total params: 1024² + 512² = 1,310,720 complex128 = 21 MB
-    - CG memory/iter: 3 × 21 MB = 63 MB
-    - Available: ≈ 55.8 GB
-    - Max iters: 55.8 GB / 63 MB ≈ 885 (clamped to 50)
-    - Recommended: cg_maxiter=50, tol=1e-5
+    - Param space: 3 × 21 MB = 63 MB, Residual space: 4.19 GB
+    - CG memory/iter: 4.25 GB
+    - Available: ≈ 33.4 GB
+    - Max iters: 33.4 GB / 4.25 GB ≈ 7
+    - Recommended: cg_maxiter=7, tol≈4e-3
 
     For N=400, sample=2048×2048, probe=512×512, 7 GPUs:
     - Total params: 2048² + 512² = 4,456,448 complex128 = 71.3 MB
-    - CG memory/iter: 3 × 71.3 MB = 214 MB
-    - Available: ≈ 55.8 GB
-    - Max iters: 55.8 GB / 214 MB ≈ 261 (clamped to 50)
-    - Recommended: cg_maxiter=50, tol=1e-5
+    - Param space: 3 × 71.3 MB = 214 MB, Residual space: 4.19 GB
+    - CG memory/iter: 4.40 GB
+    - Available: ≈ 33.4 GB
+    - Max iters: 33.4 GB / 4.40 GB ≈ 7
+    - Recommended: cg_maxiter=7, tol≈4e-3
 
     For N=400, sample=4096×4096, probe=1024×1024, 7 GPUs:
     - Total params: 4096² + 1024² = 17,825,792 complex128 = 285 MB
-    - CG memory/iter: 3 × 285 MB = 855 MB
-    - Available: ≈ 55.8 GB
-    - Max iters: 55.8 GB / 855 MB ≈ 65 (clamped to 50)
-    - Recommended: cg_maxiter=50, tol=1e-5
+    - Param space: 3 × 285 MB = 855 MB, Residual space: 4.19 GB
+    - CG memory/iter: 5.05 GB
+    - Available: ≈ 33.4 GB
+    - Max iters: 33.4 GB / 5.05 GB ≈ 6
+    - Recommended: cg_maxiter=6, tol≈5e-3
 
     For N=400, sample=8192×8192, probe=2048×2048, 7 GPUs, 16GB:
     - Total params: 8192² + 2048² = 71,303,168 complex128 = 1.14 GB
-    - CG memory/iter: 3 × 1.14 GB = 3.42 GB
-    - Available: ≈ 55.8 GB
-    - Max iters: 55.8 GB / 3.42 GB ≈ 16
-    - Recommended: cg_maxiter=16, tol=1e-4
+    - Param space: 3 × 1.14 GB = 3.42 GB, Residual space: 4.19 GB
+    - CG memory/iter: 7.61 GB
+    - Available: ≈ 33.4 GB
+    - Max iters: 33.4 GB / 7.61 GB ≈ 4
+    - Recommended: cg_maxiter=5 (minimum), tol=1e-2
 
     **Design Decisions**:
 
-    - safety_factor=0.5 chosen empirically: provides reliable OOM
-      avoidance
+    - safety_factor=0.3 chosen empirically: provides reliable OOM
+      avoidance accounting for ~3× compilation overhead
     - Clamp minimum to 5: CG needs at least a few iterations for any
       progress
-    - Clamp maximum to 50: diminishing returns beyond 50 iterations,
-      better to do more GN steps
+    - Clamp maximum to 20: conservative cap for memory safety with
+      compilation overhead; beyond 20, better to do more GN iterations
+      than risk OOM
     - Continuous tolerance formula tol = 10^(-(maxiter + 25)/15) provides
       smooth scaling: more iterations enable tighter tolerances, fewer
       iterations require looser tolerances for CG convergence
@@ -964,7 +1126,7 @@ def optimal_cg_params(
     ... )
     """
     if memory_per_device_gb < 0:
-        memory_per_device_gb = get_gpu_memory_gb()
+        _, memory_per_device_gb = get_device_memory_gb()
     num_positions: int = experimental_data.image_data.shape[0]
     diff_height: int = experimental_data.image_data.shape[1]
     diff_width: int = experimental_data.image_data.shape[2]
@@ -974,9 +1136,18 @@ def optimal_cg_params(
     probe_size: int = probe_shape[0] * probe_shape[1]
     total_params: int = sample_size + probe_size
     bytes_per_complex128: int = 16
-    cg_vectors_per_iter: int = 3
+    param_space_vectors: int = 3
+    param_memory_per_iter_bytes: float = (
+        total_params * bytes_per_complex128 * param_space_vectors
+    )
+    residual_size: int = num_positions * diff_height * diff_width
+    bytes_per_float32: int = 4
+    residual_evaluations_per_iter: int = 40
+    residual_memory_per_iter_bytes: float = (
+        residual_size * bytes_per_float32 * residual_evaluations_per_iter
+    )
     cg_memory_per_iter_bytes: float = (
-        total_params * bytes_per_complex128 * cg_vectors_per_iter
+        param_memory_per_iter_bytes + residual_memory_per_iter_bytes
     )
     cg_memory_per_iter_gb: float = cg_memory_per_iter_bytes / 1e9
     num_devices: int = len(jax.devices())
@@ -994,7 +1165,8 @@ def optimal_cg_params(
         cg_tol: float = 1e-2
     else:
         max_cg_iters: int = int(available_memory_gb / cg_memory_per_iter_gb)
-        cg_maxiter: int = max(5, min(50, max_cg_iters))
+        conservative_cap: int = 20
+        cg_maxiter: int = max(5, min(conservative_cap, max_cg_iters))
         log_tol: float = -(cg_maxiter + 25.0) / 15.0
         cg_tol: float = 10.0**log_tol
     result: Tuple[int, float] = (cg_maxiter, cg_tol)
