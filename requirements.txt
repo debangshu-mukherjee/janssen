@@ -8,6 +8,12 @@ accessible-pygments==0.0.5
     # via
     #   furo
     #   pydata-sphinx-theme
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.13.3
+    # via gcsfs
+aiosignal==1.4.0
+    # via aiohttp
 alabaster==1.0.0
     # via sphinx
 anyio==4.10.0
@@ -26,6 +32,7 @@ async-lru==2.0.5
     # via jupyterlab
 attrs==25.3.0
     # via
+    #   aiohttp
     #   interrogate
     #   jsonschema
     #   referencing
@@ -58,6 +65,8 @@ chardet==5.2.0
     # via pygount
 charset-normalizer==3.4.3
     # via requests
+cheroot==11.1.2
+    # via xprof
 chex==0.1.91
     # via
     #   janssen (pyproject.toml)
@@ -80,13 +89,17 @@ contourpy==1.3.3
 coverage==7.10.6
     # via pytest-cov
 cryptography==45.0.7
-    # via secretstorage
+    # via
+    #   google-auth
+    #   secretstorage
 cycler==0.12.1
     # via matplotlib
 debugpy==1.8.16
     # via ipykernel
 decorator==5.2.1
-    # via ipython
+    # via
+    #   gcsfs
+    #   ipython
 defusedxml==0.7.1
     # via nbconvert
 docstring-parser-fork==0.0.13
@@ -99,6 +112,8 @@ docutils==0.21.2
     #   readme-renderer
     #   sphinx
     #   sphinx-rtd-theme
+etils==1.13.0
+    # via xprof
 execnet==2.1.1
     # via pytest-xdist
 executing==2.2.1
@@ -109,12 +124,68 @@ fonttools==4.59.2
     # via matplotlib
 fqdn==1.5.1
     # via jsonschema
+frozenlist==1.8.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec==2026.2.0
+    # via
+    #   etils
+    #   gcsfs
+    #   xprof
 furo==2025.7.19
     # via janssen (pyproject.toml)
+gcsfs==2026.2.0
+    # via xprof
 gitdb==4.0.12
     # via gitpython
 gitpython==3.1.46
     # via pygount
+google-api-core==2.29.0
+    # via
+    #   google-cloud-core
+    #   google-cloud-storage
+    #   google-cloud-storage-control
+google-auth==2.48.0
+    # via
+    #   gcsfs
+    #   google-api-core
+    #   google-auth-oauthlib
+    #   google-cloud-core
+    #   google-cloud-storage
+    #   google-cloud-storage-control
+google-auth-oauthlib==1.2.4
+    # via gcsfs
+google-cloud-core==2.5.0
+    # via google-cloud-storage
+google-cloud-storage==3.9.0
+    # via gcsfs
+google-cloud-storage-control==1.9.0
+    # via gcsfs
+google-crc32c==1.8.0
+    # via
+    #   google-cloud-storage
+    #   google-resumable-media
+google-resumable-media==2.8.0
+    # via google-cloud-storage
+googleapis-common-protos==1.72.0
+    # via
+    #   google-api-core
+    #   grpc-google-iam-v1
+    #   grpcio-status
+grpc-google-iam-v1==0.14.3
+    # via google-cloud-storage-control
+grpcio==1.78.0
+    # via
+    #   google-api-core
+    #   google-cloud-storage-control
+    #   googleapis-common-protos
+    #   grpc-google-iam-v1
+    #   grpcio-status
+grpcio-status==1.78.0
+    # via google-api-core
+gviz-api==1.10.0
+    # via xprof
 h11==0.16.0
     # via httpcore
 httpcore==1.0.9
@@ -129,8 +200,11 @@ idna==3.10
     #   httpx
     #   jsonschema
     #   requests
+    #   yarl
 imagesize==1.4.1
     # via sphinx
+importlib-resources==6.5.2
+    # via etils
 iniconfig==2.1.0
     # via pytest
 interrogate==1.7.0
@@ -162,7 +236,9 @@ jaraco-classes==3.4.0
 jaraco-context==6.0.1
     # via keyring
 jaraco-functools==4.3.0
-    # via keyring
+    # via
+    #   cheroot
+    #   keyring
 jax==0.7.1
     # via
     #   janssen (pyproject.toml)
@@ -266,6 +342,7 @@ markupsafe==3.0.2
     # via
     #   jinja2
     #   nbconvert
+    #   werkzeug
 matplotlib==3.10.6
     # via
     #   janssen (pyproject.toml)
@@ -289,8 +366,13 @@ ml-dtypes==0.5.3
     #   jaxlib
 more-itertools==10.8.0
     # via
+    #   cheroot
     #   jaraco-classes
     #   jaraco-functools
+multidict==6.7.1
+    # via
+    #   aiohttp
+    #   yarl
 mypy-extensions==1.1.0
     # via black
 myst-parser==4.0.1
@@ -368,6 +450,8 @@ nvidia-nvjitlink-cu12==12.9.86
     #   nvidia-cusparse-cu12
 nvidia-nvshmem-cu12==3.3.24
     # via jax-cuda12-plugin
+oauthlib==3.3.1
+    # via requests-oauthlib
 opt-einsum==3.4.0
     # via jax
 optax==0.2.5
@@ -418,6 +502,23 @@ prompt-toolkit==3.0.52
     # via
     #   ipython
     #   jupyter-console
+propcache==0.4.1
+    # via
+    #   aiohttp
+    #   yarl
+proto-plus==1.27.1
+    # via
+    #   google-api-core
+    #   google-cloud-storage-control
+protobuf==6.33.5
+    # via
+    #   google-api-core
+    #   google-cloud-storage-control
+    #   googleapis-common-protos
+    #   grpc-google-iam-v1
+    #   grpcio-status
+    #   proto-plus
+    #   xprof
 psutil==7.0.0
     # via
     #   janssen (pyproject.toml)
@@ -430,6 +531,12 @@ pure-eval==0.2.3
     # via stack-data
 py==1.11.0
     # via interrogate
+pyasn1==0.6.2
+    # via
+    #   pyasn1-modules
+    #   rsa
+pyasn1-modules==0.4.2
+    # via google-auth
 pycparser==2.22
     # via cffi
 pydata-sphinx-theme==0.16.1
@@ -489,11 +596,17 @@ referencing==0.36.2
     #   jupyter-events
 requests==2.32.5
     # via
+    #   gcsfs
+    #   google-api-core
+    #   google-cloud-storage
     #   id
     #   jupyterlab-server
+    #   requests-oauthlib
     #   requests-toolbelt
     #   sphinx
     #   twine
+requests-oauthlib==2.0.0
+    # via google-auth-oauthlib
 requests-toolbelt==1.0.0
     # via twine
 rfc3339-validator==0.1.4
@@ -516,6 +629,8 @@ rpds-py==0.27.1
     # via
     #   jsonschema
     #   referencing
+rsa==4.9.1
+    # via google-auth
 ruff==0.12.12
     # via janssen (pyproject.toml)
 scipy==1.16.1
@@ -528,13 +643,17 @@ secretstorage==3.3.3
 send2trash==1.8.3
     # via jupyter-server
 setuptools==80.9.0
-    # via jupyterlab
+    # via
+    #   jupyterlab
+    #   xprof
 six==1.17.0
     # via
+    #   gviz-api
     #   pockets
     #   python-dateutil
     #   rfc3339-validator
     #   sphinxcontrib-napoleon
+    #   xprof
 smmap==5.0.2
     # via gitdb
 sniffio==1.3.1
@@ -622,9 +741,12 @@ types-python-dateutil==2.9.0.20250822
     # via arrow
 typing-extensions==4.15.0
     # via
+    #   aiosignal
     #   anyio
     #   beautifulsoup4
     #   chex
+    #   etils
+    #   grpcio
     #   pydata-sphinx-theme
     #   referencing
 uri-template==1.3.0
@@ -645,5 +767,13 @@ webencodings==0.5.1
     #   tinycss2
 websocket-client==1.8.0
     # via jupyter-server
+werkzeug==3.1.5
+    # via xprof
 widgetsnbextension==4.0.14
     # via ipywidgets
+xprof==2.21.6
+    # via janssen (pyproject.toml)
+yarl==1.22.0
+    # via aiohttp
+zipp==3.23.0
+    # via etils

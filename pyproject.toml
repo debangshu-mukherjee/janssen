@@ -43,6 +43,7 @@ dependencies = [
     "black[jupyter]>=25.1.0",
     "beartype>=0.21.0",
     "psutil>=5.9.0",
+    "xprof>=2.21.6",
 ]
 
 [tool.setuptools]
