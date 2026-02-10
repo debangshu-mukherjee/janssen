@@ -119,7 +119,7 @@ def diffractogram_noscale(
     camera_pixel_size : ScalarFloat
         The pixel size of the camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
-        The center of the aperture in pixels
+        The center of the aperture in meters
 
     Returns
     -------
@@ -183,7 +183,7 @@ def simple_diffractogram(
     camera_pixel_size : ScalarFloat
         The pixel size of the detector/camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
-        The center of the aperture in pixels
+        The center of the aperture in meters
 
     Returns
     -------
@@ -304,7 +304,7 @@ def simple_microscope(
     camera_pixel_size : ScalarFloat
         The pixel size of the detector/camera in meters
     aperture_center : Optional[Float[Array, " 2"]], optional
-        The center of the aperture in pixels
+        The center of the aperture in meters
 
     Returns
     -------

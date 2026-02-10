@@ -14,29 +14,33 @@ Routine Listings
     Compute J_n(x), regular Bessel function of the first kind, order n.
 :func:`bessel_kv`
     Compute K_v(x), modified Bessel function of the second kind.
-:func:`compute_jt_residual`
+:func:`jt_residual`
     Compute residuals and J^T @ r simultaneously.
 :func:`create_mesh`
     Creates a device mesh for data parallelism across available devices.
-:func:`estimate_jtj_diagonal`
+:func:`jtj_diag`
     Estimate diagonal of J^T J for preconditioning.
-:func:`estimate_max_eigenvalue`
+:func:`max_eigenval`
     Estimate largest eigenvalue of J^T J via power iteration.
 :func:`flatten_params`
     Flatten complex arrays to real parameter vector for optimization.
 :func:`fourier_shift`
     FFT-based sub-pixel shifting of 2D fields.
-:func:`gauss_newton_solve`
+:func:`gn_solve`
     High-level solver that runs Gauss-Newton until convergence.
-:func:`gauss_newton_step`
+:func:`gn_loss_history`
+    Gauss-Newton solver with per-iteration loss tracking only.
+:func:`gn_history`
+    Gauss-Newton solver with per-iteration history tracking.
+:func:`gn_step`
     Generic Gauss-Newton step with trust-region damping.
 :func:`get_device_count`
     Gets the number of available JAX devices.
 :func:`get_device_memory_gb`
     Detects device count and memory per device (GB) for GPUs/CPUs.
-:func:`make_hessian_matvec`
+:func:`hessian_matvec`
     Create exact Hessian-vector product operator.
-:func:`make_jtj_matvec`
+:func:`jtj_matvec`
     Create Jacobian-free (J^T J + λI) operator for Gauss-Newton.
 :func:`shard_batch`
     Shards array data across the batch dimension for parallel processing.
@@ -58,13 +62,15 @@ from .distributed import (
     shard_batch,
 )
 from .gauss_newton import (
-    compute_jt_residual,
-    estimate_jtj_diagonal,
-    estimate_max_eigenvalue,
-    gauss_newton_solve,
-    gauss_newton_step,
-    make_hessian_matvec,
-    make_jtj_matvec,
+    jt_residual,
+    jtj_diag,
+    max_eigenval,
+    gn_solve,
+    gn_loss_history,
+    gn_history,
+    gn_step,
+    hessian_matvec,
+    jtj_matvec,
 )
 from .math import (
     flatten_params,
@@ -77,18 +83,20 @@ __all__: list[str] = [
     "bessel_j0",
     "bessel_jn",
     "bessel_kv",
-    "compute_jt_residual",
+    "jt_residual",
     "create_mesh",
-    "estimate_jtj_diagonal",
-    "estimate_max_eigenvalue",
+    "jtj_diag",
+    "max_eigenval",
     "flatten_params",
     "fourier_shift",
-    "gauss_newton_solve",
-    "gauss_newton_step",
+    "gn_solve",
+    "gn_loss_history",
+    "gn_history",
+    "gn_step",
     "get_device_count",
     "get_device_memory_gb",
-    "make_hessian_matvec",
-    "make_jtj_matvec",
+    "hessian_matvec",
+    "jtj_matvec",
     "shard_batch",
     "unflatten_params",
     "wirtinger_grad",

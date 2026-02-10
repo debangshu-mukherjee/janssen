@@ -6,19 +6,19 @@ import jax.numpy as jnp
 
 from janssen.types import make_gauss_newton_state
 from janssen.utils import (
-    compute_jt_residual,
-    estimate_jtj_diagonal,
-    estimate_max_eigenvalue,
-    gauss_newton_solve,
-    gauss_newton_step,
-    make_hessian_matvec,
-    make_jtj_matvec,
+    jt_residual,
+    jtj_diag,
+    max_eigenval,
+    gn_solve,
+    gn_step,
+    hessian_matvec,
+    jtj_matvec,
     unflatten_params,
 )
 
 
 class TestGaussNewtonStep(chex.TestCase):
-    """Tests for gauss_newton_step."""
+    """Tests for gn_step."""
 
     def test_accepted_step_updates_state(self) -> None:
         """Accepted step should update params and reduce damping."""
@@ -32,7 +32,7 @@ class TestGaussNewtonStep(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state = gauss_newton_step(state, residual_fn, cg_maxiter=20)
+        new_state = gn_step(state, residual_fn, cg_maxiter=20)
 
         expected_params = target / (1.0 + state.damping)
         expected_sample, expected_probe = unflatten_params(
@@ -59,7 +59,7 @@ class TestGaussNewtonStep(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state = gauss_newton_step(state, residual_fn)
+        new_state = gn_step(state, residual_fn)
 
         chex.assert_trees_all_close(new_state.sample, sample)
         chex.assert_trees_all_close(new_state.probe, probe)
@@ -78,7 +78,7 @@ class TestGaussNewtonStep(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state = gauss_newton_step(state, residual_fn)
+        new_state = gn_step(state, residual_fn)
 
         chex.assert_trees_all_close(new_state.sample, sample)
         chex.assert_trees_all_close(new_state.probe, probe)
@@ -97,7 +97,7 @@ class TestGaussNewtonStep(chex.TestCase):
         sample, probe = unflatten_params(params, (1, 1), (1, 1))
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state = gauss_newton_step(state, residual_fn, cg_maxiter=20)
+        new_state = gn_step(state, residual_fn, cg_maxiter=20)
 
         chex.assert_trees_all_equal(new_state.converged, jnp.array(True))
 
@@ -113,10 +113,10 @@ class TestGaussNewtonStep(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state_no_precond = gauss_newton_step(
+        new_state_no_precond = gn_step(
             state, residual_fn, cg_maxiter=20, use_preconditioner=False
         )
-        new_state_with_precond = gauss_newton_step(
+        new_state_with_precond = gn_step(
             state, residual_fn, cg_maxiter=20, use_preconditioner=True
         )
 
@@ -149,7 +149,7 @@ class TestGaussNewtonStep(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state = gauss_newton_step(state, residual_fn, cg_maxiter=20)
+        new_state = gn_step(state, residual_fn, cg_maxiter=20)
 
         chex.assert_trees_all_equal(new_state.converged, jnp.array(True))
         chex.assert_trees_all_equal(new_state.iteration, jnp.array(1))
@@ -166,7 +166,7 @@ class TestGaussNewtonStep(chex.TestCase):
         sample, probe = unflatten_params(params, (1, 1), (1, 1))
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        new_state = gauss_newton_step(state, residual_fn, cg_maxiter=20)
+        new_state = gn_step(state, residual_fn, cg_maxiter=20)
 
         chex.assert_trees_all_equal(new_state.converged, jnp.array(True))
         chex.assert_trees_all_equal(new_state.iteration, jnp.array(1))
@@ -174,7 +174,7 @@ class TestGaussNewtonStep(chex.TestCase):
 
 
 class TestMakeJtjMatvec(chex.TestCase):
-    """Tests for make_jtj_matvec."""
+    """Tests for jtj_matvec."""
 
     @chex.variants(without_jit=True)
     def test_matches_explicit_jtj(self) -> None:
@@ -188,7 +188,7 @@ class TestMakeJtjMatvec(chex.TestCase):
         params = jnp.array([0.1, -0.2])
         damping = jnp.array(0.5)
         v = jnp.array([1.0, -2.0])
-        matvec = self.variant(make_jtj_matvec)(residual_fn, params, damping)
+        matvec = self.variant(jtj_matvec)(residual_fn, params, damping)
 
         j = jax.jacobian(residual_fn)(params)
         expected = j.T @ j @ v + damping * v
@@ -197,7 +197,7 @@ class TestMakeJtjMatvec(chex.TestCase):
 
 
 class TestComputeJtResidual(chex.TestCase):
-    """Tests for compute_jt_residual."""
+    """Tests for jt_residual."""
 
     @chex.variants(without_jit=True)
     def test_gradient_matches_autodiff(self) -> None:
@@ -209,7 +209,7 @@ class TestComputeJtResidual(chex.TestCase):
             )
 
         params = jnp.array([0.4, -0.1])
-        var_compute = self.variant(compute_jt_residual)
+        var_compute = self.variant(jt_residual)
         residuals, jt_r = var_compute(residual_fn, params)
 
         loss_fn = lambda x: 0.5 * jnp.sum(residual_fn(x) ** 2)
@@ -228,7 +228,7 @@ class TestComputeJtResidual(chex.TestCase):
 
         params = jnp.array([0.4, -0.1])
         weights = jnp.array([2.0, 0.5])
-        var_compute = self.variant(compute_jt_residual)
+        var_compute = self.variant(jt_residual)
         residuals, jt_wr = var_compute(residual_fn, params, weights)
 
         weighted_loss_fn = lambda x: 0.5 * jnp.sum(
@@ -240,7 +240,7 @@ class TestComputeJtResidual(chex.TestCase):
 
 
 class TestMakeHessianMatvec(chex.TestCase):
-    """Tests for make_hessian_matvec."""
+    """Tests for hessian_matvec."""
 
     @chex.variants(without_jit=True)
     def test_matches_explicit_hessian(self) -> None:
@@ -251,7 +251,7 @@ class TestMakeHessianMatvec(chex.TestCase):
 
         params = jnp.array([0.5, -1.5])
         v = jnp.array([1.0, -2.0])
-        hvp = self.variant(make_hessian_matvec)(loss_fn, params)
+        hvp = self.variant(hessian_matvec)(loss_fn, params)
 
         h = jax.hessian(loss_fn)(params)
         expected = h @ v
@@ -260,7 +260,7 @@ class TestMakeHessianMatvec(chex.TestCase):
 
 
 class TestEstimateMaxEigenvalue(chex.TestCase):
-    """Tests for estimate_max_eigenvalue."""
+    """Tests for max_eigenval."""
 
     @chex.variants(without_jit=True)
     def test_known_largest_eigenvalue(self) -> None:
@@ -272,14 +272,14 @@ class TestEstimateMaxEigenvalue(chex.TestCase):
             return a @ x
 
         params = jnp.array([0.1, -0.2, 0.3, -0.4])
-        var_estimate = self.variant(estimate_max_eigenvalue)
+        var_estimate = self.variant(max_eigenval)
         lambda_max = var_estimate(residual_fn, params, num_iterations=30)
 
         chex.assert_trees_all_close(lambda_max, jnp.array(16.0), rtol=1e-2)
 
 
 class TestEstimateJtjDiagonal(chex.TestCase):
-    """Tests for estimate_jtj_diagonal."""
+    """Tests for jtj_diag."""
 
     @chex.variants(without_jit=True)
     def test_diagonal_matches_linear_case(self) -> None:
@@ -291,7 +291,7 @@ class TestEstimateJtjDiagonal(chex.TestCase):
             return a @ x
 
         params = jnp.array([0.1, -0.2, 0.3, -0.4])
-        var_estimate = self.variant(estimate_jtj_diagonal)
+        var_estimate = self.variant(jtj_diag)
         diag = var_estimate(residual_fn, params, num_samples=300)
 
         chex.assert_trees_all_close(
@@ -300,7 +300,7 @@ class TestEstimateJtjDiagonal(chex.TestCase):
 
 
 class TestGaussNewtonSolve(chex.TestCase):
-    """Tests for gauss_newton_solve."""
+    """Tests for gn_solve."""
 
     def test_converges_to_solution(self) -> None:
         """Solver should converge to optimal solution within max iterations."""
@@ -314,7 +314,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        final_state = gauss_newton_solve(
+        final_state = gn_solve(
             state, residual_fn, max_iterations=50, cg_maxiter=20
         )
 
@@ -333,7 +333,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
         max_iter = 5
-        final_state = gauss_newton_solve(
+        final_state = gn_solve(
             state, residual_fn, max_iterations=max_iter
         )
 
@@ -351,7 +351,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        final_state = gauss_newton_solve(
+        final_state = gn_solve(
             state, residual_fn, max_iterations=50, cg_maxiter=20
         )
 
@@ -368,7 +368,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        final_state = gauss_newton_solve(state, residual_fn, max_iterations=10)
+        final_state = gn_solve(state, residual_fn, max_iterations=10)
 
         chex.assert_trees_all_equal(final_state.converged, jnp.array(True))
         assert final_state.iteration <= 2
@@ -385,7 +385,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        final_state = gauss_newton_solve(
+        final_state = gn_solve(
             state,
             residual_fn,
             max_iterations=50,
@@ -409,7 +409,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
         jitted_solve = jax.jit(
-            gauss_newton_solve,
+            gn_solve,
             static_argnums=(1, 2, 3, 4, 5),
         )
 
@@ -430,7 +430,7 @@ class TestGaussNewtonSolve(chex.TestCase):
         probe = jnp.zeros((1, 1), dtype=jnp.complex128)
         state = make_gauss_newton_state(sample, probe, damping=1e-3)
 
-        final_state = gauss_newton_solve(
+        final_state = gn_solve(
             state, residual_fn, max_iterations=100, cg_maxiter=50
         )
 

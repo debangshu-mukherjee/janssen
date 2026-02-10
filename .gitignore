@@ -4,10 +4,10 @@ __pycache__/
 *.pyc
 
 # AI Assistants
-.claude/
-.claude/CLAUDE.md
-.claude/partial_coherence_plan.md
-.qodo/
+.agents/
+.agents/CLAUDE.md
+.agents/partial_coherence_plan.md
+.agents/QODO.md
 
 # Test data
 /data/

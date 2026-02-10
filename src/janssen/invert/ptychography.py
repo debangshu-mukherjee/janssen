@@ -54,8 +54,9 @@ from janssen.types import (
 )
 from janssen.utils import (
     fourier_shift,
-    gauss_newton_solve,
     get_device_memory_gb,
+    gn_loss_history,
+    gn_solve,
     unflatten_params,
 )
 
@@ -841,44 +842,46 @@ def profile_gn_memory(
     >>> profile = profile_gn_memory(data, init_recon, cg_maxiter=3)
     >>> print(f"Peak memory: {profile['peak_per_device_gb']:.2f} GB")
     """
+
     def get_memory_snapshot(label: str) -> dict:
         """Capture memory across all devices (GPU/TPU/CPU)."""
-        snapshot = {'label': label, 'devices': []}
+        snapshot = {"label": label, "devices": []}
         supported_devices = 0
 
         for i, device in enumerate(jax.devices()):
             try:
                 stats = device.memory_stats()
-                snapshot['devices'].append({
-                    'id': i,
-                    'platform': device.platform,
-                    'bytes': stats.get('bytes_in_use', 0),
-                    'peak': stats.get('peak_bytes_in_use', 0),
-                })
+                snapshot["devices"].append(
+                    {
+                        "id": i,
+                        "platform": device.platform,
+                        "bytes": stats.get("bytes_in_use", 0),
+                        "peak": stats.get("peak_bytes_in_use", 0),
+                    }
+                )
                 supported_devices += 1
             except (AttributeError, NotImplementedError, KeyError):
-                snapshot['devices'].append({
-                    'id': i,
-                    'platform': device.platform,
-                    'unsupported': True,
-                })
+                snapshot["devices"].append(
+                    {
+                        "id": i,
+                        "platform": device.platform,
+                        "unsupported": True,
+                    }
+                )
 
         if verbose and supported_devices > 0:
             print(f"\n{label}:")
             total_gb = (
-                sum(d.get('bytes', 0) for d in snapshot['devices'])
-                / 1e9
+                sum(d.get("bytes", 0) for d in snapshot["devices"]) / 1e9
             )
-            peak_gb = (
-                max(d.get('peak', 0) for d in snapshot['devices']) / 1e9
-            )
+            peak_gb = max(d.get("peak", 0) for d in snapshot["devices"]) / 1e9
             print(
                 f"  Total: {total_gb:.2f} GB, "
                 f"Peak/device: {peak_gb:.2f} GB "
                 f"({supported_devices}/{len(jax.devices())} devices)"
             )
         elif verbose and supported_devices == 0:
-            platforms = {d['platform'] for d in snapshot['devices']}
+            platforms = {d["platform"] for d in snapshot["devices"]}
             print(f"\n{label}:")
             print(
                 f"  Memory profiling not supported on "
@@ -888,7 +891,7 @@ def profile_gn_memory(
         return snapshot
 
     profile = {}
-    profile['baseline'] = get_memory_snapshot("Baseline")
+    profile["baseline"] = get_memory_snapshot("Baseline")
 
     try:
         if verbose:
@@ -902,35 +905,32 @@ def profile_gn_memory(
             cg_tol=1e-2,
         )
 
-        profile['after_gn'] = get_memory_snapshot("After 1 GN iteration")
-        profile['succeeded'] = True
+        profile["after_gn"] = get_memory_snapshot("After 1 GN iteration")
+        profile["succeeded"] = True
 
         peak_values = [
-            d.get('peak', 0)
+            d.get("peak", 0)
             for s in profile.values()
-            if isinstance(s, dict) and 'devices' in s
-            for d in s['devices']
-            if 'peak' in d
+            if isinstance(s, dict) and "devices" in s
+            for d in s["devices"]
+            if "peak" in d
         ]
 
         if peak_values:
-            profile['peak_per_device_gb'] = max(peak_values) / 1e9
+            profile["peak_per_device_gb"] = max(peak_values) / 1e9
             if verbose:
                 print("\n✓ Profiling succeeded!")
-                peak_mem = profile['peak_per_device_gb']
+                peak_mem = profile["peak_per_device_gb"]
                 print(f"  Peak memory: {peak_mem:.2f} GB/device")
         else:
-            profile['peak_per_device_gb'] = None
+            profile["peak_per_device_gb"] = None
             if verbose:
-                print(
-                    "\n✓ Profiling succeeded "
-                    "(memory stats unavailable)"
-                )
+                print("\n✓ Profiling succeeded " "(memory stats unavailable)")
 
     except Exception as e:
-        profile['after_gn'] = get_memory_snapshot("At failure")
-        profile['succeeded'] = False
-        profile['error'] = str(e)
+        profile["after_gn"] = get_memory_snapshot("At failure")
+        profile["succeeded"] = False
+        profile["error"] = str(e)
 
         if verbose:
             print(f"\n✗ Profiling failed: {e}")
@@ -1174,13 +1174,14 @@ def optimal_cg_params(
 
 
 @jaxtyped(typechecker=beartype)
-def simple_microscope_gn(
+def simple_microscope_gn(  # noqa: PLR0915
     experimental_data: MicroscopeData,
     reconstruction: PtychographyReconstruction,
     num_iterations: int = 10,
     initial_damping: float = 1e-3,
     cg_maxiter: int = -1,
     cg_tol: float = -1.0,
+    save_every: int = 10,
 ) -> PtychographyReconstruction:
     """Perform ptychographic reconstruction using Gauss-Newton optimization.
 
@@ -1214,27 +1215,30 @@ def simple_microscope_gn(
     2. **Warm-up Compilation** (Automatic for N > 50):
        - Creates warmup_data with first 25 positions
        - Defines _warmup_residuals using warmup subset
-       - Runs gauss_newton_solve for 1 iteration with max_iterations=1
+       - Runs gn_solve for 1 iteration with max_iterations=1
        - Critical: triggers JIT compilation with small problem
        - Compilation time: ~30s for warmup vs 5+ minutes for full problem
        - Memory during compilation: ~2× runtime memory
        - After warmup, full problem reuses compiled kernels
 
-    3. **Gauss-Newton Optimization**:
-       - Calls gauss_newton_solve with _amplitude_residuals
+    3. **Chunked Gauss-Newton Optimization**:
+       - Runs gn_loss_history in chunks of size
+         `save_every`
        - Each GN iteration:
          a. Computes residuals r(θ) and loss = 0.5 * ||r||^2
-         b. Forms (J^T J + λI) operator via make_jtj_matvec
+         b. Forms (J^T J + λI) operator via jtj_matvec
          c. Solves (J^T J + λI) δ = -J^T r via conjugate gradient
          d. Updates parameters: θ_new = θ + δ
          e. Adapts damping λ based on trust-region criterion
-       - CG uses cg_maxiter=20, cg_tol=1e-4 (memory-optimized defaults)
-       - Returns final GaussNewtonState with optimized sample and probe
+       - Stores full per-iteration loss history across all chunks
+       - Stores sample/probe snapshots only at chunk boundaries
+         (every `save_every` iterations)
+       - Reduces memory compared to storing full state history every step
 
     4. **Result Packaging**:
        - Converts GaussNewtonState to PtychographyReconstruction
-       - Unflatens final parameters into sample and probe
-       - Appends intermediate_* arrays for this iteration
+       - Unflattens final parameters into sample and probe
+       - Appends sparse intermediate_* snapshots and full loss history
        - Returns updated reconstruction
 
     Parameters
@@ -1257,6 +1261,10 @@ def simple_microscope_gn(
         CG convergence tolerance. Default is -1.0, which automatically
         calculates optimal value via optimal_cg_params. Set to positive
         value to override automatic calculation.
+    save_every : int, optional
+        Save sample/probe snapshots in intermediate history once every
+        `save_every` iterations. Full loss history is still recorded at
+        every iteration. Default is 10.
 
     Returns
     -------
@@ -1338,7 +1346,8 @@ def simple_microscope_gn(
     optimal_cg_params : Calculate optimal CG parameters for your problem
     simple_microscope_optim : First-order gradient-based optimization
     simple_microscope_epie : Extended PIE algorithm
-    gauss_newton_solve : General-purpose Gauss-Newton solver
+    gn_solve : General-purpose Gauss-Newton solver
+    gn_loss_history : GN solver with loss-only history
 
     Examples
     --------
@@ -1379,6 +1388,9 @@ def simple_microscope_gn(
     else:
         cg_maxiter_used: int = cg_maxiter
         cg_tol_used: float = cg_tol
+    if save_every <= 0:
+        msg: str = f"save_every must be positive, got {save_every}"
+        raise ValueError(msg)
 
     def _amplitude_residuals(params: Float[Array, " n"]) -> Float[Array, " m"]:
         sample_shape: Tuple[int, int] = sample.sample.shape
@@ -1440,7 +1452,7 @@ def simple_microscope_gn(
         )
 
         def _warmup_residuals(
-            params: Float[Array, " n"]
+            params: Float[Array, " n"],
         ) -> Float[Array, " m"]:
             sample_shape: Tuple[int, int] = sample.sample.shape
             probe_shape: Tuple[int, int] = lightwave.field.shape
@@ -1478,33 +1490,80 @@ def simple_microscope_gn(
             )
             return (amp_measured - amp_predicted).ravel()
 
-        _ = gauss_newton_solve(
+        _ = gn_solve(
             state,
             _warmup_residuals,
             max_iterations=1,
             cg_maxiter=cg_maxiter_used,
             cg_tol=cg_tol_used,
         )
-    final_state: GaussNewtonState = gauss_newton_solve(
-        state,
-        _amplitude_residuals,
-        max_iterations=num_iterations,
-        cg_maxiter=cg_maxiter_used,
-        cg_tol=cg_tol_used,
-    )
+    full_loss_chunks: list[Float[Array, " N"]]
+    full_loss_chunks = []
+    sample_snapshots: list[Complex[Array, " H W"]]
+    sample_snapshots = []
+    probe_snapshots: list[Complex[Array, " H W"]]
+    probe_snapshots = []
+    current_state: GaussNewtonState = state
+    remaining: int = num_iterations
+
+    while remaining > 0:
+        this_chunk: int = min(save_every, remaining)
+        current_state, chunk_losses = gn_loss_history(
+            current_state,
+            _amplitude_residuals,
+            max_iterations=this_chunk,
+            cg_maxiter=cg_maxiter_used,
+            cg_tol=cg_tol_used,
+        )
+        full_loss_chunks.append(chunk_losses)
+        sample_snapshots.append(current_state.sample)
+        probe_snapshots.append(current_state.probe)
+        remaining -= this_chunk
+
+    if num_iterations > 0:
+        all_losses: Float[Array, " N"] = jnp.concatenate(
+            full_loss_chunks, axis=0
+        )
+        snapshot_samples: Complex[Array, " K H W"] = jnp.stack(
+            sample_snapshots, axis=0
+        )
+        snapshot_probes: Complex[Array, " K H W"] = jnp.stack(
+            probe_snapshots, axis=0
+        )
+    else:
+        all_losses = jnp.zeros((0,), dtype=jnp.float64)
+        snapshot_samples = jnp.zeros(
+            (0, *sample.sample.shape), dtype=jnp.complex128
+        )
+        snapshot_probes = jnp.zeros(
+            (0, *lightwave.field.shape), dtype=jnp.complex128
+        )
+
+    final_state: GaussNewtonState = current_state
     return _gn_state_to_ptychography_reconstruction(
-        final_state, reconstruction, sample.dx
+        final_state,
+        snapshot_samples,
+        snapshot_probes,
+        all_losses,
+        reconstruction,
+        sample.dx,
     )
+
 
 def _gn_state_to_ptychography_reconstruction(
     final_state: GaussNewtonState,
+    snapshot_samples: Complex[Array, " K H W"],
+    snapshot_probes: Complex[Array, " K H W"],
+    all_losses: Float[Array, " N"],
     reconstruction: PtychographyReconstruction,
     sample_dx: Float[Array, " "],
 ) -> PtychographyReconstruction:
     """Pack Gauss-Newton state and geometry into a PtychographyReconstruction.
 
-    Builds sample/lightwave from final_state, expands dims for intermediates,
-    and concatenates with any previous intermediates from reconstruction.
+    Builds sample/lightwave from final_state, stores sparse sample/probe
+    snapshots, records full loss history, and concatenates with any previous
+    intermediates/losses from reconstruction. Handles global iteration
+    numbering across resume calls.
     """
     lightwave: OpticalWavefront = reconstruction.lightwave
     translated_positions: Float[Array, " N 2"] = (
@@ -1529,29 +1588,60 @@ def _gn_state_to_ptychography_reconstruction(
         z_position=lightwave.z_position,
     )
 
-    intermediate_samples: Complex[Array, " H W 1"] = jnp.expand_dims(
-        final_state.sample, axis=-1
-    )
-    intermediate_lightwaves: Complex[Array, " H W 1"] = jnp.expand_dims(
-        final_state.probe, axis=-1
-    )
-    intermediate_zoom_factors: Float[Array, " 1"] = jnp.array(
-        [zoom_factor], dtype=jnp.float64
-    )
-    intermediate_aperture_diameters: Float[Array, " 1"] = jnp.array(
-        [aperture_diameter], dtype=jnp.float64
-    )
-    intermediate_aperture_centers: Float[Array, " 2 1"] = jnp.expand_dims(
-        aperture_center, axis=-1
-    )
-    intermediate_travel_distances: Float[Array, " 1"] = jnp.array(
-        [travel_distance], dtype=jnp.float64
-    )
-    losses: Float[Array, " 1 2"] = jnp.array(
-        [[final_state.iteration, final_state.loss]], dtype=jnp.float64
-    )
+    prev_losses: Float[Array, " M 2"] = reconstruction.losses
+    num_iterations: int = int(all_losses.shape[0])
+    num_snapshots: int = int(snapshot_samples.shape[0])
+    if num_snapshots == 0:
+        intermediate_samples: Complex[Array, " H W 0"] = jnp.zeros(
+            (*final_state.sample.shape, 0), dtype=jnp.complex128
+        )
+        intermediate_lightwaves: Complex[Array, " H W 0"] = jnp.zeros(
+            (*final_state.probe.shape, 0), dtype=jnp.complex128
+        )
+        intermediate_zoom_factors: Float[Array, " 0"] = jnp.zeros(
+            (0,), dtype=jnp.float64
+        )
+        intermediate_aperture_diameters: Float[Array, " 0"] = jnp.zeros(
+            (0,), dtype=jnp.float64
+        )
+        intermediate_aperture_centers: Float[Array, " 2 0"] = jnp.zeros(
+            (2, 0), dtype=jnp.float64
+        )
+        intermediate_travel_distances: Float[Array, " 0"] = jnp.zeros(
+            (0,), dtype=jnp.float64
+        )
+        losses: Float[Array, " 0 2"] = jnp.zeros((0, 2), dtype=jnp.float64)
+    else:
+        intermediate_samples: Complex[Array, " H W K"] = jnp.transpose(
+            snapshot_samples, (1, 2, 0)
+        )
+        intermediate_lightwaves: Complex[Array, " H W K"] = jnp.transpose(
+            snapshot_probes, (1, 2, 0)
+        )
+        intermediate_zoom_factors: Float[Array, " K"] = jnp.full(
+            num_snapshots, zoom_factor, dtype=jnp.float64
+        )
+        intermediate_aperture_diameters: Float[Array, " K"] = jnp.full(
+            num_snapshots, aperture_diameter, dtype=jnp.float64
+        )
+        intermediate_aperture_centers: Float[Array, " 2 K"] = jnp.broadcast_to(
+            aperture_center[:, None], (2, num_snapshots)
+        )
+        intermediate_travel_distances: Float[Array, " K"] = jnp.full(
+            num_snapshots, travel_distance, dtype=jnp.float64
+        )
 
-    prev_losses: Float[Array, " N 2"] = reconstruction.losses
+        losses = jnp.zeros((0, 2), dtype=jnp.float64)
+    start_iteration: Float[Array, " "] = jnp.where(
+        prev_losses.shape[0] > 0,
+        prev_losses[-1, 0] + 1.0,
+        0.0,
+    )
+    if num_iterations > 0:
+        iteration_numbers: Float[Array, " N"] = start_iteration + jnp.arange(
+            num_iterations, dtype=jnp.float64
+        )
+        losses = jnp.stack([iteration_numbers, all_losses], axis=1)
     if prev_losses.shape[0] > 0:
         intermediate_samples = jnp.concatenate(
             [

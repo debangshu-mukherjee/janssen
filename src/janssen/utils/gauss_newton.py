@@ -22,19 +22,23 @@ conjugate gradient with automatic damping adaptation.
 
 Routine Listings
 ----------------
-make_jtj_matvec : function
+jtj_matvec : function
     Create (J^T J + λI) matrix-vector product operator.
-compute_jt_residual : function
+jt_residual : function
     Compute residuals and J^T @ r simultaneously.
-make_hessian_matvec : function
+hessian_matvec : function
     Create exact Hessian-vector product operator.
-gauss_newton_step : function
+gn_step : function
     Generic Gauss-Newton step with trust-region damping.
-gauss_newton_solve : function
+gn_solve : function
     High-level solver that runs Gauss-Newton until convergence.
-estimate_max_eigenvalue : function
+gn_history : function
+    Gauss-Newton solver with per-iteration history tracking.
+gn_loss_history : function
+    Gauss-Newton solver with per-iteration loss tracking only.
+max_eigenval : function
     Estimate largest eigenvalue of J^T J via power iteration.
-estimate_jtj_diagonal : function
+jtj_diag : function
     Estimate diagonal of J^T J for preconditioning.
 
 Notes
@@ -80,7 +84,7 @@ MIN_DAMPING = 1e-12
 MAX_DAMPING = 1e8
 
 
-def make_jtj_matvec(
+def jtj_matvec(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
     damping: Float[Array, " "],
@@ -153,7 +157,7 @@ def make_jtj_matvec(
     >>> def residual_fn(x):
     ...     return jnp.array([x[0]**2 - 1, x[1]**2 - 4])
     >>> params = jnp.array([1.5, 2.5])
-    >>> matvec = make_jtj_matvec(residual_fn, params, jnp.array(1e-3))
+    >>> matvec = jtj_matvec(residual_fn, params, jnp.array(1e-3))
     >>> result = matvec(jnp.array([1.0, 0.0]))
     """
     _: Float[Array, " m"]
@@ -172,7 +176,7 @@ def make_jtj_matvec(
 
 
 @partial(jax.jit, static_argnums=(0,))
-def compute_jt_residual(
+def jt_residual(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
     weights: Union[ScalarNumeric, Float[Array, " m"]] = -1.0,
@@ -247,10 +251,10 @@ def compute_jt_residual(
     >>> def residual_fn(x):
     ...     return x**2 - jnp.array([1.0, 4.0])
     >>> params = jnp.array([1.5, 2.5])
-    >>> r, jt_r = compute_jt_residual(residual_fn, params)
+    >>> r, jt_r = jt_residual(residual_fn, params)
     >>> # Weighted version:
     >>> weights = jnp.array([2.0, 0.5])
-    >>> r, jt_wr = compute_jt_residual(residual_fn, params, weights)
+    >>> r, jt_wr = jt_residual(residual_fn, params, weights)
     """
     residuals: Float[Array, " m"]
     vjp_fn: Callable[[Float[Array, " m"]], Tuple[Float[Array, " n"]]]
@@ -268,7 +272,7 @@ def compute_jt_residual(
     return residuals, jt_wr
 
 
-def make_hessian_matvec(
+def hessian_matvec(
     loss_fn: Callable[[Float[Array, " n"]], Float[Array, " "]],
     params: Float[Array, " n"],
 ) -> Callable[[Float[Array, " n"]], Float[Array, " n"]]:
@@ -340,7 +344,7 @@ def make_hessian_matvec(
     >>> def loss_fn(x):
     ...     return jnp.sum(x**4)
     >>> params = jnp.array([1.0, 2.0])
-    >>> hvp = make_hessian_matvec(loss_fn, params)
+    >>> hvp = hessian_matvec(loss_fn, params)
     >>> result = hvp(jnp.array([1.0, 0.0]))
     """
     grad_fn: Callable[[Float[Array, " n"]], Float[Array, " n"]]
@@ -357,7 +361,7 @@ def make_hessian_matvec(
 
 @partial(jax.jit, static_argnums=(1, 2, 3))
 @jaxtyped(typechecker=beartype)
-def gauss_newton_step(
+def gn_step(
     state: GaussNewtonState,
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     cg_maxiter: int = 50,
@@ -381,12 +385,12 @@ def gauss_newton_step(
     **Phase 1: Setup and Gradient Computation**
     1. Extract sample and probe shapes from state
     2. Flatten complex arrays (sample, probe) → real vector params
-    3. Compute residuals r and gradient J^T @ r via compute_jt_residual
+    3. Compute residuals r and gradient J^T @ r via jt_residual
        - Cost: 1 forward + 1 backward pass through residual_fn
     4. Compute current loss: 0.5 ||r||²
 
     **Phase 2: Linear System Construction**
-    5. Build matrix-vector operator: matvec = make_jtj_matvec(...)
+    5. Build matrix-vector operator: matvec = jtj_matvec(...)
        - Computes (J^T J + λI) @ v using JVP/VJP composition
        - Caches vjp_fn to avoid redundant computation in CG
     6. If use_preconditioner=True:
@@ -530,9 +534,9 @@ def gauss_newton_step(
     Examples
     --------
     >>> state = make_gauss_newton_state(sample, probe)
-    >>> new_state = gauss_newton_step(state, my_residual_fn)
+    >>> new_state = gn_step(state, my_residual_fn)
     >>> # With preconditioning for better convergence:
-    >>> new_state = gauss_newton_step(state, my_residual_fn,
+    >>> new_state = gn_step(state, my_residual_fn,
     ...                               use_preconditioner=True)
     """
     sample_shape: Tuple[int, int] = state.sample.shape
@@ -540,7 +544,7 @@ def gauss_newton_step(
     params: Float[Array, " n"] = flatten_params(state.sample, state.probe)
     residuals: Float[Array, " m"]
     jt_r: Float[Array, " n"]
-    residuals, jt_r = compute_jt_residual(residual_fn, params)
+    residuals, jt_r = jt_residual(residual_fn, params)
     residuals_finite: Bool[Array, " "] = jnp.all(jnp.isfinite(residuals))
     residuals = jnp.where(
         residuals_finite, residuals, jnp.zeros_like(residuals)
@@ -548,11 +552,11 @@ def gauss_newton_step(
     current_loss: Float[Array, " "] = 0.5 * jnp.sum(residuals**2)
     loss_near_zero: Bool[Array, " "] = current_loss < LOSS_ZERO_TOL
     matvec: Callable[[Float[Array, " n"]], Float[Array, " n"]] = (
-        make_jtj_matvec(residual_fn, params, state.damping)
+        jtj_matvec(residual_fn, params, state.damping)
     )
     diag_jtj: Float[Array, " n"] = jax.lax.cond(
         use_preconditioner,
-        lambda: estimate_jtj_diagonal(residual_fn, params, num_samples=10),
+        lambda: jtj_diag(residual_fn, params, num_samples=10),
         lambda: jnp.ones_like(params),
     )
     diag_with_damping: Float[Array, " n"] = (
@@ -641,7 +645,7 @@ def gauss_newton_step(
 
 @partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
 @jaxtyped(typechecker=beartype)
-def gauss_newton_solve(
+def gn_solve(
     state: GaussNewtonState,
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     max_iterations: int = 100,
@@ -651,7 +655,7 @@ def gauss_newton_solve(
 ) -> GaussNewtonState:
     """Run Gauss-Newton optimization until convergence or max iterations.
 
-    High-level solver that repeatedly calls gauss_newton_step until the
+    High-level solver that repeatedly calls gn_step until the
     optimization converges or reaches the maximum iteration limit. This
     provides a single entry point for running the full optimization.
 
@@ -660,10 +664,10 @@ def gauss_newton_solve(
     The function uses jax.lax.scan for efficient iteration:
 
     1. **Internal Step Function** step_fn(carry, _):
-       Wraps gauss_newton_step with early stopping logic:
+       Wraps gn_step with early stopping logic:
        a. Check if carry.converged is True
        b. If converged: return carry unchanged (no-op)
-       c. If not converged: call gauss_newton_step(carry, ...)
+       c. If not converged: call gn_step(carry, ...)
        d. Return updated state
 
        Uses jax.lax.cond for control flow:
@@ -702,7 +706,7 @@ def gauss_newton_solve(
     Computational Cost
     ------------------
     If convergence happens at iteration k < max_iterations:
-    - Active iterations: k × cost(gauss_newton_step)
+    - Active iterations: k × cost(gn_step)
     - No-op iterations: (max_iterations - k) × cost(lax.cond)
     - No-op cost is ~microseconds, negligible vs GN step (~seconds)
 
@@ -746,7 +750,7 @@ def gauss_newton_solve(
     Examples
     --------
     >>> state = make_gauss_newton_state(sample, probe)
-    >>> final_state = gauss_newton_solve(state, my_residual_fn,
+    >>> final_state = gn_solve(state, my_residual_fn,
     ...                                   max_iterations=50)
     >>> print(f"Converged: {final_state.converged}")
     >>> print(f"Final loss: {final_state.loss}")
@@ -758,7 +762,7 @@ def gauss_newton_solve(
         result: GaussNewtonState = jax.lax.cond(
             carry.converged,
             lambda: carry,
-            lambda: gauss_newton_step(
+            lambda: gn_step(
                 carry,
                 residual_fn,
                 cg_maxiter=cg_maxiter,
@@ -774,9 +778,163 @@ def gauss_newton_solve(
     return final_state
 
 
+@partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
+@jaxtyped(typechecker=beartype)
+def gn_history(
+    state: GaussNewtonState,
+    residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
+    max_iterations: int = 100,
+    cg_maxiter: int = 50,
+    cg_tol: float = 1e-5,
+    use_preconditioner: bool = False,
+) -> Tuple[GaussNewtonState, GaussNewtonState, Float[Array, " N"]]:
+    """Run Gauss-Newton optimization with per-iteration history tracking.
+
+    Like gn_solve but returns intermediate states and losses
+    at each iteration, enabling convergence diagnostics and visualization.
+
+    Implementation Logic
+    --------------------
+    Same iteration strategy as gn_solve using jax.lax.scan,
+    but scan outputs capture per-iteration states:
+
+    1. **Internal Step Function** step_fn(carry, _):
+       a. Check if carry.converged is True
+       b. If converged: return carry unchanged (no-op)
+       c. If not converged: call gn_step(carry, ...)
+       d. Return updated state and output tuple (state, loss)
+
+    2. **Main Loop**:
+       jax.lax.scan(step_fn, state, None, length=max_iterations)
+       - Returns both final_state and outputs PyTree
+       - Outputs contain all intermediate states and losses
+
+    The scan outputs are PyTrees where each leaf has an additional
+    dimension of size max_iterations. For example, if state.sample
+    has shape (H, W), then all_states.sample has shape (H, W, N)
+    where N = max_iterations.
+
+    Parameters
+    ----------
+    state : GaussNewtonState
+        Initial optimization state containing sample, probe, iteration,
+        loss, damping, and convergence status.
+    residual_fn : Callable[[Float[Array, " n"]], Float[Array, " m"]]
+        Function mapping flattened parameters to residuals.
+    max_iterations : int, optional
+        Maximum number of Gauss-Newton iterations. Default is 100.
+    cg_maxiter : int, optional
+        Maximum conjugate gradient iterations per step. Default is 50.
+    cg_tol : float, optional
+        CG convergence tolerance. Default is 1e-5.
+    use_preconditioner : bool, optional
+        Whether to use diagonal preconditioning for CG. Default is False.
+
+    Returns
+    -------
+    final_state : GaussNewtonState
+        Final optimization state after convergence or max iterations.
+    all_states : GaussNewtonState
+        PyTree with all intermediate states. Each field has an extra
+        dimension of size max_iterations stacked along the last axis.
+        For example, if state.sample is (H, W), all_states.sample
+        is (H, W, max_iterations).
+    all_losses : Float[Array, " N"]
+        Loss value at each iteration, shape (max_iterations,).
+
+    Notes
+    -----
+    This function is useful for:
+    - Convergence diagnostics and plotting
+    - Creating visualizations of optimization progress
+    - Debugging optimization issues
+    - Resume/continuation with full history tracking
+
+    If you only need the final state (not intermediate history), use
+    gn_solve instead for slightly lower memory usage.
+
+    Examples
+    --------
+    >>> state = make_gauss_newton_state(sample, probe)
+    >>> final, history, losses = gn_history(
+    ...     state, my_residual_fn, max_iterations=50
+    ... )
+    >>> print(f"Converged: {final.converged}")
+    >>> print(f"Loss history shape: {losses.shape}")  # (50,)
+    >>> print(f"Sample history shape: {history.sample.shape}")  # (H, W, 50)
+    """
+
+    def step_fn(
+        carry: GaussNewtonState, _: None
+    ) -> Tuple[GaussNewtonState, Tuple[GaussNewtonState, Float[Array, " "]]]:
+        result: GaussNewtonState = jax.lax.cond(
+            carry.converged,
+            lambda: carry,
+            lambda: gn_step(
+                carry,
+                residual_fn,
+                cg_maxiter=cg_maxiter,
+                cg_tol=cg_tol,
+                use_preconditioner=use_preconditioner,
+            ),
+        )
+        return result, (result, result.loss)
+
+    final_state: GaussNewtonState
+    outputs: Tuple[GaussNewtonState, Float[Array, " N"]]
+    final_state, outputs = jax.lax.scan(
+        step_fn, state, None, length=max_iterations
+    )
+    all_states: GaussNewtonState
+    all_losses: Float[Array, " N"]
+    all_states, all_losses = outputs
+    return final_state, all_states, all_losses
+
+
+@partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
+@jaxtyped(typechecker=beartype)
+def gn_loss_history(
+    state: GaussNewtonState,
+    residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
+    max_iterations: int = 100,
+    cg_maxiter: int = 50,
+    cg_tol: float = 1e-5,
+    use_preconditioner: bool = False,
+) -> Tuple[GaussNewtonState, Float[Array, " N"]]:
+    """Run Gauss-Newton optimization and return per-iteration losses.
+
+    This variant tracks only the scalar loss per iteration and not the
+    full state history, which keeps memory overhead low for large
+    ptychography problems.
+    """
+
+    def step_fn(
+        carry: GaussNewtonState, _: None
+    ) -> Tuple[GaussNewtonState, Float[Array, " "]]:
+        result: GaussNewtonState = jax.lax.cond(
+            carry.converged,
+            lambda: carry,
+            lambda: gn_step(
+                carry,
+                residual_fn,
+                cg_maxiter=cg_maxiter,
+                cg_tol=cg_tol,
+                use_preconditioner=use_preconditioner,
+            ),
+        )
+        return result, result.loss
+
+    final_state: GaussNewtonState
+    all_losses: Float[Array, " N"]
+    final_state, all_losses = jax.lax.scan(
+        step_fn, state, None, length=max_iterations
+    )
+    return final_state, all_losses
+
+
 @partial(jax.jit, static_argnums=(0, 2))
 @jaxtyped(typechecker=beartype)
-def estimate_max_eigenvalue(
+def max_eigenval(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
     num_iterations: int = 20,
@@ -791,7 +949,7 @@ def estimate_max_eigenvalue(
     The function implements the power iteration algorithm:
 
     1. **Setup**:
-       - Construct matvec operator: (J^T J) @ v via make_jtj_matvec
+       - Construct matvec operator: (J^T J) @ v via jtj_matvec
        - Initialize random unit vector v₀ ~ N(0, I), normalized
        - Uses fixed seed (42) for reproducibility
 
@@ -860,11 +1018,11 @@ def estimate_max_eigenvalue(
 
     Examples
     --------
-    >>> lambda_max = estimate_max_eigenvalue(residual_fn, params)
+    >>> lambda_max = max_eigenval(residual_fn, params)
     >>> print(f"Maximum eigenvalue: {lambda_max:.2e}")
     """
     matvec: Callable[[Float[Array, " n"]], Float[Array, " n"]] = (
-        make_jtj_matvec(residual_fn, params, jnp.array(0.0))
+        jtj_matvec(residual_fn, params, jnp.array(0.0))
     )
     key: Array = jax.random.PRNGKey(42)
     v: Float[Array, " n"] = jax.random.normal(key, params.shape)
@@ -887,7 +1045,7 @@ def estimate_max_eigenvalue(
 
 @partial(jax.jit, static_argnums=(0, 2))
 @jaxtyped(typechecker=beartype)
-def estimate_jtj_diagonal(
+def jtj_diag(
     residual_fn: Callable[[Float[Array, " n"]], Float[Array, " m"]],
     params: Float[Array, " n"],
     num_samples: int = 10,
@@ -902,7 +1060,7 @@ def estimate_jtj_diagonal(
     The function implements Hutchinson's stochastic trace estimator:
 
     1. **Setup**:
-       - Construct matvec operator: (J^T J) @ v via make_jtj_matvec
+       - Construct matvec operator: (J^T J) @ v via jtj_matvec
        - Generate num_samples independent random keys
 
     2. **Per-Sample Estimation** (parallelized via vmap):
@@ -999,12 +1157,12 @@ def estimate_jtj_diagonal(
 
     Examples
     --------
-    >>> diag = estimate_jtj_diagonal(residual_fn, params)
+    >>> diag = jtj_diag(residual_fn, params)
     >>> precond = 1.0 / jnp.sqrt(diag + 1e-6)
     """
     n: ScalarInteger = params.shape[0]
     matvec: Callable[[Float[Array, " n"]], Float[Array, " n"]] = (
-        make_jtj_matvec(residual_fn, params, jnp.array(0.0))
+        jtj_matvec(residual_fn, params, jnp.array(0.0))
     )
 
     def estimate_one(key: Array) -> Float[Array, " n"]:
